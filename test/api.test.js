@@ -3,10 +3,13 @@ import { handle } from '../src/index.js';
 import { createKey } from '../src/store.js';
 import { makeSession } from '../src/session.js';
 
-const kv = () => {
-  const m = new Map();
-  return { m, get: async (k) => m.get(k) ?? null, put: async (k, v) => void m.set(k, v), delete: async (k) => void m.delete(k) };
-};
+import { readFileSync } from 'node:fs';
+import { fakeD1 } from './d1.js';
+const SCHEMA = readFileSync(new URL('../schema.sql', import.meta.url), 'utf8');
+const db = () => fakeD1(SCHEMA);
+// Everything fleet stored, as one string, to check that no secret ever lands there.
+const dump = (env) => JSON.stringify([env.DB.raw.query('SELECT * FROM keys').all(), env.DB.raw.query('SELECT * FROM pods').all()]);
+const podsOf = (env, login) => env.DB.raw.query('SELECT * FROM pods WHERE login = ? ORDER BY n DESC').all(login).map((r) => ({ ...r, movedFrom: JSON.parse(r.moved_from), failedStart: r.failed_start ? JSON.parse(r.failed_start) : undefined }));
 const provider = (name, price, fail = false) => ({
   label: name,
   keyHeader: `X-${name}-Key`,
@@ -22,7 +25,7 @@ const providers = { cheap: provider('cheap', 0.01, true), mid: provider('mid', 0
 const ORIGIN = 'https://fleet.test';
 
 async function setup() {
-  const env = { KV: kv(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' };
+  const env = { DB: db(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' };
   const { key } = await createKey(env, 'octo', 'ci');
   const req = (method, path, body, headers = {}) =>
     handle(
@@ -60,7 +63,7 @@ describe('HTTP API', () => {
     expect((await prices.json()).prices.map((p) => p.provider)).toEqual(['cheap', 'mid']);
   });
   test('no fleet key is a 401', async () => {
-    const r = await handle(new Request(`${ORIGIN}/v1/pods`, { method: 'POST' }), { KV: kv() }, { providers });
+    const r = await handle(new Request(`${ORIGIN}/v1/pods`, { method: 'POST' }), { DB: db() }, { providers });
     expect(r.status).toBe(401);
   });
   test('create falls back, run and stop work, and pod facts are kept without the token', async () => {
@@ -71,10 +74,10 @@ describe('HTTP API', () => {
     expect(pod).toMatchObject({ id: 'pod_mid_one~secret-token~', provider: 'mid', failed: [{ provider: 'cheap', error: 'down' }] });
     expect(await (await req('POST', `/v1/pods/${pod.id}/run`, { command: 'echo hi' })).json()).toEqual({ stdout: 'echo hi\n', stderr: '', exitCode: 0 });
     expect(await (await req('DELETE', `/v1/pods/${pod.id}`)).json()).toEqual({ stopped: true });
-    const stored = JSON.parse(env.KV.m.get('pods:octo'));
+    const stored = podsOf(env, 'octo');
     expect(stored[0]).toMatchObject({ ref: 'pod_mid_one', provider: 'mid', movedFrom: ['cheap'] });
     expect(stored[0].stopped).toBeTruthy();
-    expect([...env.KV.m.values()].join(' ')).not.toContain('secret-token');
+    expect(dump(env)).not.toContain('secret-token');
   });
   test('bad JSON and unknown routes', async () => {
     const { env, key, req } = await setup();
@@ -86,13 +89,13 @@ describe('HTTP API', () => {
 
 describe('cabinet', () => {
   test('without a session the console sends you to sign in', async () => {
-    const env = { KV: kv(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' };
+    const env = { DB: db(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' };
     const r = await handle(new Request(`${ORIGIN}/console`, { redirect: 'manual' }), env, { providers });
     expect(r.status).toBe(303);
     expect(r.headers.get('location')).toBe('/auth/start?next=%2Fconsole');
   });
   test('a forged or expired cookie is not a session', async () => {
-    const env = { KV: kv(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' };
+    const env = { DB: db(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' };
     const forged = await handle(new Request(`${ORIGIN}/console`, { headers: { cookie: 'fleet_sess=octo.9999999999999.bad' }, redirect: 'manual' }), env, { providers });
     expect(forged.status).toBe(303);
     const old = (await makeSession(env, 'octo', Date.now() - 8 * 86400_000)).split(';')[0];
@@ -127,7 +130,7 @@ describe('cabinet', () => {
   });
   test('revoke stops a key working', async () => {
     const { env, key, page } = await setup();
-    const id = JSON.parse(env.KV.m.get('keys:octo'))[0].id;
+    const id = env.DB.raw.query("SELECT id FROM keys WHERE login = 'octo'").get().id;
     expect((await page('POST', `/console/keys/${id}/revoke`)).status).toBe(200);
     const r = await handle(new Request(`${ORIGIN}/v1/pods`, { method: 'POST', headers: { authorization: `Bearer ${key}` }, body: '{}' }), env, { providers });
     expect(r.status).toBe(401);
@@ -142,14 +145,6 @@ describe('cabinet', () => {
     expect((await page('POST', '/console/keys', { name: 'x' }, { origin: 'https://evil.test' })).status).toBe(403);
     expect((await page('POST', '/auth/signout', null, { origin: 'https://evil.test' })).status).toBe(403);
   });
-  test('an old single key from before the cabinet still works and shows up', async () => {
-    const env = { KV: kv(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' };
-    await env.KV.put('key:abc123abc123ff', 'octo');
-    await env.KV.put('user:octo', 'abc123abc123ff');
-    const cookie = (await makeSession(env, 'octo')).split(';')[0];
-    const r = await handle(new Request(`${ORIGIN}/console?section=keys`, { headers: { cookie } }), env, { providers });
-    expect(await r.text()).toContain('default');
-  });
 });
 
 describe('dogfood run 3 fixes', () => {
@@ -157,7 +152,7 @@ describe('dogfood run 3 fixes', () => {
     const { env, req, page } = await setup();
     const r = await req('POST', '/v1/pods', {}, { 'X-mid-Key': '' });
     expect(r.status).toBe(502);
-    const stored = JSON.parse(env.KV.m.get('pods:octo'));
+    const stored = podsOf(env, 'octo');
     expect(stored[0].failedStart).toEqual([{ provider: 'cheap', error: 'down' }]);
     expect(await (await page('GET', '/console?section=pods')).text()).toContain('start failed: cheap: down');
     expect(await (await page('GET', '/console')).text()).toMatch(/<b>1<\/b><span>Failed starts today/);
@@ -166,7 +161,7 @@ describe('dogfood run 3 fixes', () => {
     const { safeNext } = await import('../src/index.js');
     expect(safeNext('/console?section=try')).toBe('/console?section=try');
     for (const bad of ['//evil.test', 'https://evil.test', '/console/../x', '/consolex', '', null]) expect(safeNext(bad)).toBe('/console');
-    const env = { KV: kv(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret', DEV_LOGIN: 'octo' };
+    const env = { DB: db(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret', DEV_LOGIN: 'octo' };
     const r = await handle(new Request(`${ORIGIN}/auth/start?next=%2Fconsole%3Fsection%3Dtry`, { redirect: 'manual' }), env, { providers });
     expect(r.headers.get('location')).toBe('/console?section=try');
   });
@@ -178,6 +173,52 @@ describe('dogfood run 3 fixes', () => {
     expect(podStatus(young, now)).toBe('running');
     expect(podStatus(old, now)).toBe('likely-stopped');
     expect(summarize([young, old], now).running).toBe(1);
+  });
+});
+
+describe('free-plan guards and demo pods', () => {
+  test('more than 120 calls a minute from one account gets 429', async () => {
+    const { env, req } = await setup();
+    const store = new Map();
+    env.LIMIT_CACHE = { match: async (u) => (store.has(u) ? new Response(store.get(u)) : undefined), put: async (u, r) => void store.set(u, await r.text()) };
+    for (let i = 0; i < 120; i++) await req('GET', '/v1/nope');
+    const r = await req('GET', '/v1/nope');
+    expect(r.status).toBe(429);
+  });
+  test('the daily pod cap answers 429 without starting anything', async () => {
+    const { env, req } = await setup();
+    const day = new Date().toISOString();
+    const insert = env.DB.raw.prepare("INSERT INTO pods (login, started, moved_from) VALUES ('octo', ?, '[]')");
+    for (let i = 0; i < 300; i++) insert.run(day);
+    const r = await req('POST', '/v1/pods', {});
+    expect(r.status).toBe(429);
+    expect((await r.json()).error).toContain('daily pod limit');
+  });
+  test('the demo provider is never in the price table', async () => {
+    const { PROVIDERS } = await import('../src/providers/index.js');
+    const r = await handle(new Request(`${ORIGIN}/v1/prices`), {}, { providers: PROVIDERS });
+    expect((await r.json()).prices.map((p) => p.provider)).not.toContain('demo');
+  });
+  test('a demo pod starts, runs, stops, and dies after its time to live', async () => {
+    const demo = (await import('../src/providers/demo.js')).default;
+    const { id } = await demo.create('ttl=5');
+    expect((await demo.run('k', id, 'echo hello')).stdout).toStartWith('hello\n[demo pod');
+    await demo.stop('k', id);
+    const old = `${(Date.now() - 1000).toString(36)}-x`;
+    await expect(demo.run('k', old, 'ls')).rejects.toThrow('expired');
+    await expect(demo.stop('k', old)).rejects.toThrow('expired');
+  });
+  test('try a pod with the demo needs no key', async () => {
+    const { PROVIDERS } = await import('../src/providers/index.js');
+    const env = { DB: db(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' };
+    const cookie = (await makeSession(env, 'octo')).split(';')[0];
+    const r = await handle(
+      new Request(`${ORIGIN}/console/try`, { method: 'POST', headers: { cookie, origin: ORIGIN, 'content-type': 'application/json' }, body: JSON.stringify({ provider: 'demo', command: 'echo hi' }) }),
+      env,
+      { providers: PROVIDERS },
+    );
+    expect(r.status).toBe(200);
+    expect((await r.json()).stdout).toStartWith('hi\n');
   });
 });
 
@@ -197,8 +238,8 @@ describe('try a pod', () => {
     const d = await r.json();
     expect(d).toMatchObject({ pod: 'pod_mid_one', provider: 'mid', stdout: 'echo hi\n', exitCode: 0, stopError: null });
     for (const k of ['createMs', 'runMs', 'stopMs', 'totalMs']) expect(typeof d[k]).toBe('number');
-    expect([...env.KV.m.values()].join(' ')).not.toContain('my-provider-key');
-    expect(JSON.parse(env.KV.m.get('pods:octo'))[0].stopped).toBeTruthy();
+    expect(dump(env)).not.toContain('my-provider-key');
+    expect(podsOf(env, 'octo')[0].stopped).toBeTruthy();
     expect(await (await page('GET', '/console?section=try')).text()).toContain('Start pod');
   });
   test('needs a key, a known provider and our own origin', async () => {

@@ -152,12 +152,15 @@ function providersSection(prices, providers) {
 }
 
 function trySection(prices, providers) {
-  const opts = prices
-    .filter((p) => p.pricePerHour !== null)
-    .map((p) => `<option value="${esc(p.provider)}">${esc(p.label)} · ${money(p.pricePerHour)} an hour</option>`)
-    .join('');
+  const demo = Object.entries(providers).find(([, p]) => p.demo);
+  const opts =
+    (demo ? `<option value="${esc(demo[0])}">Demo · simulated, no account needed</option>` : '') +
+    prices
+      .filter((p) => p.pricePerHour !== null)
+      .map((p) => `<option value="${esc(p.provider)}">${esc(p.label)} · ${money(p.pricePerHour)} an hour</option>`)
+      .join('');
   const pages = JSON.stringify(Object.fromEntries(Object.entries(KEY_PAGE).map(([k, v]) => [k, v.url])));
-  return `<p class="note">Start one real pod on your own provider account, run one command, and stop it. Fleet times each step. Your provider key goes to the provider for this one call and is not stored; tick the box to keep it in this browser only.</p>
+  return `<p class="note">Pick Demo to see the whole flow with no account: a simulated pod that fleet runs itself. Pick a provider to start one real pod on your own account, run one command, and stop it. Fleet times each step. Your provider key goes to the provider for this one call and is not stored; tick the box to keep it in this browser only.</p>
 <form id="try" class="box" autocomplete="off">
 <div class="row" style="margin-top:0"><label>Provider <select id="prov" style="font:inherit;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);padding:6px 8px">${opts}</select></label><a id="getkey" class="note" style="margin:0" target="_blank" rel="noopener" href="#">Get a key</a></div>
 <div class="row"><input type="password" id="pkey" placeholder="Your provider API key" aria-label="Provider API key" style="font:inherit;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);padding:7px 10px;flex:1;min-width:240px"></div>
@@ -174,11 +177,12 @@ function trySection(prices, providers) {
 <script>
 (()=>{const P=${pages};const $=(i)=>document.getElementById(i);
 const store=(()=>{try{return window.localStorage}catch{return null}})();
-const load=()=>{const k=store&&store.getItem('fleet_try_'+$('prov').value);$('pkey').value=k||'';$('remember').checked=!!k;$('getkey').href=P[$('prov').value]||'#'};
+const load=()=>{const v=$('prov').value;const k=store&&store.getItem('fleet_try_'+v);$('pkey').value=k||'';$('remember').checked=!!k;$('getkey').href=P[v]||'#';$('getkey').style.display=P[v]?'':'none';$('pkey').disabled=v==='demo';$('pkey').placeholder=v==='demo'?'No key needed for the demo pod':'Your provider API key'};
 $('prov').addEventListener('change',load);load();
 const s=(ms)=>ms==null?'—':(ms/1000).toFixed(1)+' s';
 $('try').addEventListener('submit',async(e)=>{e.preventDefault();const key=$('pkey').value.trim();const err=$('err');err.style.display='none';
-if(!key){err.textContent='Paste your provider API key first.';err.style.display='block';$('pkey').focus();return}
+const isDemo=$('prov').value==='demo';$('pkey').disabled=isDemo;
+if(!key&&!isDemo){err.textContent='Paste your provider API key first.';err.style.display='block';$('pkey').focus();return}
 try{if(store){if($('remember').checked)store.setItem('fleet_try_'+$('prov').value,key);else store.removeItem('fleet_try_'+$('prov').value)}}catch{}
 $('go').textContent='Starting…';$('go').disabled=true;$('out').style.display='none';
 try{const r=await fetch('/console/try',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({provider:$('prov').value,key,command:$('cmd').value})});

@@ -3,5 +3,6 @@ import boat from './boat.js';
 import isorun from './isorun.js';
 import e2b from './e2b.js';
 import daytona from './daytona.js';
+import demo from './demo.js';
 
-export const PROVIDERS = { boat, isorun, e2b, daytona };
+export const PROVIDERS = { boat, isorun, e2b, daytona, demo };

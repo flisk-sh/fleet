@@ -5,11 +5,12 @@ compatibility_date = "2026-10-01"
 # fleet.flisk.si on the flisk.si zone.
 routes = [{ pattern = "fleet.flisk.si", custom_domain = true }]
 
-# GitHub logins and fleet key hashes. Never a provider key.
-# Create it once: `bunx wrangler@4 kv namespace create FLEET`, then put the printed id here.
-[[kv_namespaces]]
-binding = "KV"
-id = "e601451e3f9c453397d23311aba8bc1e"
+# Keys (hashes only) and pod facts. Never a provider key. Free plan: 100,000 rows written, 5 million read a day.
+# Tables: `bunx wrangler@4 d1 execute fleet --remote --file schema.sql`
+[[d1_databases]]
+binding = "DB"
+database_name = "fleet"
+database_id = "ce277481-100d-43f5-8b96-f5fdb88218d4"
 
 [vars]
 PUBLIC_ORIGIN = "https://fleet.flisk.si"

@@ -4,7 +4,8 @@ import { handleMcp } from './mcp.js';
 import { bearer, githubAuthorizeUrl, githubLogin } from './auth.js';
 import { homePage, messagePage } from './page.js';
 import { cabinetPage } from './console.js';
-import { createKey, listKeys, listPods, loginForKey, podRef, recordPod, revokeKey } from './store.js';
+import { createKey, listKeys, listPods, loginForKey, podRef, podsStartedToday, recordPod, revokeKey } from './store.js';
+import { overMinuteLimit, PODS_PER_DAY } from './limit.js';
 import { clearSession, makeSession, readSession, sameOrigin } from './session.js';
 
 const SECURITY = {
@@ -53,17 +54,24 @@ async function cabinet(env, origin, login, section, providers, extra = {}) {
   return html(cabinetPage({ origin, login, section, keys, pods, prices: priceTable(providers), providers, ...extra }), 200, { 'cache-control': 'no-store' });
 }
 
+// Every pod call records pod facts and checks the daily cap (one indexed count, no write).
+const podCtx = (env, login, fetchImpl) => ({
+  fetchImpl,
+  record: (type, data) => recordPod(env, login, type, data),
+  allowCreate: async () => (await podsStartedToday(env, login)) < PODS_PER_DAY,
+});
+
 // "Try a pod" in the cabinet: start, run one command, always stop, and time each step. The provider key is used for this call only.
 async function tryPod(request, env, login, providers, fetchImpl) {
   const body = await readJson(request);
   const provider = String(body?.provider || '');
-  const key = String(body?.key || '').trim();
+  const key = String(body?.key || '').trim() || (providers[body?.provider]?.demo ? 'demo' : '');
   const command = String(body?.command || '').trim() || 'uname -sr; nproc; free -m | head -2';
   if (!providers[provider]) return json(400, { error: 'pick a provider' });
   if (!key) return json(400, { error: 'paste your provider API key first' });
   if (command.length > 500) return json(400, { error: 'keep the command under 500 characters' });
   const keys = { [provider]: key };
-  const ctx = { fetchImpl, record: (type, data) => recordPod(env, login, type, data) };
+  const ctx = podCtx(env, login, fetchImpl);
   const t0 = Date.now();
   const made = await createPod(providers, keys, { provider, cpu: 2, ram: 4 }, ctx);
   const createMs = Date.now() - t0;
@@ -102,7 +110,7 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
 
   // ---- sign-in
   if (request.method === 'GET' && path === '/auth/start') {
-    if (!env.KV || !env.SESSION_SECRET) return html(messagePage('Sign-in is not set up', 'This copy of fleet has no key store or session secret yet.'), 503);
+    if (!env.DB || !env.SESSION_SECRET) return html(messagePage('Sign-in is not set up', 'This copy of fleet has no key store or session secret yet.'), 503);
     const next = safeNext(url.searchParams.get('next'));
     if (await readSession(env, request)) return redirect(next);
     if (env.DEV_LOGIN) return redirect(next, { 'set-cookie': await makeSession(env, env.DEV_LOGIN) });
@@ -117,7 +125,7 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
     const state = url.searchParams.get('state') || '';
     const cookie = /(?:^|;\s*)fleet_state=([^;]+)/.exec(request.headers.get('cookie') || '')?.[1] || '';
     const code = url.searchParams.get('code') || '';
-    if (!env.KV || !env.SESSION_SECRET || !code || !state || state !== cookie) return html(messagePage('Sign-in failed', 'The sign-in link expired. Start again.'), 400);
+    if (!env.DB || !env.SESSION_SECRET || !code || !state || state !== cookie) return html(messagePage('Sign-in failed', 'The sign-in link expired. Start again.'), 400);
     const login = await githubLogin(env, code, fetchImpl);
     if (!login) return html(messagePage('Sign-in failed', "GitHub didn't confirm the sign-in. Start again."), 400);
     const nextCookie = /(?:^|;\s*)fleet_next=([^;]+)/.exec(request.headers.get('cookie') || '')?.[1];
@@ -134,7 +142,7 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
 
   // ---- cabinet
   if (path === '/console' || path.startsWith('/console/')) {
-    if (!env.KV) return html(messagePage('Sign-in is not set up', 'This copy of fleet has no key store yet.'), 503);
+    if (!env.DB) return html(messagePage('Sign-in is not set up', 'This copy of fleet has no key store yet.'), 503);
     const session = await readSession(env, request);
     if (!session) return request.method === 'GET' ? redirect(`/auth/start?next=${encodeURIComponent(path + url.search)}`) : html(messagePage('Signed out', 'Sign in again.'), 401);
     const { login } = session;
@@ -162,8 +170,9 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
 
   const login = await loginForKey(env, bearer(request));
   if (!login) return json(401, { error: `missing, revoked or unknown fleet key. Create one at ${origin}/console?section=keys and send it as "Authorization: Bearer fleet_..."` });
+  if (await overMinuteLimit(login, { cache: env.LIMIT_CACHE })) return json(429, { error: 'too many requests for this account: at most 120 a minute. Wait a minute' });
   const keys = providerKeys(request, providers);
-  const ctx = { fetchImpl, record: (type, data) => recordPod(env, login, type, data) };
+  const ctx = podCtx(env, login, fetchImpl);
 
   if (path === '/mcp') {
     if (request.method !== 'POST') return json(405, { error: 'POST only' });

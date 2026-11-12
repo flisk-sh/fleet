@@ -1,33 +1,37 @@
-// What fleet remembers. Never a provider key, never a provider's access token.
-//   key:<sha256 of fleet key>  -> login             (the API looks keys up here)
-//   keys:<login>               -> [{ id, name, hash, hint, created, lastUsed }]   up to 10
-//   pods:<login>               -> [{ ref, provider, cpu, ram, price, started, stopped, gone, movedFrom }]   newest first, up to 100
-// Sessions are signed cookies, not stored, so sign-in needs no KV write and no read-after-write.
+// What fleet remembers, in D1 (see schema.sql). Never a provider key, never a provider's access token.
+// Free plan: 100,000 rows written and 5 million rows read a day, so every write here is one row and every read uses an index.
 import { sha256, newFleetKey } from './auth.js';
 
 export const MAX_KEYS = 10;
 const MAX_PODS = 100;
-const LAST_USED_EVERY_MS = 3600_000; // KV on the free plan allows 1,000 writes a day: note "last used" at most once an hour a key
+const DAY = 86400_000;
+const HOUR = 3600_000;
 
-const read = async (env, k, fallback) => {
+const nowIso = () => new Date().toISOString();
+const parse = (s, fallback) => {
   try {
-    const v = await env.KV.get(k);
-    return v ? JSON.parse(v) : fallback;
+    return s ? JSON.parse(s) : fallback;
   } catch {
     return fallback;
   }
 };
-const write = (env, k, v) => env.KV.put(k, JSON.stringify(v));
+const keyRow = (r) => ({ id: r.id, name: r.name, hash: r.hash, hint: r.hint, created: r.created, lastUsed: r.last_used });
+const podRow = (r) => ({
+  ref: r.ref,
+  provider: r.provider,
+  cpu: r.cpu,
+  ram: r.ram,
+  price: r.price,
+  started: r.started,
+  stopped: r.stopped,
+  gone: r.gone,
+  movedFrom: parse(r.moved_from, []),
+  ...(r.failed_start ? { failedStart: parse(r.failed_start, []) } : {}),
+});
 
-// Keys made before the cabinet: one hash at user:<login>. Turn it into the list once.
 export async function listKeys(env, login) {
-  const list = await read(env, `keys:${login}`, null);
-  if (list) return list;
-  const old = await env.KV.get(`user:${login}`).catch(() => null);
-  if (!old) return [];
-  const migrated = [{ id: old.slice(0, 12), name: 'default', hash: old, hint: '', created: null, lastUsed: null }];
-  await write(env, `keys:${login}`, migrated);
-  return migrated;
+  const { results } = await env.DB.prepare('SELECT * FROM keys WHERE login = ? ORDER BY created DESC').bind(login).all();
+  return results.map(keyRow);
 }
 
 export async function createKey(env, login, name) {
@@ -35,96 +39,77 @@ export async function createKey(env, login, name) {
   if (list.length >= MAX_KEYS) return { error: `You have ${MAX_KEYS} keys. Revoke one first.`, list };
   const key = newFleetKey();
   const hash = await sha256(key);
-  const clean = String(name || '').trim().slice(0, 40) || 'default';
-  const entry = { id: hash.slice(0, 12), name: clean, hash, hint: `${key.slice(0, 10)}…${key.slice(-4)}`, created: new Date().toISOString(), lastUsed: null };
-  const next = [entry, ...list];
-  await env.KV.put(`key:${hash}`, login);
-  await write(env, `keys:${login}`, next);
-  return { key, entry, list: next };
+  const entry = {
+    id: hash.slice(0, 12),
+    name: String(name || '').trim().slice(0, 40) || 'default',
+    hash,
+    hint: `${key.slice(0, 10)}…${key.slice(-4)}`,
+    created: nowIso(),
+    lastUsed: null,
+  };
+  await env.DB.prepare('INSERT INTO keys (hash, id, login, name, hint, created) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(entry.hash, entry.id, login, entry.name, entry.hint, entry.created)
+    .run();
+  return { key, entry, list: [entry, ...list] };
 }
 
 export async function revokeKey(env, login, id) {
+  const r = await env.DB.prepare('DELETE FROM keys WHERE login = ? AND id = ?').bind(login, id).run();
   const list = await listKeys(env, login);
-  const hit = list.find((k) => k.id === id);
-  if (!hit) return { error: 'No such key.', list };
-  const next = list.filter((k) => k.id !== id);
-  await env.KV.delete(`key:${hit.hash}`);
-  await write(env, `keys:${login}`, next);
-  if (!next.length) await env.KV.delete(`user:${login}`).catch(() => {});
-  return { list: next };
+  return r.meta.changes ? { list } : { error: 'No such key.', list };
 }
 
-// API side: fleet key -> login, and note when it was last used.
+// API side: fleet key -> login. "Last used" is written at most once a day a key, to save writes.
 export async function loginForKey(env, key) {
-  if (!key || !key.startsWith('fleet_') || !env.KV) return null;
+  if (!key || !key.startsWith('fleet_') || !env.DB) return null;
   const hash = await sha256(key);
-  const login = await env.KV.get(`key:${hash}`);
-  if (!login) return null;
-  try {
-    const list = await read(env, `keys:${login}`, null);
-    const me = list?.find((k) => k.hash === hash);
-    if (me && Date.now() - Date.parse(me.lastUsed || 0) > LAST_USED_EVERY_MS) {
-      me.lastUsed = new Date().toISOString();
-      await write(env, `keys:${login}`, list);
-    }
-  } catch {}
-  return login;
+  const row = await env.DB.prepare('SELECT login, last_used FROM keys WHERE hash = ?').bind(hash).first();
+  if (!row) return null;
+  if (Date.now() - Date.parse(row.last_used || 0) > DAY) {
+    try {
+      await env.DB.prepare('UPDATE keys SET last_used = ? WHERE hash = ?').bind(nowIso(), hash).run();
+    } catch {}
+  }
+  return row.login;
 }
 
 // The pod id may hold a provider token (E2B), so only the part before "~" is kept.
 export const podRef = (id) => String(id || '').split('~')[0];
 
 export async function listPods(env, login) {
-  return read(env, `pods:${login}`, []);
+  const { results } = await env.DB.prepare('SELECT * FROM pods WHERE login = ? ORDER BY started DESC, n DESC LIMIT ?').bind(login, MAX_PODS).all();
+  return results.map(podRow);
+}
+
+// How many pods this login started today: one indexed range read, no write.
+export async function podsStartedToday(env, login) {
+  const day = nowIso().slice(0, 10);
+  const r = await env.DB.prepare('SELECT COUNT(*) AS c FROM pods WHERE login = ? AND started >= ?').bind(login, day).first();
+  return r?.c ?? 0;
 }
 
 // One line, at most 240 characters, cut at a word.
 const clip = (text) => {
   const one = String(text || '').replace(/\s+/g, ' ').trim();
-  if (one.length <= 240) return one;
-  return `${one.slice(0, 240).replace(/\s+\S*$/, '')}…`;
+  return one.length <= 240 ? one : `${one.slice(0, 240).replace(/\s+\S*$/, '')}…`;
 };
 
 export async function recordPod(env, login, type, data) {
-  const list = await listPods(env, login);
-  const now = new Date().toISOString();
+  const now = nowIso();
   if (type === 'created') {
-    list.unshift({
-      ref: podRef(data.id),
-      provider: data.provider,
-      cpu: data.cpu,
-      ram: data.ram,
-      price: data.pricePerHour,
-      started: now,
-      stopped: null,
-      gone: null,
-      movedFrom: (data.failed || []).map((f) => f.provider),
-    });
+    await env.DB.prepare('INSERT INTO pods (login, ref, provider, cpu, ram, price, started, moved_from) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(login, podRef(data.id), data.provider, data.cpu, data.ram, data.pricePerHour ?? null, now, JSON.stringify((data.failed || []).map((f) => f.provider)))
+      .run();
   } else if (type === 'failed') {
-    // A start that failed on every provider: kept so the cabinet can say why. Provider error text only, never a key.
-    list.unshift({
-      ref: null,
-      provider: null,
-      cpu: data.cpu,
-      ram: data.ram,
-      price: null,
-      started: now,
-      stopped: null,
-      gone: null,
-      movedFrom: [],
-      failedStart: (data.failed || []).map((f) => ({ provider: f.provider, error: clip(f.error) })),
-    });
-  } else {
-    const pod = list.find((p) => p.ref && p.ref === podRef(data.id));
-    if (!pod) return;
-    if (type === 'stopped' && !pod.stopped) pod.stopped = now;
-    if (type === 'gone' && !pod.gone && !pod.stopped) pod.gone = now;
+    const tried = (data.failed || []).map((f) => ({ provider: f.provider, error: clip(f.error) }));
+    await env.DB.prepare('INSERT INTO pods (login, cpu, ram, started, failed_start) VALUES (?, ?, ?, ?, ?)').bind(login, data.cpu, data.ram, now, JSON.stringify(tried)).run();
+  } else if (type === 'stopped') {
+    await env.DB.prepare('UPDATE pods SET stopped = ? WHERE login = ? AND ref = ? AND stopped IS NULL').bind(now, login, podRef(data.id)).run();
+  } else if (type === 'gone') {
+    await env.DB.prepare('UPDATE pods SET gone = ? WHERE login = ? AND ref = ? AND gone IS NULL AND stopped IS NULL').bind(now, login, podRef(data.id)).run();
   }
-  await write(env, `pods:${login}`, list.slice(0, MAX_PODS));
 }
 
-// Overview numbers, all from the pod list.
-const HOUR = 3600_000;
 // A pod fleet never saw stop: under an hour old it is probably running; older, the provider has likely stopped it.
 export function podStatus(p, now = new Date()) {
   if (p.failedStart) return 'failed';
@@ -137,7 +122,7 @@ export function summarize(pods, now = new Date()) {
   const today = now.toISOString().slice(0, 10);
   const days = [];
   for (let i = 6; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 86400_000).toISOString().slice(0, 10);
+    const d = new Date(now.getTime() - i * DAY).toISOString().slice(0, 10);
     days.push({
       day: d,
       started: pods.filter((p) => !p.failedStart && p.started?.startsWith(d)).length,

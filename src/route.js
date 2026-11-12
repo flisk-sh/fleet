@@ -62,6 +62,7 @@ export async function createPod(providers, keys, body, ctx = {}) {
   if (size.error) return { status: 400, error: size.error };
   const picked = pickOrder(providers, keys, size, body);
   if (picked.error) return { status: 400, error: picked.error };
+  if (ctx.allowCreate && !(await ctx.allowCreate())) return { status: 429, error: 'daily pod limit reached for this account. It resets at midnight UTC' };
   const failed = [];
   for (const name of picked.order) {
     try {
@@ -110,6 +111,7 @@ export async function stopPod(providers, keys, id, ctx = {}) {
 
 export function priceTable(providers, size = DEFAULT_SIZE) {
   return Object.entries(providers)
+    .filter(([, p]) => !p.demo)
     .map(([name, p]) => ({ provider: name, label: p.label, pricePerHour: p.price(size), note: p.note || '', source: p.priceSource }))
     .sort((a, b) => (a.pricePerHour ?? Infinity) - (b.pricePerHour ?? Infinity));
 }

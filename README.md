@@ -53,9 +53,20 @@ curl -X POST https://fleet.flisk.si/v1/pods \
 
 ## What fleet stores
 
-- A SHA-256 hash of each fleet key, its name and when it was created and last used.
+In Cloudflare D1 (`schema.sql`), sized for the free plan: every write is one row, every read uses an index.
+
+- A SHA-256 hash of each fleet key, its name and when it was created and last used (written at most once a day).
 - Pod facts for the cabinet: provider, size, price, start and stop times, and which providers failed first. The pod id is cut at the first `~`, so E2B's access token is never stored.
 - Never a provider key. Sessions are signed cookies, not stored.
+
+## Free-plan guards
+
+- At most 120 API calls a minute per account, counted in Cloudflare's Cache API, so the limit itself writes nothing.
+- At most 300 pod starts a day per account.
+
+## Demo pods
+
+Send `X-Demo-Key: demo` (or `ttl=30` to make the pod die after 30 seconds) and fleet answers like a provider, with a simulated pod and no machine. It lets anyone try the flow without an account, and `scripts/synthetic.mjs` uses it to run 1 to 10 synthetic agents against a live fleet. It never shows up in the price table and proves nothing about real providers.
 
 ## Limits to know
 
