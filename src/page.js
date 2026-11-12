@@ -27,6 +27,8 @@ a{color:inherit}
 .swp{display:inline-flex;border:1px solid var(--ink);padding:2px;gap:2px}.swp a{padding:5px 9px;text-decoration:none!important}.swp a.on{background:var(--ink);color:var(--paper)}.swp a:not(.on):hover{background:var(--green);color:#fff}
 .top .cta{display:flex;align-items:center;padding:0 22px;background:var(--ink);color:var(--paper);text-decoration:none}
 .top .cta:hover{background:var(--green)}
+.top nav a.spons{border:1px solid var(--green);color:var(--green);padding:6px 12px;font-weight:600}.top nav a.spons:hover{background:var(--green);color:#fff;text-decoration:none}
+.sponsor{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}.sponsor p{margin:0;max-width:760px}.sponsor .b{white-space:nowrap}
 .logo{display:inline-flex;align-items:center;gap:9px;font:800 26px/1 var(--serif);letter-spacing:-.03em;text-decoration:none}
 .logo .mark{width:26px;height:26px;font-size:12px}
 .b{display:inline-block;border:1px solid var(--ink);padding:11px 18px;text-decoration:none;background:transparent;color:var(--ink);font:12px/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;cursor:pointer}
@@ -123,7 +125,7 @@ ${FONTS}
 <body>
 ${FLISK_BAR}
 <div class="frame">
-<div class="top m"><nav><span class="swp" aria-label="Fleet products"><a class="on" href="/" aria-current="page">fleet</a><a href="/podlytics">podlytics</a></span><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/docs#mcp">MCP</a><a class="hide" href="https://github.com/flisk-sh/fleet">Source</a></nav><a class="cta" href="/console">Console</a></div>
+<div class="top m"><nav><span class="swp" aria-label="Fleet products"><a class="on" href="/" aria-current="page">fleet</a><a href="/podlytics">podlytics</a></span><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/docs#mcp">MCP</a><a class="hide" href="https://github.com/flisk-sh/fleet">Source</a><a class="spons" href="https://github.com/sponsors/flisk-sh">Sponsor fleet</a></nav><a class="cta" href="/console">Console</a></div>
 ${body}
 <div class="foot-grid">
 <div><a class="logo" href="/"><span class="mark">&gt;_</span>fleet</a><div><a class="b inv" href="/console?section=try" style="display:inline-block;margin:0">Try a demo pod</a></div><span class="m" style="color:var(--dim)">Beta · part of Flisk</span></div>
@@ -257,6 +259,11 @@ ${routeExample(prices)}
 <div><b>Next one on failure</b><span>An error or no capacity moves the pod to the next provider.</span></div>
 <div><b>Connect once</b><span>Paste each provider key one time; fleet keeps it encrypted. Your agent sends only its fleet key.</span></div>
 </div>
+
+<section class="sec sponsor" id="sponsor">
+<p><b>fleet is free and MIT.</b> On 12 Nov 2026 it started 10 real Daytona pods at once in about 6 seconds. Sponsors pay for the hosting behind the free tier: $5 a month supporter, $20 builder (your issues first), $100 team (your company in fleet's README).</p>
+<a class="b inv" href="https://github.com/sponsors/flisk-sh">Sponsor fleet on GitHub</a>
+</section>
 
 <section class="sec" id="prices">
 <p class="m label">Prices · ${size.cpu} vCPU · ${size.ram} GB · per hour</p>
