@@ -4,7 +4,7 @@ One API for every agent pod. A pod is a Linux machine your agent can run command
 
 Fleet starts each pod on the cheapest sandbox provider you have a key for, and moves to the next one when a provider fails. You bring your own provider accounts; fleet stores none of your provider keys.
 
-Status: beta, not deployed yet. The four adapters are written from the providers' public API docs and tested against recorded-style fake replies only. None has been run against a real provider account yet.
+Status: beta, live at https://fleet.flisk.si. GitHub sign-in is not connected yet, so no keys are handed out. The four adapters are written from the providers' public API docs and tested against recorded-style fake replies only. None has been run against a real provider account yet.
 
 ## Providers
 

@@ -9,7 +9,7 @@ routes = [{ pattern = "fleet.flisk.si", custom_domain = true }]
 # Create it once: `bunx wrangler@4 kv namespace create FLEET`, then put the printed id here.
 [[kv_namespaces]]
 binding = "KV"
-id = "REPLACE_WITH_KV_ID"
+id = "e601451e3f9c453397d23311aba8bc1e"
 
 [vars]
 PUBLIC_ORIGIN = "https://fleet.flisk.si"
