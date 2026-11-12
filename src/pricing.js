@@ -1,6 +1,7 @@
 // /pricing: what a month of pods costs on each provider, after boat's calculator.
 // Prices and plan rules come from each provider's own page (see providers/*.js facts). Free credits are not counted.
 import { esc } from './page.js';
+import { logoSvg } from './logos.js';
 
 export const SIZES = [
   { cpu: 1, ram: 1 },
@@ -24,6 +25,8 @@ export function pricingData(providers) {
     .map(([id, p]) => ({
       id,
       label: p.label,
+      logo: logoSvg(id, p.label, 20),
+      blocked: p.blocked ? p.blocked.kind : null,
       source: p.priceSource,
       hourly: SIZES.map((s) => p.price(s)),
       minimum: p.facts.minimum || 0,
@@ -84,11 +87,11 @@ if(p.poolCpu&&st.peak*S[st.size].cpu>p.poolCpu)notes.push('needs a higher accoun
 if(p.startsPerDay&&n/30>p.startsPerDay)notes.push('needs a bigger plan for '+Math.round(n/30)+' starts a day');
 return{v:usage+extra,notes}}
 function draw(){const n=Math.round(Math.pow(10,Number($('n').value)));$('nv').textContent=n.toLocaleString('en-US');const hours=st.len/3600;
-const rows=D.map(p=>({p,...cost(p,n,hours)})).sort((a,b)=>(a.v??Infinity)-(b.v??Infinity));const ok=rows.filter(r=>r.v!=null);const best=ok[0];
+const why={down:'down right now',card:'needs a card',invite:'invitation only'};const rows=D.map(p=>({p,...cost(p,n,hours)})).sort((a,b)=>(!!a.p.blocked-!!b.p.blocked)||((a.v??Infinity)-(b.v??Infinity)));const ok=rows.filter(r=>r.v!=null&&!r.p.blocked);const best=ok[0];
 $('best').textContent=best?money(best.v):'—';$('bestp').textContent=best?'a month on '+best.p.label:'no provider fits';
 $('math').textContent=n.toLocaleString('en-US')+' pods × '+(hours<1?Math.round(hours*60)+' min':hours+' h')+' × '+S[st.size].cpu+' vCPU · '+S[st.size].ram+' GB';
-const max=Math.max(...ok.map(r=>r.v),0.01);
-$('bars').innerHTML=rows.map(r=>r.v==null?'<div class="brow off"><span class="bn">'+r.p.label+'</span><span class="bt">'+r.no+'</span></div>':'<div class="brow'+(r===best?' win':'')+'"><span class="bn">'+r.p.label+'</span><span class="bb"><i style="width:'+Math.max(2,r.v/max*100)+'%"></i></span><span class="bv">'+money(r.v)+'</span><span class="bx">'+(r===best?'cheapest':(r.v/best.v).toFixed(1)+'×')+'</span>'+(r.notes.length?'<span class="bnote">'+r.notes.join(' · ')+'</span>':'')+'</div>').join('')}
+const max=Math.max(...rows.filter(r=>r.v!=null).map(r=>r.v),0.01);
+$('bars').innerHTML=rows.map(r=>r.v==null?'<div class="brow off"><span class="bn">'+r.p.logo+r.p.label+'</span><span class="bt">'+r.no+'</span></div>':'<div class="brow'+(r===best?' win':'')+(r.p.blocked?' blk':'')+'"><span class="bn">'+r.p.logo+r.p.label+'</span><span class="bb"><i style="width:'+Math.max(2,r.v/max*100)+'%"></i></span><span class="bv">'+money(r.v)+'</span><span class="bx">'+(r.p.blocked?'':r===best?'cheapest':(r.v/best.v).toFixed(1)+'×')+'</span>'+((r.notes.length||r.p.blocked)?'<span class="bnote">'+(r.p.blocked?[why[r.p.blocked]||'cannot start yet'].concat(r.notes):r.notes).join(' · ')+'</span>':'')+'</div>').join('')}
 draw()})();
 </script>`;
   return shellFn('fleet pricing: what a month of pods costs', body);
@@ -108,13 +111,14 @@ input[type=range]{width:100%;accent-color:var(--green)}
 .big b{font:800 clamp(56px,7vw,96px)/1 var(--serif);letter-spacing:-.04em}
 .big span{font-size:18px}
 .bars{margin-top:22px;border-top:1px solid var(--ink)}
-.brow{display:grid;grid-template-columns:86px minmax(0,1fr) 84px 72px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--ink);font:13px/1.3 var(--mono)}
+.brow .bn{display:flex;align-items:center;gap:8px;min-width:0}.brow .bn .plogo{flex-shrink:0}.brow.blk .bb i{background:none;border-right:2px dashed var(--ink)}.brow.blk{color:var(--dim)}
+.brow{display:grid;grid-template-columns:170px minmax(0,1fr) 84px 72px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--ink);font:13px/1.3 var(--mono)}
 .brow .bb{height:14px;background:repeating-linear-gradient(90deg,var(--paper) 0 3px,transparent 3px 6px);border:1px solid var(--ink)}
 .brow .bb i{display:block;height:100%;background:var(--ink)}
 .brow.win .bb i{background:var(--green)}
 .brow .bv{text-align:right}.brow .bx{text-align:right;color:var(--dim)}
 .brow .bnote{grid-column:2/-1;color:var(--dim);font-size:11.5px}
-.brow.off{grid-template-columns:86px minmax(0,1fr);color:var(--dim)}
+.brow.off{grid-template-columns:170px minmax(0,1fr);color:var(--dim)}
 .rules{margin:0;padding-left:18px;max-width:80ch}.rules li{margin:6px 0}
-@media (max-width:900px){.calc{grid-template-columns:minmax(0,1fr)}.brow{grid-template-columns:70px minmax(0,1fr) 72px}.brow .bx{display:none}}
+@media (max-width:900px){.calc{grid-template-columns:minmax(0,1fr)}.brow{grid-template-columns:150px minmax(0,1fr) 72px}.brow .bx{display:none}}
 `;
