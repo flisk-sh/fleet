@@ -4,7 +4,7 @@ One API for every agent pod. A pod is a Linux machine your agent can run command
 
 Fleet starts each pod on the cheapest sandbox provider you have a key for, and moves to the next one when a provider fails. You bring your own provider accounts; fleet stores none of your provider keys.
 
-Status: beta, live at https://fleet.flisk.si. GitHub sign-in is not connected yet, so no keys are handed out. The four adapters are written from the providers' public API docs and tested against recorded-style fake replies only. None has been run against a real provider account yet.
+Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the cabinet: up to 10 named fleet keys, your pods, an overview, providers and docs. The four adapters are written from the providers' public API docs and tested against recorded-style fake replies only. None has been run against a real provider account yet.
 
 ## Providers
 
@@ -51,6 +51,12 @@ curl -X POST https://fleet.flisk.si/v1/pods \
 } } }
 ```
 
+## What fleet stores
+
+- A SHA-256 hash of each fleet key, its name and when it was created and last used.
+- Pod facts for the cabinet: provider, size, price, start and stop times, and which providers failed first. The pod id is cut at the first `~`, so E2B's access token is never stored.
+- Never a provider key. Sessions are signed cookies, not stored.
+
 ## Limits to know
 
 - boat: fixed machine types (fleet picks the smallest that fits), needs a boat plan, machines in Europe only.
@@ -70,7 +76,9 @@ bun test
 bun scripts/dev.mjs
 ```
 
-The dev server listens on http://localhost:8799 with an in-memory key store. "Sign in" there skips GitHub and hands out a test key.
+The dev server listens on http://localhost:8799 with an in-memory store. "Console" there skips GitHub and signs you in as `local-dev`.
+
+`bun scripts/simulate.mjs` drives fleet's routing against a simulated provider (start delay, time to live) to measure 1 to 10 pods and what a caller sees when a pod dies. It needs no provider account.
 
 ## Add a provider
 

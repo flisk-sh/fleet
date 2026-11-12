@@ -47,6 +47,13 @@ export function parsePodId(id, providers) {
 }
 
 const short = (e) => String(e?.message || e).slice(0, 300);
+// The cabinet keeps pod facts. ctx.record(type, data) is optional and must never break a call.
+const record = async (ctx, type, data) => {
+  try {
+    await ctx.record?.(type, data);
+  } catch {}
+};
+
 // A provider answering 404 or 410 for a pod id means the pod is gone: stopped, expired or deleted. Say so plainly.
 const isGone = (e) => e?.status === 404 || e?.status === 410;
 
@@ -59,10 +66,9 @@ export async function createPod(providers, keys, body, ctx = {}) {
   for (const name of picked.order) {
     try {
       const made = await providers[name].create(keys[name], size, ctx);
-      return {
-        status: 201,
-        pod: { id: podId(name, made.id), provider: name, cpu: size.cpu, ram: size.ram, pricePerHour: providers[name].price(size), failed },
-      };
+      const pod = { id: podId(name, made.id), provider: name, cpu: size.cpu, ram: size.ram, pricePerHour: providers[name].price(size), failed };
+      await record(ctx, 'created', pod);
+      return { status: 201, pod };
     } catch (e) {
       failed.push({ provider: name, error: short(e) });
     }
@@ -80,6 +86,7 @@ export async function runPod(providers, keys, id, body, ctx = {}) {
     const out = await providers[ref.provider].run(keys[ref.provider], ref.providerId, command, ctx);
     return { status: 200, result: { stdout: out.stdout ?? '', stderr: out.stderr ?? '', exitCode: out.exitCode ?? null } };
   } catch (e) {
+    if (isGone(e)) await record(ctx, 'gone', { id });
     if (isGone(e)) return { status: 410, error: `this pod is gone: ${ref.provider} no longer has it (stopped, expired or deleted). Create a new pod` };
     return { status: 502, error: `${ref.provider}: ${short(e)}` };
   }
@@ -91,8 +98,10 @@ export async function stopPod(providers, keys, id, ctx = {}) {
   if (!keys[ref.provider]) return { status: 400, error: `this pod runs on ${ref.provider}. Send your key in the ${providers[ref.provider].keyHeader} header` };
   try {
     await providers[ref.provider].stop(keys[ref.provider], ref.providerId, ctx);
+    await record(ctx, 'stopped', { id });
     return { status: 200, result: { stopped: true } };
   } catch (e) {
+    if (isGone(e)) await record(ctx, 'gone', { id });
     if (isGone(e)) return { status: 200, result: { stopped: true, alreadyGone: true } }; // stopping a dead pod is a success, so retries are safe
     return { status: 502, error: `${ref.provider}: ${short(e)}` };
   }

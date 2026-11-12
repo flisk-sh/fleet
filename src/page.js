@@ -1,8 +1,8 @@
 // Pages. Black and white only: monospace text, square 1.5px rules, one inverted block for the main action.
 
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
-const CSS = `
+export const CSS = `
 :root{--ink:#000;--paper:#fff;--dim:#555}
 @media (prefers-color-scheme:dark){:root{--ink:#fff;--paper:#000;--dim:#aaa}}
 *{box-sizing:border-box}
@@ -53,9 +53,9 @@ const shell = (title, body) => `<!doctype html>
 <style>${CSS}</style>
 </head>
 <body><div class="wrap">
-<div class="bar"><a class="logo" href="/">fleet.flisk.si</a><nav><a href="/#prices">Prices</a><a href="/#api">API</a><a href="/#mcp">MCP</a><a class="b" href="/auth/start">Sign in</a></nav></div>
+<div class="bar"><a class="logo" href="/">fleet.flisk.si</a><nav><a href="/#prices">Prices</a><a href="/#api">API</a><a href="/#mcp">MCP</a><a class="b" href="/console">Console</a></nav></div>
 ${body}
-<footer><span>fleet · part of <a href="https://flisk.sh">Flisk</a></span><span>Beta</span><span>No provider key is stored</span></footer>
+<footer><span>fleet · part of <a href="https://flisk.sh">Flisk</a></span><span>Beta</span><span>No provider key is stored</span><a href="https://github.com/flisk-sh/fleet">Source</a></footer>
 </div></body></html>`;
 
 const money = (n) => (n === null || n === undefined ? 'not offered' : `$${n.toFixed(3)}`);
@@ -76,7 +76,7 @@ export function homePage({ origin, prices, size }) {
   -H "Authorization: Bearer fleet_..." \\
   -H "X-E2B-Key: ..." -H "X-Daytona-Key: ..." \\
   -d '{"cpu":2,"ram":4}'</pre>
-<div class="cta"><a class="b inv" href="/auth/start">Get a key</a><a class="b" href="#api">Read the API</a></div>
+<div class="cta"><a class="b inv" href="/console?section=keys">Get a key</a><a class="b" href="#api">Read the API</a></div>
 </section>
 
 <div class="grid3">
@@ -109,24 +109,6 @@ ${rows}
     "url": "${esc(origin)}/mcp",
     "headers": { "Authorization": "Bearer fleet_...", "X-E2B-Key": "..." }
 } } }</pre>`,
-  );
-}
-
-export function keyPage({ origin, login, key }) {
-  return shell(
-    'Your fleet key',
-    `<section class="hero">
-<p class="kicker">Signed in as ${esc(login)}</p>
-<h1>Your fleet key</h1>
-<p class="lede">Copy it now. Fleet stores only a hash, so it can't be shown again. Sign in again to replace it.</p>
-<div class="key" id="k">${esc(key)}</div>
-<div class="cta"><button class="b inv" onclick="navigator.clipboard.writeText(document.getElementById('k').textContent).then(()=>{this.textContent='Copied'})">Copy key</button><a class="b" href="/#api">Read the API</a></div>
-</section>
-<h2>First pod</h2>
-<pre style="margin-top:14px">curl -X POST ${esc(origin)}/v1/pods \\
-  -H "Authorization: Bearer ${esc(key)}" \\
-  -H "X-E2B-Key: YOUR_E2B_KEY" \\
-  -d '{"cpu":2,"ram":4}'</pre>`,
   );
 }
 

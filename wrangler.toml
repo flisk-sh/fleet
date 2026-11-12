@@ -17,3 +17,4 @@ PUBLIC_ORIGIN = "https://fleet.flisk.si"
 # Secrets (GitHub OAuth app with callback https://fleet.flisk.si/auth/callback):
 #   bunx wrangler@4 secret put GITHUB_CLIENT_ID
 #   bunx wrangler@4 secret put GITHUB_CLIENT_SECRET
+#   bunx wrangler@4 secret put SESSION_SECRET      any long random string; signs the cabinet's session cookie

@@ -1,4 +1,4 @@
-// Sign-in with GitHub, then one fleet key. Stored: the GitHub login and a SHA-256 hash of the fleet key. Never a provider key.
+// GitHub sign-in and fleet key helpers. Fleet stores only SHA-256 hashes of fleet keys (see store.js). Never a provider key.
 
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 
@@ -14,24 +14,6 @@ export function newFleetKey() {
 export function bearer(request) {
   const m = /^Bearer\s+(\S+)$/i.exec(request.headers.get('authorization') || '');
   return m ? m[1] : '';
-}
-
-// -> { login } or null
-export async function userForKey(env, key) {
-  if (!key || !key.startsWith('fleet_') || !env.KV) return null;
-  const login = await env.KV.get(`key:${await sha256(key)}`);
-  return login ? { login } : null;
-}
-
-// One key per login: a new key replaces the old one.
-export async function issueKey(env, login) {
-  const old = await env.KV.get(`user:${login}`);
-  if (old) await env.KV.delete(`key:${old}`);
-  const key = newFleetKey();
-  const hash = await sha256(key);
-  await env.KV.put(`key:${hash}`, login);
-  await env.KV.put(`user:${login}`, hash);
-  return key;
 }
 
 export function githubAuthorizeUrl(env, state) {
