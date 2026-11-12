@@ -4,7 +4,7 @@ One API for every agent pod. A pod is a Linux machine your agent can run command
 
 Fleet starts each pod on the cheapest sandbox provider you have a key for, and moves to the next one when a provider fails. You bring your own provider accounts: connect each one once in the cabinet (fleet keeps the key encrypted), or send its key with each call.
 
-Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the cabinet: up to 10 named fleet keys, your pods, an overview, providers and docs. Daytona, Blaxel and Upstash Box have been run end to end on a real account. The other eight adapters are written from the providers' public API docs and tested against fake replies only.
+Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the cabinet: up to 10 named fleet keys, your pods, an overview, providers and docs. Daytona, Blaxel, Upstash Box and Vercel Sandbox have been run end to end on a real account. The other seven adapters are written from the providers' public API docs and tested against fake replies only.
 
 ## Providers
 
@@ -18,7 +18,7 @@ Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the c
 | E2B | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/3) | `X-E2B-Key` | $0.166 | https://e2b.dev/pricing |
 | Hopx | **Blocked**: provider down (API error 526 since 2026-11-12), [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Hopx-Key` | $0.166 | https://hopx.ai/pricing |
 | Runloop | **Blocked**: invitation only (waitlist: support@runloop.ai), [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Runloop-Key` | $0.317 | https://www.runloop.ai/pricing |
-| Vercel Sandbox | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Vercel-Key` (`<token>:<project id>[:<team id>]`) | $0.341 at most (CPU billed only while busy) | https://vercel.com/docs/sandbox/pricing |
+| Vercel Sandbox | **Working**: run end to end on a real account on 2026-11-12 (Hobby: 45-minute sandboxes) | `X-Vercel-Key`: `<token>:<project id>[:<team id>]` | $0.341 at most (CPU billed only while busy) | https://vercel.com/docs/sandbox/pricing |
 | Fly Sprites | **Blocked**: needs a card on accounts whose Fly trial ended, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Sprites-Key` | $0.164 at most (billed on use) | https://fly.io/pricing |
 | Morph | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Morph-Key` | $0.100 | https://cloud.morph.so/web/subscribe |
 

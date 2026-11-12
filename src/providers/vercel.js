@@ -1,7 +1,7 @@
 // Vercel Sandbox. API: https://openapi.vercel.sh (POST /v4/sandboxes, /v2/sandboxes/sessions/...) · prices: https://vercel.com/docs/sandbox/pricing
 // Firecracker microVMs. Sizes are 1 or an even number of vCPU, with 2 GB per vCPU.
 // The key is "<access token>:<project id>" or "<access token>:<project id>:<team id>": Vercel's API needs the project, and the team for team accounts.
-// Not tested yet: written from the OpenAPI spec on 2026-11-12, never run on a real account.
+// Working: run on a real account on 2026-11-12 (Hobby plan: sandboxes last at most 45 minutes).
 import { call, sleep, UA } from './http.js';
 
 const API = 'https://api.vercel.com';
@@ -59,7 +59,7 @@ const unpack = (id) => {
 export default {
   label: 'Vercel',
   keyHeader: 'X-Vercel-Key',
-  help: 'https://github.com/flisk-sh/fleet/issues/4',
+  working: '2026-11-12', // real account run: start, run with env/cwd/timeout, files, timeout (exit 124), stop, stop again
   priceSource: 'https://vercel.com/docs/sandbox/pricing',
   note: 'Key is "<token>:<project id>[:<team id>]". 2 GB per vCPU. CPU is billed only while busy, so the price shown is the most.',
   price: (size) => {

@@ -435,7 +435,7 @@ test('every inline page script parses', async () => {
 
 describe('provider status', () => {
   // Providers that have run end to end on a real account. Add one here only after scripts/real-check.mjs passed for it.
-  const WORKING = { daytona: '2026-11-12', blaxel: '2026-11-12', upstash: '2026-11-12' };
+  const WORKING = { daytona: '2026-11-12', blaxel: '2026-11-12', upstash: '2026-11-12', vercel: '2026-11-12' };
   // Providers nobody can test yet, and why.
   const BLOCKED = { boat: 'card', hopx: 'down', runloop: 'invite', sprites: 'card' };
   const LABEL = { down: 'Provider down', card: 'Needs a card', invite: 'Invite only' };
