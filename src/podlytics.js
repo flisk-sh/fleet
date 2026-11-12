@@ -247,7 +247,7 @@ function client(D, SIZES) {
     const L = narrow ? 6 : 220, R = narrow ? 70 : 90, T = 30 + 14 * axisLines.length, B = 8;
     const H = T + rows.length * rowH + B;
     const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img' }, box);
-    if (!rows.length) return empty(svg, W, 160, 'Nothing to show for this choice.');
+    if (!rows.length) return empty(svg, W, 160, 'No providers are on. Click one in the list to show it.');
     const max = cap || niceMax(Math.max(...rows.filter((r) => r.v != null).map((r) => r.v), 0) * 1.05 || 1);
     const xOf = (v) => L + ((W - L - R) * v) / max;
     axisLines.forEach((line, i) => (el('text', { x: 0, y: 14 + 14 * i, class: 'axis' }, svg).textContent = line));
@@ -329,6 +329,10 @@ function client(D, SIZES) {
     const box = $('#c-calls');
     const ps = shown().sort((a, b) => (a.stats.start?.p50 ?? Infinity) - (b.stats.start?.p50 ?? Infinity));
     const kinds = ['start', 'run', 'stop'];
+    if (!ps.length) {
+      box.innerHTML = '<p class="note">No providers are on. Click one in the list to show it.</p>';
+      return;
+    }
     const max = Object.fromEntries(kinds.map((k) => [k, Math.max(1, ...ps.map((p) => p.stats[k]?.p90 || p.stats[k]?.p50 || 0))]));
     box.innerHTML = '<div class="crow hd2"><span></span><span>Start</span><span>Run</span><span>Stop</span></div>' + ps
       .map(

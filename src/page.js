@@ -3,6 +3,7 @@
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
+import { logoSvg } from './logos.js';
 import { headTags, ICON_TAGS, jsonLd, PAGES } from './seo.js';
 
 export const FONTS =
@@ -230,10 +231,14 @@ export const stateCounts = (prices) =>
 export function homePage({ origin, prices, size }) {
   const working = prices.filter((p) => p.status === 'working').length;
   const more = prices.length - working;
-  const rows = prices
-    .map(
-      (p, i) => `<tr><td>${esc(p.label)}</td><td>${statusTag(p)}</td><td class="n">${money(p.pricePerHour)}</td><td>${p.pricePerHour !== null && i === 0 ? '<span class="first">first</span>' : p.pricePerHour === null ? '' : i + 1}</td><td>${esc(p.note)}</td></tr>`,
-    )
+  // Providers nobody can start today (down, card, invitation) go last and get no route slot.
+  const usable = prices.filter((p) => p.status !== 'blocked');
+  const ordered = [...usable, ...prices.filter((p) => p.status === 'blocked')];
+  const rows = ordered
+    .map((p, i) => {
+      const slot = p.status === 'blocked' || p.pricePerHour === null ? '' : i === 0 ? '<span class="first">first</span>' : i + 1;
+      return `<tr><td><span style="display:inline-flex;align-items:center;gap:10px">${logoSvg(p.provider, p.label, 22)}${esc(p.label)}</span></td><td>${statusTag(p)}</td><td class="n">${money(p.pricePerHour)}</td><td>${slot}</td><td>${esc(p.note)}</td></tr>`;
+    })
     .join('');
   return shell(
     'fleet: one API for every agent pod',
