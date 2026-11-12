@@ -115,6 +115,17 @@ function client(D, SIZES) {
   const hideTip = () => {
     tip.hidden = true;
   };
+  // The provider's mark inside an svg, taken from the same <img> the HTML uses.
+  const markSrc = (p) => (/src="([^"]+)"/.exec(p.logo) || [])[1] || '';
+  const mark = (svg, p, x, y, s = 20) => {
+    const src = markSrc(p);
+    if (!src) return;
+    const tile = (/background:(#[0-9a-f]+)/i.exec(p.logo) || [])[1];
+    if (tile) el('rect', { x, y, width: s, height: s, rx: 4, fill: tile }, svg);
+    const pad = tile ? 3 : 0;
+    const im = el('image', { x: x + pad, y: y + pad, width: s - 2 * pad, height: s - 2 * pad, href: src }, svg);
+    im.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  };
   const hover = (node, html) => {
     node.addEventListener('mousemove', (e) => showTip(e, html));
     node.addEventListener('mouseleave', hideTip);
@@ -181,7 +192,7 @@ function client(D, SIZES) {
       .filter((d) => d.ms != null && d.cost != null);
     const missing = ps.filter((p) => !pts.some((d) => d.p === p));
     $('#speed-missing').innerHTML = missing.length
-      ? 'No measured starts yet for ' + missing.map((p) => `<span style="color:${p.color}">${p.label}</span>`).join(', ') + '. Every start through fleet adds to this chart.'
+      ? 'No measured starts yet for ' + missing.map((p) => `<span style="color:${p.color}">${p.logo} ${p.label}</span>`).join(', ') + '. Every start through fleet adds to this chart.'
       : '';
     if (!pts.length) return empty(svg, W, H, 'No measured starts for these providers in the last 30 days.');
     const allMs = pts.flatMap((d) => [d.ms, d.p90 || d.ms]);
@@ -206,7 +217,8 @@ function client(D, SIZES) {
       if (d.p90 && d.p90 > d.ms) el('line', { x1: x, x2: xOf(d.p90), y1: y, y2: y, stroke: d.p.color, 'stroke-width': 2, opacity: 0.45 }, svg);
       const c = el('circle', { cx: x, cy: y, r: 7, fill: d.p.color, stroke: '#0b0b0d', 'stroke-width': 2 }, svg);
       hover(c, `<b style="color:${d.p.color}">${d.p.label}</b><br>start median ${secs(d.ms)}, p90 ${secs(d.p90)}<br>${d.n} starts in 30 days<br>${money(d.cost)} an hour at ${sizeLabel(st.size)}`);
-      el('text', { x: x + 12, y: y - 10, class: 'lbl', fill: d.p.color }, svg).textContent = d.p.label;
+      mark(svg, d.p, x + 11, y - 22, 18);
+      el('text', { x: x + 33, y: y - 8, class: 'lbl', fill: d.p.color }, svg).textContent = d.p.label;
     }
   }
 
@@ -218,7 +230,7 @@ function client(D, SIZES) {
     const W = Math.max(320, box.clientWidth);
     const narrow = W < 600;
     const rowH = 32;
-    const L = narrow ? 110 : 190, R = narrow ? 64 : 90, T = 44, B = 8;
+    const L = narrow ? 130 : 220, R = narrow ? 64 : 90, T = 44, B = 8;
     const H = T + rows.length * rowH + B;
     const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img' }, box);
     if (!rows.length) return empty(svg, W, 160, 'Nothing to show for this choice.');
@@ -233,7 +245,8 @@ function client(D, SIZES) {
     rows.forEach((r, i) => {
       const y = T + i * rowH;
       const cy = y + rowH / 2;
-      const name = el('text', { x: L - 12, y: cy + 4, 'text-anchor': 'end', class: 'lbl', fill: r.p.color }, svg);
+      mark(svg, r.p, L - 12 - 22 - (narrow ? 4 : 0) - 0, cy - 10, 20);
+      const name = el('text', { x: L - 40, y: cy + 4, 'text-anchor': 'end', class: 'lbl', fill: r.p.color }, svg);
       name.textContent = (i + 1) + '. ' + r.p.label;
       if (r.v == null) {
         el('text', { x: L + 6, y: cy + 4, class: 'tick dim' }, svg).textContent = r.none || 'no data';
@@ -292,7 +305,7 @@ function client(D, SIZES) {
     box.innerHTML = '<div class="crow hd2"><span></span><span>Start</span><span>Run</span><span>Stop</span></div>' + ps
       .map(
         (p) =>
-          `<div class="crow"><span class="cn" style="color:${p.color}">${p.label}</span>` +
+          `<div class="crow"><span class="cn" style="color:${p.color}">${p.logo} ${p.label}</span>` +
           kinds
             .map((k) => {
               const s = p.stats[k];
@@ -341,7 +354,7 @@ function client(D, SIZES) {
     const rows = shown().filter((p) => p.ref).sort((a, b) => a.ref.tier - b.ref.tier);
     box.innerHTML = rows.length
       ? '<table class="iso"><thead><tr><th>Provider</th><th>Isolation</th><th>Persistence</th><th>Billing</th><th>GPU</th><th>BYOC</th><th>Cold start (not fleet)</th></tr></thead><tbody>' +
-        rows.map((p) => `<tr><td><b style="color:${p.color}">${p.label}</b></td><td>${p.ref.isolation}</td><td>${p.ref.persistence}</td><td>${p.ref.billing}</td><td>${p.ref.gpu ? 'yes' : 'no'}</td><td>${p.ref.byoc || '—'}</td><td>${p.ref.cold}</td></tr>`).join('') +
+        rows.map((p) => `<tr><td><b style="color:${p.color}">${p.logo} ${p.label}</b></td><td>${p.ref.isolation}</td><td>${p.ref.persistence}</td><td>${p.ref.billing}</td><td>${p.ref.gpu ? 'yes' : 'no'}</td><td>${p.ref.byoc || '—'}</td><td>${p.ref.cold}</td></tr>`).join('') +
         '</tbody></table>'
       : '<p class="note">No reference data for the shown providers.</p>';
   }
@@ -352,7 +365,7 @@ function client(D, SIZES) {
     for (const [key, title, sub] of [['burst', 'Bursty: 30,000 short sessions', '5 min alive, 30 s of CPU, nothing kept'], ['state', 'Stateful: 50 agents kept for a month', 'busy 2 h a day, paused 22 h, state kept']]) {
       const rows = shown().filter((p) => p.ref && p.ref.scen).sort((a, b) => a.ref.scen[key] - b.ref.scen[key]);
       const max = Math.max(1, ...rows.map((p) => p.ref.scen[key]));
-      box.insertAdjacentHTML('beforeend', `<h4 class="wh">${title}<small>${sub}</small></h4>` + rows.map((p) => `<div class="wr"><span>${p.label}</span><i style="width:${Math.max(1, (p.ref.scen[key] / max) * 100)}%;background:${p.color}"></i><em>${money(p.ref.scen[key])}/mo</em></div>`).join(''));
+      box.insertAdjacentHTML('beforeend', `<h4 class="wh">${title}<small>${sub}</small></h4>` + rows.map((p) => `<div class="wr"><span class="pn">${p.logo}${p.label}</span><i style="width:${Math.max(1, (p.ref.scen[key] / max) * 100)}%;background:${p.color}"></i><em>${money(p.ref.scen[key])}/mo</em></div>`).join(''));
     }
   }
 
@@ -495,11 +508,11 @@ polyline.soon{stroke-dasharray:6 5}
 .grow{animation:grow .5s cubic-bezier(.2,.7,.2,1) both}
 @keyframes grow{from{transform:scaleY(0)}}
 .note{color:var(--dim);font-size:12.5px;margin:10px 0 0}
-h4.wh{margin:18px 0 8px;font-size:14px}h4.wh small{display:block;color:var(--dim);font-weight:400;font-size:12px}.wr{display:grid;grid-template-columns:90px 1fr 90px;gap:10px;align-items:center;font-size:13px;margin:5px 0}.wr i{height:12px;display:block}.wr em{font-style:normal;color:var(--dim);text-align:right}
+h4.wh{margin:18px 0 8px;font-size:14px}h4.wh small{display:block;color:var(--dim);font-weight:400;font-size:12px}.wr{display:grid;grid-template-columns:170px 1fr 90px;gap:10px;align-items:center;font-size:13px;margin:5px 0}.wr i{height:12px;display:block}.wr em{font-style:normal;color:var(--dim);text-align:right}
 table.iso{width:100%;border-collapse:collapse;font-size:13px}.iso th{text-align:left;color:var(--dim);font-weight:500;padding:8px;border-bottom:1px solid var(--line)}.iso td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
 #c-calls{display:grid;gap:10px;margin-top:12px}
-.crow{display:grid;grid-template-columns:110px repeat(3,minmax(0,1fr));gap:10px;align-items:center}.crow.hd2{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}
-.cn{font-weight:600;letter-spacing:-.01em}
+.crow{display:grid;grid-template-columns:190px repeat(3,minmax(0,1fr));gap:10px;align-items:center}.crow.hd2{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}
+.cn{font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:8px;min-width:0}.cn .plogo,.iso .plogo,#speed-missing .plogo{vertical-align:-6px;margin-right:2px}
 .cc{position:relative;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--panel);overflow:hidden}
 .cc i{position:absolute;left:0;top:0;bottom:0;opacity:.38;border-radius:0 4px 4px 0}
 .cc i.p90{width:2px;background:var(--ink);opacity:.7}
