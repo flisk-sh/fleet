@@ -61,6 +61,7 @@ export function podlyticsData(providers, stats = {}) {
       color: COLORS[id] || SPARE[spare++ % SPARE.length],
       logo: logoSvg(id, p.label, 22),
       working: p.working || null,
+      blocked: p.blocked ? { kind: p.blocked.kind, note: p.blocked.note } : null,
       help: p.help || null,
       source: p.priceSource || null,
       regions: p.facts.regions || [],
@@ -119,7 +120,13 @@ function client(D, SIZES) {
   const markSrc = (p) => (/src="([^"]+)"/.exec(p.logo) || [])[1] || '';
   const mark = (svg, p, x, y, s = 20) => {
     const src = markSrc(p);
-    if (!src) return;
+    if (!src) {
+      const w = p.label.replace(/\(.*?\)/g, '').trim().split(/[\s-]+/).filter(Boolean);
+      const ini = (w.length > 1 ? w[0][0] + w[1][0] : (w[0] || '?').slice(0, 2)).toUpperCase();
+      el('rect', { x, y, width: s, height: s, rx: 4, fill: '#e7e5df' }, svg);
+      el('text', { x: x + s / 2, y: y + s / 2 + 4, 'text-anchor': 'middle', fill: '#0b0b0d', 'font-size': Math.round(s * 0.42), 'font-weight': 600 }, svg).textContent = ini;
+      return;
+    }
     const tile = (/background:(#[0-9a-f]+)/i.exec(p.logo) || [])[1];
     if (tile) el('rect', { x, y, width: s, height: s, rx: 4, fill: tile }, svg);
     const pad = tile ? 3 : 0;
@@ -179,7 +186,7 @@ function client(D, SIZES) {
         };
       })
       .sort((a, b) => (a.v ?? Infinity) - (b.v ?? Infinity));
-    hbars('#c-size', rows, { fmt: money, axis: 'USD per hour, list price, ' + sizeLabel(st.size) + '. Cheapest on top; dashed bar = not run for real yet.' });
+    hbars('#c-size', rows, { fmt: money, axis: 'USD per hour, list price, ' + sizeLabel(st.size) + '. Cheapest on top; dashed = not run for real yet; below the line = cannot start today.' });
   }
 
   // 2. Start time vs cost
@@ -222,42 +229,63 @@ function client(D, SIZES) {
     }
   }
 
+  // Best first. Providers nobody can start today go after the ranking, so they never read as "cheapest".
+  const rankRows = (rows) => [...rows.filter((r) => !r.p.blocked), ...rows.filter((r) => r.p.blocked)];
+  const blockedNote = (p) => ({ down: 'down right now', card: 'needs a card', invite: 'invitation only' })[p.blocked?.kind] || 'cannot start yet';
+
   // Ranked horizontal bars shared by cost vs size, cost per task, month and reliability.
-  // Rows arrive already sorted best first, so the best provider is always the top row.
+  // Rows arrive sorted best first. Only rows with a value get a rank number.
   function hbars(boxSel, rows, { fmt, axis, cap }) {
     const box = $(boxSel);
     box.innerHTML = '';
-    const W = Math.max(320, box.clientWidth);
+    rows = rankRows(rows);
+    const W = Math.max(280, box.clientWidth);
     const narrow = W < 600;
-    const rowH = 32;
-    const L = narrow ? 130 : 220, R = narrow ? 64 : 90, T = 44, B = 8;
+    // Wide: names to the left of the bars. Narrow: each name sits on its own line above its bar, so nothing is cut off.
+    const rowH = narrow ? 50 : 32;
+    const axisLines = narrow ? axis.split(/(?<=[.;]) /) : [axis];
+    const L = narrow ? 6 : 220, R = narrow ? 70 : 90, T = 30 + 14 * axisLines.length, B = 8;
     const H = T + rows.length * rowH + B;
     const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img' }, box);
     if (!rows.length) return empty(svg, W, 160, 'Nothing to show for this choice.');
     const max = cap || niceMax(Math.max(...rows.filter((r) => r.v != null).map((r) => r.v), 0) * 1.05 || 1);
     const xOf = (v) => L + ((W - L - R) * v) / max;
-    el('text', { x: 0, y: 14, class: 'axis' }, svg).textContent = axis;
-    for (const v of [0, max / 4, max / 2, (max * 3) / 4, max]) {
+    axisLines.forEach((line, i) => (el('text', { x: 0, y: 14 + 14 * i, class: 'axis' }, svg).textContent = line));
+    // On a phone only the start, middle and end of the axis are labelled, so the numbers never run together.
+    for (const v of narrow ? [0, max / 2, max] : [0, max / 4, max / 2, (max * 3) / 4, max]) {
       el('line', { x1: xOf(v), x2: xOf(v), y1: T - 6, y2: H - B, class: 'grid' }, svg);
-      el('text', { x: xOf(v), y: T - 10, 'text-anchor': 'middle', class: 'tick' }, svg).textContent = fmt(v);
+      el('text', { x: xOf(v), y: T - 10, 'text-anchor': v === 0 ? 'start' : v === max ? 'end' : 'middle', class: 'tick' }, svg).textContent = fmt(v);
     }
-    const best = rows.find((r) => r.v != null);
+    const best = rows.find((r) => r.v != null && !r.p.blocked);
+    let n = 0;
+    let sawBlocked = false;
     rows.forEach((r, i) => {
       const y = T + i * rowH;
-      const cy = y + rowH / 2;
-      mark(svg, r.p, L - 12 - 22 - (narrow ? 4 : 0) - 0, cy - 10, 20);
-      const name = el('text', { x: L - 40, y: cy + 4, 'text-anchor': 'end', class: 'lbl', fill: r.p.color }, svg);
-      name.textContent = (i + 1) + '. ' + r.p.label;
+      if (r.p.blocked && !sawBlocked) {
+        sawBlocked = true;
+        el('line', { x1: 0, x2: W, y1: y + 1, y2: y + 1, stroke: 'currentColor', 'stroke-opacity': 0.25, 'stroke-dasharray': '2 4' }, svg);
+      }
+      const rank = r.v != null && !r.p.blocked ? ++n + '. ' : '';
+      const nameY = narrow ? y + 14 : y + rowH / 2 + 4;
+      const nameX = narrow ? 26 : L - 40;
+      mark(svg, r.p, narrow ? 0 : L - 12 - 22, narrow ? y + 3 : y + rowH / 2 - 10, 20);
+      const name = el('text', { x: nameX, y: nameY, 'text-anchor': narrow ? 'start' : 'end', class: 'lbl', fill: r.p.color }, svg);
+      name.textContent = rank + r.p.label;
+      const barY = narrow ? y + 26 : y + 6;
+      const barH = narrow ? 16 : rowH - 12;
+      const cy = barY + barH / 2;
       if (r.v == null) {
         el('text', { x: L + 6, y: cy + 4, class: 'tick dim' }, svg).textContent = r.none || 'no data';
         return;
       }
       const w = Math.max(2, xOf(r.v) - L);
-      const attrs = { x: L, y: y + 6, width: w, height: rowH - 12, rx: 2, opacity: r === best ? 1 : 0.8, class: 'grow' };
-      const rect = el('rect', r.soon ? { ...attrs, fill: 'none', stroke: r.p.color, 'stroke-width': 1.5, 'stroke-dasharray': '5 3' } : { ...attrs, fill: r.p.color }, svg);
+      const attrs = { x: L, y: barY, width: w, height: barH, rx: 2, opacity: r === best ? 1 : 0.8, class: 'grow' };
+      const hollow = r.soon || r.p.blocked;
+      const rect = el('rect', hollow ? { ...attrs, fill: 'none', stroke: r.p.color, 'stroke-width': 1.5, 'stroke-dasharray': '5 3' } : { ...attrs, fill: r.p.color }, svg);
       rect.style.transformOrigin = `${L}px ${cy}px`;
-      el('text', { x: L + w + 8, y: cy + 4, class: 'val' }, svg).textContent = fmt(r.v) + (r.sub && !narrow ? '  ·  ' + r.sub : '');
-      hover(rect, `<b style="color:${r.p.color}">${r.p.label}</b><br>${r.tip || fmt(r.v)}`);
+      const why = r.p.blocked ? '  ·  ' + blockedNote(r.p) : '';
+      el('text', { x: L + w + 8, y: cy + 4, class: 'val' }, svg).textContent = fmt(r.v) + (r.sub && !narrow ? '  ·  ' + r.sub : '') + why;
+      hover(rect, `<b style="color:${r.p.color}">${r.p.label}</b><br>${r.tip || fmt(r.v)}${r.p.blocked ? '<br>Not rankable: ' + r.p.blocked.note : ''}`);
     });
   }
 
@@ -309,8 +337,8 @@ function client(D, SIZES) {
           kinds
             .map((k) => {
               const s = p.stats[k];
-              if (!s || s.p50 == null) return '<span class="cc none">no data</span>';
-              return `<span class="cc" data-tip="${p.label} ${k}: median ${secs(s.p50)}, p90 ${secs(s.p90)}, ${s.n} calls"><i style="width:${Math.max(3, (s.p50 / max[k]) * 100)}%;background:${p.color}"></i><i class="p90" style="left:calc(${(s.p90 / max[k]) * 100}% - 2px)"></i><em>${secs(s.p50)}</em></span>`;
+              if (!s || s.p50 == null) return `<span class="cc none"><u class="kl">${k}</u>no data</span>`;
+              return `<span class="cc" data-tip="${p.label} ${k}: median ${secs(s.p50)}, p90 ${secs(s.p90)}, ${s.n} calls"><u class="kl">${k}</u><i style="width:${Math.max(3, (s.p50 / max[k]) * 100)}%;background:${p.color}"></i><i class="p90" style="left:calc(${(s.p90 / max[k]) * 100}% - 2px)"></i><em>${secs(s.p50)}</em></span>`;
             })
             .join('') +
           '</div>',
@@ -369,9 +397,15 @@ function client(D, SIZES) {
     }
   }
 
+  function workloadNote() {
+    const gone = shown().filter((p) => !(p.ref && p.ref.scen));
+    if (gone.length) $('#c-work').insertAdjacentHTML('beforeend', `<p class="note">Not shown, no reference data yet: ${gone.map((p) => p.label).join(', ')}.</p>`);
+  }
+
   function all() {
     sidebar();
     workload();
+    workloadNote();
     isolation();
     costVsSize();
     startVsCost();
@@ -493,7 +527,7 @@ main{min-width:0;border-right:1px solid var(--line)}
 .seg{display:flex;gap:2px;font-size:12.5px}
 .seg button{background:none;border:0;border-bottom:1.5px solid transparent;color:var(--dim);padding:4px 7px;cursor:pointer;font:inherit}
 .seg button:hover{color:var(--ink)}.seg button.on{color:var(--green);border-bottom-color:var(--green)}
-.plot{width:100%;min-height:300px}
+.plot{width:100%;min-height:120px}#c-iso{overflow-x:auto;max-width:100%}
 .plot svg{display:block;overflow:visible}
 .grid{stroke:var(--line);stroke-dasharray:2 4}
 .tick{fill:var(--dim);font:11.5px var(--mono)}.tick.dim{fill:var(--faint)}
@@ -516,7 +550,8 @@ table.iso{width:100%;border-collapse:collapse;font-size:13px}.iso th{text-align:
 .cc{position:relative;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--panel);overflow:hidden}
 .cc i{position:absolute;left:0;top:0;bottom:0;opacity:.38;border-radius:0 4px 4px 0}
 .cc i.p90{width:2px;background:var(--ink);opacity:.7}
-.cc em{position:relative;display:flex;justify-content:flex-end;font:500 12.5px/32px var(--mono);font-style:normal;padding:0 10px;color:var(--ink)}.cc em span{display:none}
+.cc em{position:relative;display:flex;justify-content:flex-start;font:500 12.5px/32px var(--mono);font-style:normal;padding:0 10px;color:var(--ink)}.cc em span{display:none}
+.kl{display:none;text-decoration:none;position:absolute;right:10px;top:0;font:500 10px/32px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}
 .cc.none{color:var(--faint);font:12px/32px var(--mono);padding-right:10px;text-align:right}
 aside{position:sticky;top:56px;align-self:start;max-height:calc(100vh - 56px);overflow:auto;padding:18px 18px 24px}
 .ah{display:flex;justify-content:space-between;align-items:center}
@@ -538,8 +573,8 @@ aside{position:sticky;top:56px;align-self:start;max-height:calc(100vh - 56px);ov
 .ft{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 22px;border-top:1px solid var(--line);color:var(--dim);font-size:12.5px}
 .ft a{color:var(--ink);text-decoration:none}.ft a:hover{text-decoration:underline}
 #tip{position:fixed;z-index:20;pointer-events:none;background:#17171c;border:1px solid var(--faint);padding:8px 10px;font:12.5px/1.45 var(--sans);max-width:280px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
-@media (max-width:1000px){.app{grid-template-columns:minmax(0,1fr)}main{border-right:0}aside{position:static;max-height:none;order:-1;border-bottom:1px solid var(--line)}.tools label span{display:none}}
-@media (max-width:600px){.about,.tools{display:none}.hd{gap:12px;padding:0 16px}.tabs{padding-left:12px;gap:14px}.chart{padding:18px 16px}aside{padding:16px}.crow{grid-template-columns:minmax(0,1fr)}.crow.hd2{display:none}.ft{padding:12px 16px}}
+@media (max-width:1000px){.app{grid-template-columns:minmax(0,1fr)}main{border-right:0}aside{position:static;max-height:none;order:1;border-top:1px solid var(--line)}.tools label span{display:none}}
+@media (max-width:600px){.kl{display:block}.cc.none .kl{left:10px;right:auto}.about,.tools{display:none}.hd{gap:12px;padding:0 16px}.tabs{padding-left:12px;gap:14px}.chart{padding:18px 16px}aside{padding:16px}.crow{grid-template-columns:minmax(0,1fr)}.crow.hd2{display:none}.ft{padding:12px 16px}}
 @media (prefers-reduced-motion:reduce){.grow{animation:none}}
 `;
 

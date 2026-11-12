@@ -2,7 +2,7 @@
 import { LOGO_IMAGES } from './logo-images.js';
 
 // Some marks are white on transparent, so they sit on a dark tile.
-const TILE = { hopx: '#0b0b0d', isorun: '#ecebe6', freestyle: '#ecebe6', tensorlake: '#ecebe6', langsmith: '#ecebe6', blaxel: '#ecebe6', e2b: '#ecebe6', vercel: '#ecebe6', upstash: '#ecebe6' };
+const TILE = { isorun: '#ecebe6', freestyle: '#ecebe6', tensorlake: '#ecebe6', langsmith: '#ecebe6', blaxel: '#ecebe6', e2b: '#ecebe6', vercel: '#ecebe6', upstash: '#ecebe6' };
 export const TILE_COLOR = (id) => TILE[id] || '';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
