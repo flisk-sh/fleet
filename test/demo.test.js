@@ -2,12 +2,12 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { demoRun, demoPage, FLAVOURS, flavourFiles } from '../src/demo.js';
+import { demoPage, demoRun, JOBS, jobOrders } from '../src/demo.js';
 
 // A local "provider": a pod is a folder, and commands really run in it with sh (python3 runs the written tests).
 function localProvider() {
   const stops = [];
-  const dir = mkdtempSync(join(tmpdir(), 'fleet-icecream-'));
+  const dir = mkdtempSync(join(tmpdir(), 'fleet-race-'));
   let n = 0;
   return {
     dir,
@@ -33,41 +33,61 @@ function localProvider() {
   };
 }
 
-describe('ice-cream saga', () => {
-  test('four flavours run in parallel; the planted bug is undone and its kitchen closed; the others are served', async () => {
+describe('agent race', () => {
+  test('four jobs run in parallel, every pod stops, and the planted bug is fixed in the same pod', async () => {
     const { provider, dir, stops } = localProvider();
-    // Each pod is a folder: writeFile runs a shell line in it, so the files land under that pod's folder.
-    const r = await demoRun({ local: provider }, { local: 'k' }, {});
+    const events = [];
+    const r = await demoRun({ local: provider }, { local: 'k' }, {}, (e) => events.push(e));
     rmSync(dir, { recursive: true, force: true });
-    expect(r.total).toBe(FLAVOURS.length);
-    expect(r.served).toBe(FLAVOURS.length - 1);
-    expect(r.ok).toBe(false);
-    const straw = r.flavours.find((f) => f.name === 'Strawberry');
-    expect(straw.ok).toBe(false);
-    expect(straw.steps.at(-1).name).toBe('Undo: close the kitchen');
-    expect(straw.steps.at(-1).kind).toBe('undo'); // the page keeps the recalled ship in the harbour for this kind
-    expect(r.flavours.find((f) => f.name === 'Vanilla').steps.at(-1).kind).toBe('close');
-    expect(stops).toHaveLength(FLAVOURS.length); // every kitchen closes, served or undone
-    // parallel: every flavour starts before the first one ends
-    const firstEnd = Math.min(...r.flavours.map((f) => f.endMs));
-    expect(r.flavours.every((f) => f.startMs < firstEnd)).toBe(true);
-  }, 30000); // four real python runs at once: slow on a busy machine
-  test('a flavour without the bug has passing tests in its own output', async () => {
-    const f = FLAVOURS.find((x) => !x.bug);
-    const files = flavourFiles(f);
-    expect(files['work/scoop.py']).toContain(`return flavour + " scoop"`);
-    expect(files['work/test_scoop.py']).toContain(`"${f.name} scoop"`);
+    expect(r.total).toBe(JOBS.length);
+    expect(r.passed).toBe(JOBS.length);
+    expect(r.ok).toBe(true);
+    expect(r.fixed).toBe(1);
+    const fixed = r.jobs.find((j) => j.fixed);
+    expect(fixed.id).toBe('wordcount');
+    expect(fixed.steps.map((s) => s.kind)).toEqual(['start', 'write', 'test', 'fix', 'test', 'stop']);
+    expect(fixed.steps[2].ok).toBe(false);
+    expect(fixed.steps[4].ok).toBe(true);
+    for (const j of r.jobs.filter((x) => !x.fixed)) expect(j.steps.map((s) => s.kind)).toEqual(['start', 'write', 'test', 'stop']);
+    expect(stops).toHaveLength(JOBS.length);
+    expect(events[0].type).toBe('plan');
+    expect(events.filter((e) => e.type === 'job-end')).toHaveLength(JOBS.length);
+    const firstEnd = Math.min(...r.jobs.map((j) => j.endMs));
+    expect(r.jobs.every((j) => j.startMs < firstEnd)).toBe(true);
+  }, 30000);
+  test('jobs are spread over the connected providers, each falling back to the others', () => {
+    const p = (price) => ({ label: 'x', keyHeader: 'X', price: () => price });
+    const { orders } = jobOrders({ a: p(1), b: p(2), c: p(3) }, { a: 'k', b: 'k', c: 'k' });
+    expect(orders.map((o) => o[0])).toEqual(['a', 'b', 'c', 'a']);
+    expect(orders[1]).toEqual(['b', 'c', 'a']);
   });
-  test('without a connected provider the order says so', async () => {
+  test('a provider that cannot start a pod falls back to the next one', async () => {
+    const { provider, dir } = localProvider();
+    const broken = { ...provider, create: async () => { throw new Error('HTTP 503: busy'); }, price: () => 0.001 };
+    const r = await demoRun({ broken, local: provider }, { broken: 'k', local: 'k' }, {});
+    rmSync(dir, { recursive: true, force: true });
+    expect(r.ok).toBe(true);
+    expect(r.providersUsed).toEqual(['local']);
+    // broken is cheaper, so jobs 1 and 3 ask it first and fall back; jobs 2 and 4 ask local first.
+    expect(r.jobs.map((j) => (j.fellBackFrom || []).join())).toEqual(['broken', '', 'broken', '']);
+  }, 30000);
+  test('the planted bug is real: the first code fails its test and the fix passes', () => {
+    const j = JOBS.find((x) => x.fix);
+    expect(j.code).toContain('split(" ")');
+    expect(j.fix).toContain('split()');
+    expect(j.tests).toContain('extra_spaces');
+  });
+  test('without a connected provider the run says so', async () => {
     const r = await demoRun({}, {}, {});
     expect(r.ok).toBe(false);
     expect(r.error).toContain('connect');
   });
-  test('the page has the order button, the animation and the endpoint it calls', () => {
+  test('the page has the run button, the timeline and the endpoint it calls, and says pod not sandbox', () => {
     const html = demoPage();
     expect(html).toContain('id="go"');
     expect(html).toContain("fetch('/console/demo'");
-    expect(html).toContain('transition');
+    expect(html).toContain('id="board"');
     expect(html).toContain('noindex');
+    expect(html.split('<main')[1].split('</main>')[0].toLowerCase()).not.toContain('sandbox');
   });
 });
