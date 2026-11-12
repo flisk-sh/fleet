@@ -122,11 +122,11 @@ ${FONTS}
 <body>
 ${FLISK_BAR}
 <div class="frame">
-<div class="top m"><nav><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/docs#mcp">MCP</a><a class="hide" href="https://github.com/flisk-sh/fleet">Source</a></nav><a class="cta" href="/console">Console</a></div>
+<div class="top m"><nav><a href="/pricing">Pricing</a><a href="/podlytics">Podlytics</a><a href="/docs">Docs</a><a href="/docs#mcp">MCP</a><a class="hide" href="https://github.com/flisk-sh/fleet">Source</a></nav><a class="cta" href="/console">Console</a></div>
 ${body}
 <div class="foot-grid">
 <div><a class="logo" href="/"><span class="mark">&gt;_</span>fleet</a><div><a class="b inv" href="/console?section=try" style="display:inline-block;margin:0">Try a demo pod</a></div><span class="m" style="color:var(--dim)">Beta · part of Flisk</span></div>
-<div><span class="m h">01 / Product</span><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/SKILL.md">SKILL.md</a><a href="/console">Console</a></div>
+<div><span class="m h">01 / Product</span><a href="/pricing">Pricing</a><a href="/podlytics">Podlytics</a><a href="/docs">Docs</a><a href="/SKILL.md">SKILL.md</a><a href="/console">Console</a></div>
 <div><span class="m h">02 / Flisk</span><a href="https://flisk.sh">Flisk CLI</a><a href="https://inference.flisk.si">Inference</a><a href="https://gardener.flisk.si">Gardener</a><a href="https://flisk.si">All products</a></div>
 <div><span class="m h">03 / Source</span><a href="https://github.com/sponsors/flisk-sh">Sponsor fleet</a><a href="https://github.com/flisk-sh/fleet">GitHub</a><a href="https://github.com/flisk-sh/fleet/issues">Report a bug</a><a href="https://github.com/flisk-sh/fleet#what-fleet-stores">What fleet stores</a></div>
 </div>
