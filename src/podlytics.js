@@ -201,6 +201,7 @@ function client(D, SIZES) {
     $('#speed-missing').innerHTML = missing.length
       ? 'No measured starts yet for ' + missing.map((p) => `<span style="color:${p.color}">${p.logo} ${p.label}</span>`).join(', ') + '. Every start through fleet adds to this chart.'
       : '';
+    svg.setAttribute('aria-label', pts.length ? 'Start time against hourly cost: ' + pts.map((d) => d.p.label + ' median start ' + secs(d.ms) + ', ' + money(d.cost) + ' an hour').join('; ') : 'No measured starts yet');
     if (!pts.length) return empty(svg, W, H, 'No measured starts for these providers in the last 30 days.');
     const allMs = pts.flatMap((d) => [d.ms, d.p90 || d.ms]);
     const lo = Math.max(50, Math.pow(10, Math.floor(Math.log10(Math.min(...allMs)))));
@@ -247,6 +248,7 @@ function client(D, SIZES) {
     const L = narrow ? 6 : 220, R = narrow ? 70 : 90, T = 30 + 14 * axisLines.length, B = 8;
     const H = T + rows.length * rowH + B;
     const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img' }, box);
+    svg.setAttribute('aria-label', axis + ' ' + rows.map((r) => r.p.label + ' ' + (r.v == null ? (r.none || 'no data') : fmt(r.v)) + (r.p.blocked ? ' (' + blockedNote(r.p) + ')' : '')).join('; '));
     if (!rows.length) return empty(svg, W, 160, 'No providers are on. Click one in the list to show it.');
     const max = cap || niceMax(Math.max(...rows.filter((r) => r.v != null).map((r) => r.v), 0) * 1.05 || 1);
     const xOf = (v) => L + ((W - L - R) * v) / max;
@@ -398,7 +400,7 @@ function client(D, SIZES) {
     for (const [key, title, sub] of [['burst', 'Bursty: 30,000 short sessions', '5 min alive, 30 s of CPU, nothing kept'], ['state', 'Stateful: 50 agents kept for a month', 'busy 2 h a day, paused 22 h, state kept']]) {
       const rows = shown().filter((p) => p.ref && p.ref.scen).sort((a, b) => a.ref.scen[key] - b.ref.scen[key]);
       const max = Math.max(1, ...rows.map((p) => p.ref.scen[key]));
-      box.insertAdjacentHTML('beforeend', `<h4 class="wh">${title}<small>${sub}</small></h4>` + rows.map((p) => `<div class="wr"><span class="pn">${p.logo}${p.label}</span><i style="width:${Math.max(1, (p.ref.scen[key] / max) * 100)}%;background:${p.color}"></i><em>${money(p.ref.scen[key])}/mo</em></div>`).join(''));
+      box.insertAdjacentHTML('beforeend', `<h3 class="wh">${title}<small>${sub}</small></h3>` + rows.map((p) => `<div class="wr"><span class="pn">${p.logo}${p.label}</span><i style="width:${Math.max(1, (p.ref.scen[key] / max) * 100)}%;background:${p.color}"></i><em>${money(p.ref.scen[key])}/mo</em></div>`).join(''));
     }
   }
 
@@ -547,7 +549,8 @@ polyline.soon{stroke-dasharray:6 5}
 .grow{animation:grow .5s cubic-bezier(.2,.7,.2,1) both}
 @keyframes grow{from{transform:scaleY(0)}}
 .note{color:var(--dim);font-size:12.5px;margin:10px 0 0}
-h4.wh{margin:18px 0 8px;font-size:14px}h4.wh small{display:block;color:var(--dim);font-weight:400;font-size:12px}.wr{display:grid;grid-template-columns:170px 1fr 90px;gap:10px;align-items:center;font-size:13px;margin:5px 0}.wr i{height:12px;display:block}.wr em{font-style:normal;color:var(--dim);text-align:right}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+h3.wh{margin:18px 0 8px;font-size:14px}h3.wh small{display:block;color:var(--dim);font-weight:400;font-size:12px}.wr{display:grid;grid-template-columns:170px 1fr 90px;gap:10px;align-items:center;font-size:13px;margin:5px 0}.wr i{height:12px;display:block}.wr em{font-style:normal;color:var(--dim);text-align:right}
 table.iso{width:100%;border-collapse:collapse;font-size:13px}.iso th{text-align:left;color:var(--dim);font-weight:500;padding:8px;border-bottom:1px solid var(--line)}.iso td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
 #c-calls{display:grid;gap:10px;margin-top:12px}
 .crow{display:grid;grid-template-columns:190px repeat(3,minmax(0,1fr));gap:10px;align-items:center}.crow.hd2{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}
@@ -624,6 +627,7 @@ ${FLISK_BAR}
 </header>
 <div class="app">
 <main>
+<h1 class="sr">podlytics: sandbox providers compared</h1>
 <section class="chart" id="size"><div class="ch"><div><h2>Cost vs size</h2><p>List price per hour at the size you pick, cheapest first. Dashed bar: provider not yet run for real through fleet.</p></div>${seg('csize', PL_SIZES.map((z, i) => [i, z.cpu + ' vCPU']), 1)}</div><div class="plot" id="c-size"></div></section>
 <section class="chart" id="speed"><div class="ch"><div><h2>Start time vs cost</h2><p>Median time from the start call to a running pod, measured on real starts through fleet. The faint line runs to p90.</p></div></div><div class="plot" id="c-speed"></div><p class="note" id="speed-missing"></p></section>
 <section class="chart" id="task"><div class="ch"><div><h2>Cost per task</h2><p>One agent task on one pod, billed by the second.</p></div>${seg('tasklen', [[300, '5 min'], [1800, '30 min'], [3600, '1 h'], [14400, '4 h']], 1800)}</div><div class="plot" id="c-task"></div></section>

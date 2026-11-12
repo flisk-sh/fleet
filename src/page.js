@@ -134,7 +134,8 @@ ${FONTS}
 ${FLISK_BAR}
 <div class="frame">
 <div class="top m"><nav><span class="swp" aria-label="Fleet products"><a class="on" href="/" aria-current="page">fleet</a><a href="/podlytics">podlytics</a></span><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/docs#mcp">MCP</a><a class="hide" href="https://github.com/flisk-sh/fleet">Source</a><a class="spons" href="https://github.com/sponsors/flisk-sh">Sponsor fleet</a></nav><a class="cta" href="/console">Console</a></div>
-${body}
+<main id="main">${body}</main>
+<footer>
 <div class="foot-grid">
 <div><a class="logo" href="/">${FLEET_MARK}fleet</a><div><a class="b inv" href="/console?section=try" style="display:inline-block;margin:0">Try a demo pod</a></div><span class="m" style="color:var(--dim)">Beta · part of Flisk</span></div>
 <div><span class="m h">01 / Product</span><a href="/pricing">Pricing</a><a href="/podlytics">Podlytics</a><a href="/docs">Docs</a><a href="/SKILL.md">SKILL.md</a><a href="/console">Console</a></div>
@@ -144,6 +145,7 @@ ${body}
 <div class="word" aria-hidden="true">fleet</div>
 <div class="legal"><span><a href="https://github.com/flisk-sh/fleet/blob/main/LICENSE">MIT licence</a><a href="https://github.com/sponsors/flisk-sh">Sponsor</a><a href="https://github.com/flisk-sh/fleet#what-fleet-stores">What fleet stores</a></span><span>fleet.flisk.si</span></div>
 </div>
+</footer>
 ${COPY_JS}
 </body></html>`;
 
