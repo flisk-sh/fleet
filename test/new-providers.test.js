@@ -252,3 +252,11 @@ describe('every request to a provider carries a User-Agent', () => {
     for (const h of seen) expect(h['user-agent']).toBe(UA);
   });
 });
+
+describe('vercel lifetime on the Hobby plan', () => {
+  test('a longer ttl is capped at 45 minutes', async () => {
+    const f = fakeFetch([{ body: { sandbox: { name: 'n' }, session: { id: 's', status: 'running' } } }]);
+    await vercel.create('tok:prj_1', { cpu: 1, ram: 1, ttl: 3600 }, f);
+    expect(json(f.calls[0]).timeout).toBe(2700000);
+  });
+});

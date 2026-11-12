@@ -7,6 +7,9 @@ import { call, sleep, UA } from './http.js';
 const API = 'https://api.vercel.com';
 const CPU_HOUR = 0.128; // Active CPU: billed only while the CPU works, so this is the most a pod can cost
 const GB_HOUR = 0.0212;
+// Hobby sandboxes last at most 45 minutes (Vercel answers 400 "timeout restricted to <= 45m on Hobby plans", seen live
+// 2026-11-12). Pro allows 24 hours; fleet uses the Hobby limit because it cannot tell the plan from the key.
+const HOBBY_MAX_SECONDS = 2700;
 
 export function parseVercelKey(key) {
   const [token, projectId, teamId] = String(key).split(':');
@@ -95,7 +98,7 @@ export default {
     const made = await call(fetchImpl, `${API}/v4/sandboxes${q(k)}`, {
       method: 'POST',
       headers: auth(k),
-      body: { name, projectId: k.projectId, resources: { vcpus, memory: vcpus * 2048 }, timeout: (size.ttl ?? 3600) * 1000, persistent: false },
+      body: { name, projectId: k.projectId, resources: { vcpus, memory: vcpus * 2048 }, timeout: Math.min(size.ttl ?? 3600, HOBBY_MAX_SECONDS) * 1000, persistent: false },
     });
     const session = made?.session?.id || made?.sandbox?.currentSessionId;
     if (!session) throw new Error('Vercel returned no session id');
