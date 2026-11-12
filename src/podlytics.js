@@ -338,7 +338,7 @@ function client(D, SIZES) {
             .map((k) => {
               const s = p.stats[k];
               if (!s || s.p50 == null) return `<span class="cc none"><u class="kl">${k}</u>no data</span>`;
-              return `<span class="cc" data-tip="${p.label} ${k}: median ${secs(s.p50)}, p90 ${secs(s.p90)}, ${s.n} calls"><u class="kl">${k}</u><i style="width:${Math.max(3, (s.p50 / max[k]) * 100)}%;background:${p.color}"></i><i class="p90" style="left:calc(${(s.p90 / max[k]) * 100}% - 2px)"></i><em>${secs(s.p50)}</em></span>`;
+              return `<span class="cc" data-tip="${p.label} ${k}: median ${secs(s.p50)}, p90 ${secs(s.p90)}, ${s.n} calls"><u class="kl">${k}</u><i style="width:${Math.max(3, (s.p50 / max[k]) * 100)}%;background:${p.color}"></i><i class="p90" style="left:calc(${(s.p90 / max[k]) * 100}% - 2px)"></i><em style="justify-content:${s.p90 / max[k] > 0.5 ? 'flex-start' : 'flex-end'}">${secs(s.p50)}</em></span>`;
             })
             .join('') +
           '</div>',
