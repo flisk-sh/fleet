@@ -1,11 +1,12 @@
 // MCP over HTTP (JSON-RPC, one request per POST). The tools call the same code as the HTTP API.
 import { createPod, readFile, runPod, stopPod, writeFile } from './route.js';
 
-const TOOLS = [
+export const TOOLS = [
   {
     name: 'pod_create',
     description:
       'Start a pod (an isolated Linux machine for an agent) on the cheapest provider you sent a key for. Moves to the next provider if one fails. Returns the pod id.',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -18,6 +19,7 @@ const TOOLS = [
   {
     name: 'pod_run',
     description: 'Run one shell command in a pod. Returns stdout, stderr and the exit code (timedOut too when you set timeout).',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -33,6 +35,7 @@ const TOOLS = [
   {
     name: 'pod_write_file',
     description: 'Write a file in a pod, making its folders. Text by default; send base64 with encoding "base64". At most 256 KB.',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     inputSchema: {
       type: 'object',
       properties: {
@@ -47,19 +50,25 @@ const TOOLS = [
   {
     name: 'pod_read_file',
     description: 'Read a file from a pod. Returns text, or base64 (encoding "base64") when the file is not UTF-8. At most 256 KB.',
+    annotations: { readOnlyHint: true, openWorldHint: false },
     inputSchema: { type: 'object', properties: { id: { type: 'string' }, path: { type: 'string' } }, required: ['id', 'path'] },
   },
   {
     name: 'pod_list',
     description: 'List your pods, newest first, with provider, size, price and status (running, stopped, gone, likely-stopped).',
+    annotations: { readOnlyHint: true, openWorldHint: false },
     inputSchema: { type: 'object', properties: { status: { type: 'string', description: 'Only pods with this status, e.g. running' } } },
   },
   {
     name: 'pod_stop',
     description: 'Stop a pod. Always stop pods you no longer need: the provider bills while it runs.',
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
     inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
   },
 ];
+
+// A read-only fleet key may call only the tools marked readOnlyHint.
+export const READ_ONLY_TOOLS = TOOLS.filter((t) => t.annotations.readOnlyHint).map((t) => t.name);
 
 const reply = (id, result) => ({ jsonrpc: '2.0', id, result });
 const fail = (id, code, message) => ({ jsonrpc: '2.0', id, error: { code, message } });
@@ -75,9 +84,12 @@ export async function handleMcp(message, providers, keys, ctx) {
   }
   if (method === 'notifications/initialized') return null;
   if (method === 'ping') return reply(id, {});
-  if (method === 'tools/list') return reply(id, { tools: TOOLS });
+  if (method === 'tools/list') return reply(id, { tools: ctx?.scope === 'read' ? TOOLS.filter((t) => READ_ONLY_TOOLS.includes(t.name)) : TOOLS });
   if (method === 'tools/call') {
     const args = params?.arguments || {};
+    if (ctx?.scope === 'read' && !READ_ONLY_TOOLS.includes(params?.name) && TOOLS.some((t) => t.name === params?.name)) {
+      return fail(id, -32001, `${params.name} is not allowed: this fleet key is read-only (it can call ${READ_ONLY_TOOLS.join(', ')})`);
+    }
     let out;
     if (params?.name === 'pod_create') out = await createPod(providers, keys, args, ctx);
     else if (params?.name === 'pod_run') out = await runPod(providers, keys, args.id, args, ctx);

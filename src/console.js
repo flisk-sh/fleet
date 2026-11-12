@@ -1,12 +1,13 @@
 // The cabinet: same layout as inference.flisk.si's console (sidebar, title with a beta tag, ruled tables), in black and white.
 import { CSS, esc, FLEET_MARK, FONTS, FLISK_BAR, statusTag } from './page.js';
 import { logoSvg, providerTag } from './logos.js';
+import { tidyError } from './providers/http.js';
 import { PROVIDERS } from './providers/index.js';
 
 // Logo and name of a provider id; an id fleet does not know is shown as plain text.
 const ptag = (id) => (id && PROVIDERS[id] ? providerTag(id, PROVIDERS[id].label) : esc(id || '—'));
 import { fieldsOf } from './providers/fields.js';
-import { ICON_TAGS } from './seo.js';
+import { ICON_TAGS, SKIP_LINK } from './seo.js';
 import { LIMIT_RANGES, MAX_KEYS, podStatus, summarize } from './store.js';
 
 const SECTIONS = [
@@ -133,13 +134,13 @@ ${ICON_TAGS}
 ${FONTS}
 <style>${CSS}${CABINET_CSS}</style>
 </head>
-<body>${FLISK_BAR}<div class="cab">
+<body>${SKIP_LINK}${FLISK_BAR}<div class="cab">
 <aside class="side">
 <a class="logo" href="/">${FLEET_MARK}fleet</a>
 ${nav}
 <div class="me"><span>@${esc(login)}</span><form method="post" action="/auth/signout"><button class="b" type="submit">Sign out</button></form></div>
 </aside>
-<main class="main">
+<main class="main" id="main">
 <div class="ctop"><h1>${esc(title)} <span class="pill"><i></i>Beta</span></h1><a class="b" href="/">Home</a></div>
 ${body}
 </main>
@@ -234,7 +235,7 @@ function podsSection(pods, history = null) {
   }
   const status = (p) => {
     const st = podStatus(p);
-    if (st === 'failed') return `start failed: ${p.failedStart.map((f) => `${f.provider}: ${f.error}`).join('; ')}`;
+    if (st === 'failed') return `start failed: ${p.failedStart.map((f) => `${f.provider}: ${tidyError(f.error)}`).join('; ')}`;
     if (st === 'stopped') return `stopped ${when(p.stopped)}`;
     if (st === 'gone') return `gone, seen ${when(p.gone)}`;
     if (st === 'running') return 'running';
@@ -255,12 +256,12 @@ function keysSection({ keys, newKey, error }) {
     : '';
   const rows = keys
     .map(
-      (k) => `<tr><td>${esc(k.name)}</td><td>${esc(k.hint || k.id + '…')}</td><td>${k.created ? when(k.created) : 'before the cabinet'}</td><td>${when(k.lastUsed)}</td><td><form method="post" action="/console/keys/${esc(k.id)}/revoke" onsubmit="return confirm('Revoke ${esc(k.name)}? Calls with this key stop working.')"><button class="b" type="submit">Revoke</button></form></td></tr>`,
+      (k) => `<tr><td>${esc(k.name)}</td><td>${k.scope === 'read' ? 'read-only' : 'full'}</td><td>${esc(k.hint || k.id + '…')}</td><td>${k.created ? when(k.created) : 'before the cabinet'}</td><td>${when(k.lastUsed)}</td><td><form method="post" action="/console/keys/${esc(k.id)}/revoke" onsubmit="return confirm('Revoke ${esc(k.name)}? Calls with this key stop working.')"><button class="b" type="submit">Revoke</button></form></td></tr>`,
     )
     .join('');
   return `${error ? `<div class="err">${esc(error)}</div>` : ''}${made}
-<form class="row" method="post" action="/console/keys"><input type="text" name="name" maxlength="40" placeholder="Key name, for example ci" aria-label="Key name"><button class="b inv" type="submit">Create key</button><span class="note" style="margin:0">Up to ${MAX_KEYS} active keys.</span></form>
-${keys.length ? `<div class="scroll" style="margin-top:22px"><table><tr><th>Name</th><th>Key</th><th>Created</th><th>Last used</th><th></th></tr>${rows}</table></div>` : '<div class="box"><b>Create your first key</b><p class="note">A fleet key goes in the Authorization header of every API and MCP call.</p></div>'}
+<form class="row" method="post" action="/console/keys"><input type="text" name="name" maxlength="40" placeholder="Key name, for example ci" aria-label="Key name"><select name="scope" aria-label="Key access"><option value="full">Full access</option><option value="read">Read-only (list pods, read files)</option></select><button class="b inv" type="submit">Create key</button><span class="note" style="margin:0">Up to ${MAX_KEYS} active keys.</span></form>
+${keys.length ? `<div class="scroll" style="margin-top:22px"><table><tr><th>Name</th><th>Access</th><th>Key</th><th>Created</th><th>Last used</th><th></th></tr>${rows}</table></div>` : '<div class="box"><b>Create your first key</b><p class="note">A fleet key goes in the Authorization header of every API and MCP call.</p></div>'}
 <p class="note">"Last used" updates at most once an hour.</p>`;
 }
 
@@ -387,7 +388,7 @@ function usageSection(calls, errorsOnly) {
   const badge = (st) => `<span class="st ${st >= 400 ? 'bad' : 'ok'}">${st}</span>`;
   const rows = calls
     .map(
-      (c) => `<tr><td class="nw">${when(c.at)}</td><td class="n">${esc(c.kind)}</td><td>${c.provider ? ptag(c.provider) : c.kind === 'start' && c.status >= 400 ? 'none started' : '—'}</td><td class="n">${esc(c.ref || '—')}</td><td>${badge(c.status)}</td><td class="n nw">${(c.ms / 1000).toFixed(1)} s</td><td class="n">${esc(c.detail || '')}</td><td>${c.exit_code ?? ''}</td><td>${esc(c.error || '')}</td></tr>`,
+      (c) => `<tr><td class="nw">${when(c.at)}</td><td class="n">${esc(c.kind)}</td><td>${c.provider ? ptag(c.provider) : c.kind === 'start' && c.status >= 400 ? 'none started' : '—'}</td><td class="n">${esc(c.ref || '—')}</td><td>${badge(c.status)}</td><td class="n nw">${(c.ms / 1000).toFixed(1)} s</td><td class="n">${esc(c.detail || '')}</td><td>${c.exit_code ?? ''}</td><td>${esc(tidyError(c.error))}</td></tr>`,
     )
     .join('');
   return `<div class="row"><a class="b${errorsOnly ? '' : ' on'}" href="/console?section=usage">All</a><a class="b${errorsOnly ? ' on' : ''}" href="/console?section=usage&only=errors">Errors</a><a class="b" style="margin-left:auto" href="/console?section=usage${errorsOnly ? '&only=errors' : ''}">Refresh</a></div>

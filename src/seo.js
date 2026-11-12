@@ -4,6 +4,13 @@ import { ASSETS } from './assets.js';
 
 export const SITE = 'https://fleet.flisk.si';
 
+// "Skip to content": the first thing a keyboard or screen-reader user reaches. Hidden until it has focus. Every page's
+// main area carries id="main" for it to jump to.
+// tabindex="1" makes it the first Tab stop even though the shared Flisk bar (injected by flisk.si/assets/bar.js, about 15
+// links) puts itself above it in the page; no other element on these pages has a positive tabindex.
+export const SKIP_LINK = '<a class="skip" href="#main" tabindex="1">Skip to content</a>';
+export const SKIP_CSS = '.skip{position:absolute;left:12px;top:-64px;z-index:1000;background:#171715;color:#f7f5e4;padding:11px 16px;font:12px/1 ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.06em;text-decoration:none;border:2px solid #22c55e}.skip:focus{top:46px}';
+
 // Public, indexable pages. Everything else (the cabinet, the API) stays out of search.
 export const PAGES = {
   '/': {

@@ -3,7 +3,7 @@
 // usage log (the calls table), summed over every account for the last 30 days. No login or pod id leaves the server.
 import { logoSvg } from './logos.js';
 import { esc, FLEET_MARK, FLISK_BAR } from './page.js';
-import { headTags, PAGES } from './seo.js';
+import { headTags, PAGES, SKIP_CSS, SKIP_LINK } from './seo.js';
 import { REFERENCE, REFERENCE_TIERS, scenarios } from './reference.js';
 
 const PL_FONTS =
@@ -643,9 +643,10 @@ export function podlyticsPage(data) {
 ${headTags({ path: '/podlytics' })}
 <meta name="theme-color" content="#0b0b0d">
 ${PL_FONTS}
-<style>${CSS}</style>
+<style>${CSS}${SKIP_CSS}</style>
 </head>
 <body>
+${SKIP_LINK}
 ${FLISK_BAR}
 <header class="hd">
 <a class="brand" href="/" title="fleet">${FLEET_MARK}<span>fleet</span></a>
@@ -655,7 +656,7 @@ ${FLISK_BAR}
 <div class="tools"><label><input type="checkbox" id="working" aria-label="Working only"><span>Working only</span></label><button type="button" class="ib" id="csv" title="Download the data as CSV">CSV ↓</button></div>
 </header>
 <div class="app">
-<main>
+<main id="main">
 <h1 class="sr">podlytics: sandbox providers compared</h1>
 <section class="chart" id="size"><div class="ch"><div><h2>Cost vs size</h2><p>List price per hour at the size you pick, cheapest first. Dashed bar: provider not yet run for real through fleet.</p></div>${seg('csize', PL_SIZES.map((z, i) => [i, z.cpu + ' vCPU']), 1)}</div><div class="plot" id="c-size"></div></section>
 <section class="chart" id="speed"><div class="ch"><div><h2>Start time vs cost</h2><p>Median time from the start call to a running pod, measured on real starts through fleet. The faint line runs to p90.</p></div></div><div class="plot" id="c-speed"></div><p class="note" id="speed-missing"></p></section>

@@ -65,6 +65,8 @@ curl -X POST https://fleet.flisk.si/v1/pods \
 
 `POST /mcp` is an MCP server with six tools: `pod_create`, `pod_run`, `pod_write_file`, `pod_read_file`, `pod_list`, `pod_stop`.
 
+The tools carry MCP annotations: `pod_list` and `pod_read_file` are `readOnlyHint`, `pod_stop` is `destructiveHint`, `pod_create` and `pod_run` are `openWorldHint`. A fleet key made as **Read-only** in the cabinet sees only `pod_list` and `pod_read_file`, gets an error from the other tools, and gets 403 on the HTTP routes that change anything. A database made before this needs `ALTER TABLE keys ADD COLUMN scope TEXT NOT NULL DEFAULT 'full';` once (`wrangler d1 execute fleet --remote`) before read-only keys can be made.
+
 ```json
 { "mcpServers": { "fleet": {
     "type": "http",
