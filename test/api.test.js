@@ -556,3 +556,17 @@ describe('search and link previews', () => {
     for (const [p, type] of [['/og.png', 'image/png'], ['/favicon.ico', 'image/x-icon'], ['/icon.svg', 'image/svg+xml']]) expect((await get(p)).headers.get('content-type')).toBe(type);
   });
 });
+
+describe('price table order', () => {
+  test('providers nobody can start yet come last, so the first entry is usable', async () => {
+    const { priceTable } = await import('../src/route.js');
+    const { PROVIDERS: P } = await import('../src/providers/index.js');
+    const table = priceTable(P);
+    const firstBlocked = table.findIndex((r) => r.status === 'blocked');
+    expect(firstBlocked).toBeGreaterThan(0);
+    expect(table.slice(firstBlocked).every((r) => r.status === 'blocked')).toBe(true);
+    expect(table[0].status).not.toBe('blocked');
+    const usable = table.slice(0, firstBlocked).map((r) => r.pricePerHour);
+    expect(usable).toEqual([...usable].sort((a, b) => a - b));
+  });
+});
