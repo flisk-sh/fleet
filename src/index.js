@@ -7,7 +7,7 @@ import { docsPage, skillMd, DOCS_CSS } from './docs.js';
 import { pricingPage, PRICING_CSS } from './pricing.js';
 import { measured, podlyticsData, podlyticsPage } from './podlytics.js';
 import { cabinetPage } from './console.js';
-import { connectedKeys, connectProvider, disconnectProvider, listConnections, checkLimits, createKey, getLimits, LIMIT_DEFAULTS, listCalls, listKeys, listPods, logCall, loginForKey, podListItem, podRef, podStatus, podsStartedToday, recordPod, revokeKey, setLimits } from './store.js';
+import { connectedKeys, connectProvider, disconnectProvider, listConnections, checkLimits, createKey, getLimits, LIMIT_DEFAULTS, callItem, listCalls, listKeys, listPodCalls, listPods, logCall, loginForKey, podListItem, podRef, podStatus, podsStartedToday, recordPod, revokeKey, setLimits } from './store.js';
 import { overMinuteLimit, PODS_PER_DAY } from './limit.js';
 import { vaultReady } from './vault.js';
 import { assetResponse, llmsTxt, robotsTxt, sitemapXml } from './seo.js';
@@ -71,7 +71,8 @@ async function cabinet(env, origin, login, section, providers, extra = {}) {
     extra.limits ? extra.limits : getLimits(env, login),
   ]);
   const connections = vaultReady(env) ? await listConnections(env, login) : {};
-  return html(cabinetPage({ origin, login, section, keys, pods, calls, limits, connections, canConnect: vaultReady(env), prices: priceTable(providers), providers, ...extra }), 200, { 'cache-control': 'no-store' });
+  const history = section === 'pods' && extra.pod ? await listPodCalls(env, login, extra.pod) : null;
+  return html(cabinetPage({ origin, login, section, keys, pods, calls, history, limits, connections, canConnect: vaultReady(env), prices: priceTable(providers), providers, ...extra }), 200, { 'cache-control': 'no-store' });
 }
 
 // Every pod call records pod facts, goes to the usage log, and follows the account's own limits.
@@ -224,7 +225,7 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
       return new Response(readable, { headers: { 'content-type': 'application/x-ndjson', 'cache-control': 'no-store', 'x-accel-buffering': 'no' } });
     }
     if (request.method === 'GET' && path === '/console') {
-      return cabinet(env, origin, login, url.searchParams.get('section') || 'auto', providers, { errorsOnly: url.searchParams.get('only') === 'errors' });
+      return cabinet(env, origin, login, url.searchParams.get('section') || 'auto', providers, { errorsOnly: url.searchParams.get('only') === 'errors', pod: (url.searchParams.get('pod') || '').length <= 200 ? url.searchParams.get('pod') : null });
     }
     if (request.method === 'POST') {
       if (!sameOrigin(request, origin)) return html(messagePage('Not allowed', 'This form only works from fleet itself.'), 403);
@@ -294,6 +295,8 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
     const pods = await ctx.listPods();
     return json(200, { pods: want ? pods.filter((p) => p.status === want) : pods });
   }
+  const hist = /^\/v1\/pods\/([^/]+)\/history$/.exec(path);
+  if (hist && request.method === 'GET') return json(200, { id: decodeURIComponent(hist[1]), history: (await listPodCalls(env, login, decodeURIComponent(hist[1]))).map(callItem) });
   const m = /^\/v1\/pods\/([^/]+)(\/run|\/files)?$/.exec(path);
   if (m) {
     const id = decodeURIComponent(m[1]);

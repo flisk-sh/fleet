@@ -220,7 +220,15 @@ function overview(pods, keys = []) {
 `;
 }
 
-function podsSection(pods) {
+// One pod's history: each call that went through fleet, with the command or path and the exit code.
+function historyBox(calls) {
+  const rows = calls
+    .map((c) => `<tr><td class="nw">${when(c.at)}</td><td class="n">${esc(c.kind)}</td><td class="n">${esc(c.detail || '—')}</td><td class="n">${c.exit_code ?? '—'}</td><td>${c.status}</td><td>${esc(c.error || '')}</td></tr>`)
+    .join('');
+  return `<h2>Pod history</h2>${calls.length ? `<div class="scroll"><table><tr><th>Time</th><th>Call</th><th>Command or file</th><th>Exit code</th><th>Status</th><th>Error</th></tr>${rows}</table></div><p class="note">Commands are cut at 200 characters. Do not put secrets in a command line; pass them with env, which is not recorded.</p>` : '<div class="box"><b>No calls recorded for this pod</b><p class="note">Calls made before history was added are not here.</p></div>'}`;
+}
+
+function podsSection(pods, history = null) {
   if (!pods.length) {
     return `<div class="box"><b>Start your first pod</b><p class="note">Pods you start with your fleet keys show up here: provider, size, price and when they stopped.</p><div class="row"><a class="b inv" href="/console?section=docs">See how</a></div></div>`;
   }
@@ -234,10 +242,10 @@ function podsSection(pods) {
   };
   const rows = pods
     .map(
-      (p) => `<tr><td>${esc(p.ref || '—')}</td><td>${ptag(p.provider)}</td><td>${p.cpu} vCPU · ${p.ram} GB</td><td class="n">${money(p.price)}</td><td>${when(p.started)}</td><td>${status(p)}</td><td>${(p.movedFrom || []).map(ptag).join(' ') || '—'}</td></tr>`,
+      (p) => `<tr><td>${p.ref ? `<a href="/console?section=pods&pod=${encodeURIComponent(p.ref)}">${esc(p.ref)}</a>` : '—'}</td><td>${ptag(p.provider)}</td><td>${p.cpu} vCPU · ${p.ram} GB</td><td class="n">${money(p.price)}</td><td>${when(p.started)}</td><td>${status(p)}</td><td>${(p.movedFrom || []).map(ptag).join(' ') || '—'}</td></tr>`,
     )
     .join('');
-  return `<div class="scroll" style="margin-top:22px"><table><tr><th>Pod</th><th>Provider</th><th>Size</th><th>Per hour</th><th>Started</th><th>Status</th><th>Moved from</th></tr>${rows}</table></div>
+  return `${history ? historyBox(history) : ''}<div class="scroll" style="margin-top:22px"><table><tr><th>Pod</th><th>Provider</th><th>Size</th><th>Per hour</th><th>Started</th><th>Status</th><th>Moved from</th></tr>${rows}</table></div>
 <p class="note">A failed start lists each provider fleet tried and what it answered; a 401 means that provider's key is wrong. Fleet can't stop a pod from here. Stop one with DELETE /v1/pods/:id and your provider key. Pod ids here are cut short on purpose.</p>`;
 }
 
@@ -379,11 +387,11 @@ function usageSection(calls, errorsOnly) {
   const badge = (st) => `<span class="st ${st >= 400 ? 'bad' : 'ok'}">${st}</span>`;
   const rows = calls
     .map(
-      (c) => `<tr><td class="nw">${when(c.at)}</td><td class="n">${esc(c.kind)}</td><td>${c.provider ? ptag(c.provider) : c.kind === 'start' && c.status >= 400 ? 'none started' : '—'}</td><td class="n">${esc(c.ref || '—')}</td><td>${badge(c.status)}</td><td class="n nw">${(c.ms / 1000).toFixed(1)} s</td><td>${esc(c.error || '')}</td></tr>`,
+      (c) => `<tr><td class="nw">${when(c.at)}</td><td class="n">${esc(c.kind)}</td><td>${c.provider ? ptag(c.provider) : c.kind === 'start' && c.status >= 400 ? 'none started' : '—'}</td><td class="n">${esc(c.ref || '—')}</td><td>${badge(c.status)}</td><td class="n nw">${(c.ms / 1000).toFixed(1)} s</td><td class="n">${esc(c.detail || '')}</td><td>${c.exit_code ?? ''}</td><td>${esc(c.error || '')}</td></tr>`,
     )
     .join('');
   return `<div class="row"><a class="b${errorsOnly ? '' : ' on'}" href="/console?section=usage">All</a><a class="b${errorsOnly ? ' on' : ''}" href="/console?section=usage&only=errors">Errors</a><a class="b" style="margin-left:auto" href="/console?section=usage${errorsOnly ? '&only=errors' : ''}">Refresh</a></div>
-${calls.length ? `<div class="scroll" style="margin-top:18px"><table><tr><th>Time</th><th>Call</th><th>Provider</th><th>Pod</th><th>Status</th><th>Took</th><th>Error</th></tr>${rows}</table></div><p class="note">The last ${calls.length} calls${errorsOnly ? ' that failed' : ''}, from the API, MCP and Try a pod.</p>` : `<div class="box"><b>${errorsOnly ? 'No failed calls' : 'No calls yet'}</b><p class="note">Every pod start, run and stop shows up here with its status and how long it took.</p></div>`}`;
+${calls.length ? `<div class="scroll" style="margin-top:18px"><table><tr><th>Time</th><th>Call</th><th>Provider</th><th>Pod</th><th>Status</th><th>Took</th><th>Command or file</th><th>Exit</th><th>Error</th></tr>${rows}</table></div><p class="note">The last ${calls.length} calls${errorsOnly ? ' that failed' : ''}, from the API, MCP and Try a pod.</p>` : `<div class="box"><b>${errorsOnly ? 'No failed calls' : 'No calls yet'}</b><p class="note">Every pod start, run and stop shows up here with its status and how long it took.</p></div>`}`;
 }
 
 // Limits, after Monid's budgets: the account's own caps, below fleet's hard ones.
@@ -405,7 +413,7 @@ ${field('maxRam', 'Biggest pod: memory', 'GB', 'Bigger requests answer 400.')}
 <p class="note">Fleet doesn't bill you, so there is no money budget here: these caps keep your provider bills small. Fleet's own caps stay on top: 120 calls a minute and 300 pods a day per account.</p>`;
 }
 
-export function cabinetPage({ origin, login, section, keys, pods, calls = [], limits, connections = {}, canConnect = false, prices, providers, newKey, error, saved, errorsOnly, notice }) {
+export function cabinetPage({ origin, login, section, keys, pods, calls = [], history = null, limits, connections = {}, canConnect = false, prices, providers, newKey, error, saved, errorsOnly, notice }) {
   const auto = !keys.length && !pods.length ? 'start' : 'overview';
   const id = SECTIONS.some(([s]) => s === section) ? section : auto;
   const title = SECTIONS.find(([s]) => s === id)[1];
@@ -413,7 +421,7 @@ export function cabinetPage({ origin, login, section, keys, pods, calls = [], li
     id === 'overview'
       ? overview(pods, keys)
       : id === 'pods'
-        ? podsSection(pods)
+        ? podsSection(pods, history)
         : id === 'keys'
           ? keysSection({ keys, newKey, error })
           : id === 'try'
