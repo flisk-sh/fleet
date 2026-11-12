@@ -96,6 +96,7 @@ input:disabled{opacity:.55}
 .badge{font:10.5px/1 var(--mono);text-transform:uppercase;letter-spacing:.05em;border:1px solid var(--green);color:var(--green);padding:4px 6px;margin:0 6px 6px 0;display:inline-block}
 .links a{font:12px var(--mono);text-transform:uppercase;margin-left:12px}
 .b.on{background:var(--ink);color:var(--paper)}
+td.nw{white-space:nowrap}
 .st{font:12px var(--mono);border:1px solid;padding:2px 6px}.st.ok{color:var(--green)}.st.bad{color:#b42318}
 .limgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px}
 .limrow{display:flex;align-items:baseline;gap:10px}.limrow input{font:800 40px/1 var(--serif);width:150px;min-width:0;padding:6px 10px;background:var(--paper)}.limrow span{color:var(--dim)}
@@ -337,7 +338,7 @@ function usageSection(calls, errorsOnly) {
   const badge = (st) => `<span class="st ${st >= 400 ? 'bad' : 'ok'}">${st}</span>`;
   const rows = calls
     .map(
-      (c) => `<tr><td>${when(c.at)}</td><td class="n">${esc(c.kind)}</td><td>${esc(c.provider || '—')}</td><td class="n">${esc(c.ref || '—')}</td><td>${badge(c.status)}</td><td class="n">${(c.ms / 1000).toFixed(1)} s</td><td>${esc(c.error || '')}</td></tr>`,
+      (c) => `<tr><td class="nw">${when(c.at)}</td><td class="n">${esc(c.kind)}</td><td>${esc(c.provider || (c.kind === 'start' && c.status >= 400 ? 'none started' : '—'))}</td><td class="n">${esc(c.ref || '—')}</td><td>${badge(c.status)}</td><td class="n nw">${(c.ms / 1000).toFixed(1)} s</td><td>${esc(c.error || '')}</td></tr>`,
     )
     .join('');
   return `<div class="row"><a class="b${errorsOnly ? '' : ' on'}" href="/console?section=usage">All</a><a class="b${errorsOnly ? ' on' : ''}" href="/console?section=usage&only=errors">Errors</a><a class="b" style="margin-left:auto" href="/console?section=usage${errorsOnly ? '&only=errors' : ''}">Refresh</a></div>

@@ -62,7 +62,7 @@ async function createPodInner(providers, keys, body, ctx = {}) {
   if (size.error) return { status: 400, error: size.error };
   const picked = pickOrder(providers, keys, size, body);
   if (picked.error) return { status: 400, error: picked.error };
-  const lim = ctx.limits;
+  const lim = ctx.getLimits ? await ctx.getLimits() : ctx.limits;
   if (lim && (size.cpu > lim.maxCpu || size.ram > lim.maxRam)) return { status: 400, error: `over your own limit: at most ${lim.maxCpu} vCPU and ${lim.maxRam} GB a pod. Change it in the cabinet under Limits` };
   if (lim) size.ttl = lim.lifetimeMin * 60;
   if (ctx.allowCreate && !(await ctx.allowCreate())) return { status: 429, error: 'daily pod limit reached for this account. It resets at midnight UTC; you can change it in the cabinet under Limits' };
@@ -119,7 +119,9 @@ const timed = (kind, inner, refOf) => async (...args) => {
   const r = await inner(...args);
   try {
     const ref = refOf(r, args);
-    await ctx.log?.({ kind, status: r.status, ms: Date.now() - t0, provider: ref.provider ?? null, id: ref.id ?? null, error: r.status >= 400 ? r.error : null });
+    // A failed start keeps each provider's answer, the same detail the Pods page shows.
+    const why = r.failed?.length && r.status >= 400 ? `${r.error}: ${r.failed.map((f) => `${f.provider} ${f.error}`).join('; ')}` : r.error;
+    await ctx.log?.({ kind, status: r.status, ms: Date.now() - t0, provider: ref.provider ?? null, id: ref.id ?? null, error: r.status >= 400 ? why : null });
   } catch {}
   return r;
 };

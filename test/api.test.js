@@ -269,6 +269,7 @@ describe('screens from the owner: get started, catalog, usage, limits, pricing, 
     const rows = env.DB.raw.query("SELECT kind, status, provider, ref FROM calls WHERE login = 'octo' ORDER BY n").all();
     expect(rows.map((r) => `${r.kind}:${r.status}`)).toEqual(['start:201', 'run:200', 'stop:200', 'start:502']);
     expect(rows[0]).toMatchObject({ provider: 'mid', ref: 'pod_mid_one' });
+    expect(env.DB.raw.query("SELECT error FROM calls WHERE status = 502").get().error).toBe('no provider could start a pod: cheap down');
     expect(JSON.stringify(rows)).not.toContain('secret-token');
     const usage = await (await page('GET', '/console?section=usage')).text();
     expect(usage).toContain('pod_mid_one');
@@ -295,6 +296,16 @@ describe('screens from the owner: get started, catalog, usage, limits, pricing, 
       providers.mid.create = original;
     }
   });
+});
+
+test('with waitUntil, the usage log is written after the answer and still lands', async () => {
+  const { env, key } = await setup();
+  const later = [];
+  const r = await handle(new Request(`${ORIGIN}/v1/pods`, { method: 'POST', headers: { authorization: `Bearer ${key}`, 'X-mid-Key': 'm' }, body: '{}' }), env, { providers, waitUntil: (p) => later.push(p) });
+  expect(r.status).toBe(201);
+  expect(later).toHaveLength(1);
+  await Promise.all(later);
+  expect(env.DB.raw.query("SELECT kind, status FROM calls").all()).toEqual([{ kind: 'start', status: 201 }]);
 });
 
 describe('try a pod', () => {

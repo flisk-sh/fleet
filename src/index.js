@@ -62,19 +62,26 @@ async function cabinet(env, origin, login, section, providers, extra = {}) {
 }
 
 // Every pod call records pod facts, goes to the usage log, and follows the account's own limits.
-const podCtx = async (env, login, fetchImpl) => {
-  const limits = await getLimits(env, login).catch(() => ({ ...LIMIT_DEFAULTS }));
+// Limits are read only when a pod starts (run and stop don't need them). The usage log is written after the answer
+// when the runtime allows it (waitUntil); pod facts stay in line, because a stop right after a start must find the pod.
+const podCtx = (env, login, fetchImpl, waitUntil = null) => {
+  let limits = null;
+  const getLimitsOnce = async () => (limits ??= await getLimits(env, login).catch(() => ({ ...LIMIT_DEFAULTS })));
   return {
     fetchImpl,
-    limits,
+    getLimits: getLimitsOnce,
     record: (type, data) => recordPod(env, login, type, data),
-    log: (c) => logCall(env, login, c),
-    allowCreate: async () => (await podsStartedToday(env, login)) < Math.min(PODS_PER_DAY, limits.podsPerDay),
+    log: (c) => {
+      const write = logCall(env, login, c).catch(() => {});
+      if (waitUntil) waitUntil(write);
+      else return write;
+    },
+    allowCreate: async () => (await podsStartedToday(env, login)) < Math.min(PODS_PER_DAY, (await getLimitsOnce()).podsPerDay),
   };
 };
 
 // "Try a pod" in the cabinet: start, run one command, always stop, and time each step. The provider key is used for this call only.
-async function tryPod(request, env, login, providers, fetchImpl) {
+async function tryPod(request, env, login, providers, fetchImpl, waitUntil = null) {
   const body = await readJson(request);
   const provider = String(body?.provider || '');
   const key = String(body?.key || '').trim() || (providers[body?.provider]?.demo ? 'demo' : '');
@@ -83,7 +90,7 @@ async function tryPod(request, env, login, providers, fetchImpl) {
   if (!key) return json(400, { error: 'paste your provider API key first' });
   if (command.length > 500) return json(400, { error: 'keep the command under 500 characters' });
   const keys = { [provider]: key };
-  const ctx = await podCtx(env, login, fetchImpl);
+  const ctx = podCtx(env, login, fetchImpl, waitUntil);
   const t0 = Date.now();
   const made = await createPod(providers, keys, { provider, cpu: 2, ram: 4 }, ctx);
   const createMs = Date.now() - t0;
@@ -109,7 +116,7 @@ async function tryPod(request, env, login, providers, fetchImpl) {
   });
 }
 
-export async function handle(request, env = {}, { providers = PROVIDERS, fetchImpl = fetch } = {}) {
+export async function handle(request, env = {}, { providers = PROVIDERS, fetchImpl = fetch, waitUntil = null } = {}) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
   const origin = env.PUBLIC_ORIGIN || url.origin;
@@ -175,7 +182,7 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
         const made = await createKey(env, login, form?.get('name'));
         return cabinet(env, origin, login, 'keys', providers, { keys: made.list, newKey: made.key, error: made.error });
       }
-      if (path === '/console/try') return tryPod(request, env, login, providers, fetchImpl);
+      if (path === '/console/try') return tryPod(request, env, login, providers, fetchImpl, waitUntil);
       if (path === '/console/limits') {
         const form = await request.formData().catch(() => null);
         const input = Object.fromEntries(['podsPerDay', 'maxCpu', 'maxRam', 'lifetimeMin'].map((k) => [k, form?.get(k)]));
@@ -201,7 +208,7 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
   if (!login) return json(401, { error: `missing, revoked or unknown fleet key. Create one at ${origin}/console?section=keys and send it as "Authorization: Bearer fleet_..."` });
   if (await overMinuteLimit(login, { cache: env.LIMIT_CACHE })) return json(429, { error: 'too many requests for this account: at most 120 a minute. Wait a minute' });
   const keys = providerKeys(request, providers);
-  const ctx = await podCtx(env, login, fetchImpl);
+  const ctx = podCtx(env, login, fetchImpl, waitUntil);
 
   if (path === '/mcp') {
     if (request.method !== 'POST') return json(405, { error: 'POST only' });
@@ -230,5 +237,7 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
 }
 
 export default {
-  fetch: (request, env) => handle(request, env).catch((e) => json(500, { error: 'fleet failed: ' + String(e?.message || e).slice(0, 200) })),
+  // waitUntil lets the usage log be written after the answer is sent, so logging adds no time to a call.
+  fetch: (request, env, ectx) =>
+    handle(request, env, { waitUntil: ectx?.waitUntil ? (p) => ectx.waitUntil(p) : null }).catch((e) => json(500, { error: 'fleet failed: ' + String(e?.message || e).slice(0, 200) })),
 };
