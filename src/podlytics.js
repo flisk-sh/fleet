@@ -2,7 +2,7 @@
 // Prices come from the provider adapters (each provider's own price page). Speed and success come from fleet's own
 // usage log (the calls table), summed over every account for the last 30 days. No login or pod id leaves the server.
 import { logoSvg } from './logos.js';
-import { esc, FLISK_BAR } from './page.js';
+import { esc, FLEET_MARK, FLISK_BAR } from './page.js';
 import { headTags, PAGES } from './seo.js';
 import { REFERENCE, REFERENCE_TIERS, scenarios } from './reference.js';
 
@@ -489,7 +489,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);fo
 a{color:inherit}
 .hd{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:22px;height:56px;padding:0 22px;border-bottom:1px solid var(--line);background:rgba(11,11,13,.92);backdrop-filter:blur(8px)}
 .brand{display:flex;align-items:center;gap:9px;text-decoration:none;font:700 21px/1 var(--sans);letter-spacing:-.04em;white-space:nowrap}
-.brand .mk{display:inline-grid;place-items:center;width:22px;height:22px;background:var(--green);color:#0b0b0d;font:500 10px/1 var(--mono)}
+.brand svg.mark{width:22px;height:22px;flex-shrink:0}.brand .mk{display:inline-grid;place-items:center;width:22px;height:22px;background:var(--green);color:#0b0b0d;font:500 10px/1 var(--mono)}
 .sw{display:flex;padding:3px;gap:2px;border:1px solid var(--line);border-radius:999px;background:var(--panel);font:500 12.5px/1 var(--mono);white-space:nowrap}.sw a{display:flex;align-items:center;gap:6px;text-decoration:none;color:var(--dim);padding:7px 12px;border-radius:999px}.sw a:hover{color:var(--ink)}.sw a.on{background:var(--ink);color:var(--bg)}.sw a i{width:6px;height:6px;border-radius:50%;background:var(--faint)}.sw a.on i{background:var(--green)}
 .tabs{display:flex;gap:20px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;align-self:stretch;border-left:1px solid var(--line);padding-left:20px}
 .tabs::-webkit-scrollbar{display:none}
@@ -593,7 +593,7 @@ ${PL_FONTS}
 <body>
 ${FLISK_BAR}
 <header class="hd">
-<a class="brand" href="/" title="fleet"><span class="mk">&gt;_</span><span>fleet</span></a>
+<a class="brand" href="/" title="fleet">${FLEET_MARK}<span>fleet</span></a>
 <nav class="sw" aria-label="Fleet products"><a href="/"><i></i>fleet</a><a class="on" href="/podlytics" aria-current="page"><i></i>podlytics</a></nav>
 <nav class="tabs" aria-label="Charts">${CHARTS.map(([id, l]) => (id === '|' ? '<span class="sep"></span>' : `<a href="?chart=${id}" data-c="${id}"${id === 'size' ? ' class="on"' : ''}>${esc(l)}</a>`)).join('')}</nav>
 <div class="tools"><label><input type="checkbox" id="working"><span>Working only</span></label><button type="button" class="ib" id="csv" title="Download the data as CSV">CSV ↓</button></div>

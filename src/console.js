@@ -1,5 +1,5 @@
 // The cabinet: same layout as inference.flisk.si's console (sidebar, title with a beta tag, ruled tables), in black and white.
-import { CSS, esc, FONTS, FLISK_BAR, statusTag } from './page.js';
+import { CSS, esc, FLEET_MARK, FONTS, FLISK_BAR, statusTag } from './page.js';
 import { logoSvg } from './logos.js';
 import { fieldsOf } from './providers/fields.js';
 import { ICON_TAGS } from './seo.js';
@@ -131,7 +131,7 @@ ${FONTS}
 </head>
 <body>${FLISK_BAR}<div class="cab">
 <aside class="side">
-<a class="logo" href="/"><span class="mark">&gt;_</span>fleet</a>
+<a class="logo" href="/">${FLEET_MARK}fleet</a>
 ${nav}
 <div class="me"><span>@${esc(login)}</span><form method="post" action="/auth/signout"><button class="b" type="submit">Sign out</button></form></div>
 </aside>

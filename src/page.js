@@ -19,7 +19,7 @@ html{-webkit-text-size-adjust:100%;overflow-x:clip}
 body{margin:0;background:var(--paper) ${GRAIN};color:var(--ink);font:15px/1.55 var(--sans)}
 a{color:inherit}
 .m{font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;font-size:12px}
-.mark{display:inline-grid;place-items:center;width:18px;height:18px;background:var(--glow);color:var(--night);font:500 9px/1 var(--mono)}
+.mark{display:inline-grid;flex-shrink:0;place-items:center;width:18px;height:18px;background:var(--glow);color:var(--night);font:500 9px/1 var(--mono)}
 .frame{max-width:1240px;margin:0 auto;border-left:1px solid var(--ink);border-right:1px solid var(--ink);background:transparent;position:relative}
 .top{display:flex;justify-content:space-between;align-items:stretch;border-bottom:1px solid var(--ink);height:46px;position:relative}
 .top::before,.top::after{content:'';position:absolute;bottom:-4px;width:7px;height:7px;border-radius:50%;background:var(--ink)}
@@ -110,6 +110,7 @@ p.note{color:var(--dim);margin:14px 0 0;max-width:72ch}
 
 // The shared Flisk product bar (flisk.si/assets/bar.js), the same one every Flisk site loads. It lists the products
 // marked bar: true in flisk-sh/flisk.si _data/catalog.yml and marks the current site.
+export const FLEET_MARK = "<svg class=\"mark\" width=\"26\" height=\"26\" viewBox=\"0 0 64 64\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"64\" height=\"64\" rx=\"14\" fill=\"#0b0b0d\"/><rect x=\"10\" y=\"16\" width=\"30\" height=\"6\" rx=\"3\" fill=\"#fbfaf7\" opacity=\".25\"/><rect x=\"10\" y=\"29\" width=\"44\" height=\"6\" rx=\"3\" fill=\"#fbfaf7\" opacity=\".25\"/><rect x=\"10\" y=\"42\" width=\"20\" height=\"6\" rx=\"3\" fill=\"#fbfaf7\" opacity=\".25\"/><rect x=\"42\" y=\"13\" width=\"12\" height=\"12\" rx=\"3\" fill=\"#16a34a\"/><rect x=\"34\" y=\"26\" width=\"12\" height=\"12\" rx=\"3\" fill=\"#16a34a\" opacity=\".6\"/><rect x=\"26\" y=\"39\" width=\"12\" height=\"12\" rx=\"3\" fill=\"#16a34a\" opacity=\".35\"/></svg>";
 export const FLISK_BAR = '<script src="https://flisk.si/assets/bar.js" defer></script>';
 
 const COPY_JS = `<script>document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',()=>navigator.clipboard.writeText(b.dataset.copy).then(()=>{b.textContent='Copied';setTimeout(()=>{b.textContent='Copy'},1500)})))</script>`;
@@ -133,7 +134,7 @@ ${FLISK_BAR}
 <div class="top m"><nav><span class="swp" aria-label="Fleet products"><a class="on" href="/" aria-current="page">fleet</a><a href="/podlytics">podlytics</a></span><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/docs#mcp">MCP</a><a class="hide" href="https://github.com/flisk-sh/fleet">Source</a><a class="spons" href="https://github.com/sponsors/flisk-sh">Sponsor fleet</a></nav><a class="cta" href="/console">Console</a></div>
 ${body}
 <div class="foot-grid">
-<div><a class="logo" href="/"><span class="mark">&gt;_</span>fleet</a><div><a class="b inv" href="/console?section=try" style="display:inline-block;margin:0">Try a demo pod</a></div><span class="m" style="color:var(--dim)">Beta · part of Flisk</span></div>
+<div><a class="logo" href="/">${FLEET_MARK}fleet</a><div><a class="b inv" href="/console?section=try" style="display:inline-block;margin:0">Try a demo pod</a></div><span class="m" style="color:var(--dim)">Beta · part of Flisk</span></div>
 <div><span class="m h">01 / Product</span><a href="/pricing">Pricing</a><a href="/podlytics">Podlytics</a><a href="/docs">Docs</a><a href="/SKILL.md">SKILL.md</a><a href="/console">Console</a></div>
 <div><span class="m h">02 / Flisk</span><a href="https://flisk.sh">Flisk CLI</a><a href="https://inference.flisk.si">Inference</a><a href="https://gardener.flisk.si">Gardener</a><a href="https://flisk.si">All products</a></div>
 <div><span class="m h">03 / Source</span><a href="https://github.com/sponsors/flisk-sh">Sponsor fleet</a><a href="https://github.com/flisk-sh/fleet">GitHub</a><a href="https://github.com/flisk-sh/fleet/issues">Report a bug</a><a href="https://github.com/flisk-sh/fleet#what-fleet-stores">What fleet stores</a></div>
@@ -238,7 +239,7 @@ export function homePage({ origin, prices, size }) {
     `<section class="hero">
 <div class="l">
 <div>
-<a class="logo" href="/"><span class="mark">&gt;_</span>fleet</a>
+<a class="logo" href="/">${FLEET_MARK}fleet</a>
 <div style="margin-top:28px"><span class="pill"><i></i>Beta · ${stateCounts(prices)}</span></div>
 <h1>One key.<br>Every <em>agent<br>pod.</em></h1>
 <p class="lede">Your agent asks for a Linux machine. Fleet starts it on the cheapest sandbox provider you have an account at, and moves to the next one when a provider fails. Over HTTP or MCP.</p>
