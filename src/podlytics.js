@@ -144,7 +144,7 @@ function client(D, SIZES) {
   };
   const frame = (box) => {
     box.innerHTML = '';
-    const W = Math.max(320, box.clientWidth);
+    const W = Math.max(260, box.clientWidth);
     const H = W < 600 ? 300 : 380;
     const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img' }, box);
     return { svg, W, H };
@@ -240,7 +240,7 @@ function client(D, SIZES) {
     const box = $(boxSel);
     box.innerHTML = '';
     rows = rankRows(rows);
-    const W = Math.max(280, box.clientWidth);
+    const W = Math.max(260, box.clientWidth);
     const narrow = W < 600;
     // Wide: names to the left of the bars. Narrow: each name sits on its own line above its bar, so nothing is cut off.
     const rowH = narrow ? 50 : 32;
