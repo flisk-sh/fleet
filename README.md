@@ -18,7 +18,7 @@ Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the c
 | Hopx | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Hopx-Key` | $0.166 | https://hopx.ai/pricing |
 | Runloop | Coming soon (sign-up is invitation only, join their waitlist), [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Runloop-Key` | $0.317 | https://www.runloop.ai/pricing |
 | Vercel Sandbox | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Vercel-Key` (`<token>:<project id>[:<team id>]`) | $0.341 at most (CPU billed only while busy) | https://vercel.com/docs/sandbox/pricing |
-| Fly Sprites | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Sprites-Key` | $0.164 at most (billed on use) | https://fly.io/pricing |
+| Fly Sprites | Coming soon (needs a card on accounts whose Fly trial ended), [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Sprites-Key` | $0.164 at most (billed on use) | https://fly.io/pricing |
 | Morph | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Morph-Key` | $0.100 | https://cloud.morph.so/web/subscribe |
 | Upstash Box | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Upstash-Key` | $0.100 (active CPU) | https://upstash.com/docs/box/overall/pricing |
 
