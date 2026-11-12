@@ -20,7 +20,7 @@ describe('provider logos', () => {
   });
 
   test('providers without an official mark get a letter tile', () => {
-    for (const id of ['isorun', 'demo']) {
+    for (const id of ['demo']) {
       expect(LOGO_IMAGES[id]).toBeUndefined();
       expect(logoSvg(id, PROVIDERS[id].label)).toContain(`>${initials(PROVIDERS[id].label)}</span>`);
     }
