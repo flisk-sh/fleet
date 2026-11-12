@@ -358,6 +358,7 @@ function client(D, SIZES) {
         return `<button type="button" class="prow${on ? '' : ' off'}" data-id="${p.id}" aria-pressed="${on}"><span class="pn">${p.logo}${p.label}</span><span class="pt">${p.working ? 'working' : 'untested'}</span><i style="${on ? 'background:' + p.color + ';border-color:' + p.color : 'border-color:' + p.color}"></i></button>`;
       })
       .join('');
+    if (!$('#plist').innerHTML) $('#plist').innerHTML = `<p class="note">No provider matches "${st.q.replace(/[<>&"]/g, '')}". Clear the search to see all ${D.length}.</p>`;
     $$('#plist .prow').forEach((b) =>
       b.addEventListener('click', () => {
         const id = b.dataset.id;
