@@ -11,7 +11,7 @@ export const PL_SIZES = [
   { cpu: 16, ram: 32 },
 ];
 const COLORS = { daytona: '#3ddc84', boat: '#ff8a5c', e2b: '#ffc94d', isorun: '#6fa8ff' };
-const SPARE = ['#c792ea', '#5ce1e6', '#f78fb3', '#b8e986'];
+const SPARE = ['#c792ea', '#5ce1e6', '#f78fb3', '#b8e986', '#e0e0e8', '#ff6b6b', '#a3a3ff', '#d4a373', '#7fd1b9', '#f3a6ff'];
 const DAYS = 30;
 
 const pct = (sorted, p) => (sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p + 0.5))] : null);
@@ -236,7 +236,9 @@ function client(D, SIZES) {
   function bars(boxSel, rows, { fmt, axis, note, cap }) {
     const { svg, W, H } = frame($(boxSel));
     if (!rows.length) return empty(svg, W, H, 'Nothing to show for this choice.');
-    const L = 64, R = 20, T = 30, B = 58;
+    const L = 64, R = 20, T = 30;
+    const tight = (W - L - R) / rows.length < 72;
+    const B = tight ? 84 : 58;
     const max = cap || niceMax(Math.max(...rows.filter((r) => r.v != null).map((r) => r.v), 0) * 1.12 || 1);
     const yOf = (v) => T + (H - T - B) * (1 - v / max);
     gridY(svg, L, W - R, [0, max / 4, max / 2, (max * 3) / 4, max], fmt, yOf);
@@ -246,8 +248,11 @@ function client(D, SIZES) {
     const best = rows.find((r) => r.v != null);
     rows.forEach((r, i) => {
       const cx = L + slot * i + slot / 2;
-      el('text', { x: cx, y: H - B + 20, 'text-anchor': 'middle', class: 'lbl', fill: r.p.color }, svg).textContent = r.p.label;
-      if (r.sub) el('text', { x: cx, y: H - B + 36, 'text-anchor': 'middle', class: 'tick dim' }, svg).textContent = r.sub;
+      if (tight) el('text', { x: cx + 4, y: H - B + 16, 'text-anchor': 'end', transform: `rotate(-40 ${cx + 4} ${H - B + 16})`, class: 'lbl', fill: r.p.color }, svg).textContent = r.p.label;
+      else {
+        el('text', { x: cx, y: H - B + 20, 'text-anchor': 'middle', class: 'lbl', fill: r.p.color }, svg).textContent = r.p.label;
+        if (r.sub) el('text', { x: cx, y: H - B + 36, 'text-anchor': 'middle', class: 'tick dim' }, svg).textContent = r.sub;
+      }
       if (r.v == null) {
         el('rect', { x: cx - bw / 2, y: yOf(max * 0.12), width: bw, height: yOf(0) - yOf(max * 0.12), class: 'nobar' }, svg);
         el('text', { x: cx, y: yOf(max * 0.12) - 8, 'text-anchor': 'middle', class: 'tick dim' }, svg).textContent = r.none || 'no data';
@@ -257,7 +262,7 @@ function client(D, SIZES) {
       const rect = el('rect', { x: cx - bw / 2, y, width: bw, height: Math.max(1.5, yOf(0) - y), fill: r.p.color, rx: 2, opacity: r === best ? 1 : 0.78 }, svg);
       rect.style.transformOrigin = `${cx}px ${yOf(0)}px`;
       rect.classList.add('grow');
-      el('text', { x: cx, y: y - 8, 'text-anchor': 'middle', class: 'val' }, svg).textContent = fmt(r.v);
+      if (slot >= 48 || r === best) el('text', { x: cx, y: y - 8, 'text-anchor': 'middle', class: 'val' }, svg).textContent = fmt(r.v);
       hover(rect, `<b style="color:${r.p.color}">${r.p.label}</b><br>${r.tip || fmt(r.v)}`);
     });
     if (note) $(note.sel).innerHTML = note.html;
@@ -268,7 +273,7 @@ function client(D, SIZES) {
     const rows = shown()
       .map((p) => {
         const hr = p.hourly[st.size];
-        return { p, v: hr == null ? null : hr * h, none: 'no such size', tip: hr == null ? '' : `${money(hr)} an hour × ${lenLabel(st.task)} = <b>${money(hr * h)}</b>`, sub: p.billing };
+        return { p, v: hr == null ? null : hr * h, none: 'no such size', tip: hr == null ? '' : `${money(hr)} an hour × ${lenLabel(st.task)} = <b>${money(hr * h)}</b><br>billed ${p.billing}` };
       })
       .sort((a, b) => (a.v ?? Infinity) - (b.v ?? Infinity));
     bars('#c-task', rows, { fmt: money, axis: 'USD for one pod of ' + sizeLabel(st.size) + ' running ' + lenLabel(st.task) });

@@ -32,7 +32,10 @@ describe('podlytics', () => {
 
   test('every real provider is charted with a price per size; demo is not', () => {
     const d = podlyticsData(PROVIDERS, {});
-    expect(d.map((p) => p.id).sort()).toEqual(['boat', 'daytona', 'e2b', 'isorun']);
+    const ids = d.map((p) => p.id);
+    for (const id of ['boat', 'daytona', 'e2b', 'isorun']) expect(ids).toContain(id);
+    expect(ids).not.toContain('demo');
+    expect(new Set(d.map((p) => p.color)).size).toBe(d.length); // every provider has its own colour
     for (const p of d) expect(p.hourly).toHaveLength(5);
     expect(d.find((p) => p.id === 'daytona').working).toBeTruthy();
     expect(d.find((p) => p.id === 'daytona').hourly[4]).toBeNull(); // Daytona stops at 4 vCPU
