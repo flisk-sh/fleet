@@ -249,5 +249,6 @@ export function priceTable(providers, size = DEFAULT_SIZE) {
   return Object.entries(providers)
     .filter(([, p]) => !p.demo)
     .map(([name, p]) => ({ provider: name, label: p.label, pricePerHour: p.price(size), note: p.note || '', source: p.priceSource, keyHeader: p.keyHeader, ...providerState(p) }))
-    .sort((a, b) => (a.pricePerHour ?? Infinity) - (b.pricePerHour ?? Infinity));
+    // Providers nobody can start today (card, down, invitation) go last, so the first entry is one you can use.
+    .sort((a, b) => (a.status === 'blocked') - (b.status === 'blocked') || (a.pricePerHour ?? Infinity) - (b.pricePerHour ?? Infinity));
 }
