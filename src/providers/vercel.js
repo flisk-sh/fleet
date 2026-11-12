@@ -2,7 +2,7 @@
 // Firecracker microVMs. Sizes are 1 or an even number of vCPU, with 2 GB per vCPU.
 // The key is "<access token>:<project id>" or "<access token>:<project id>:<team id>": Vercel's API needs the project, and the team for team accounts.
 // Coming soon: written from the OpenAPI spec on 2026-11-12, never run on a real account.
-import { call, sleep } from './http.js';
+import { call, sleep, UA } from './http.js';
 
 const API = 'https://api.vercel.com';
 const CPU_HOUR = 0.128; // Active CPU: billed only while the CPU works, so this is the most a pod can cost
@@ -114,7 +114,7 @@ export default {
     const { session } = unpack(id);
     const res = await fetchImpl(`${API}/v2/sandboxes/sessions/${encodeURIComponent(session)}/cmd${q(k)}`, {
       method: 'POST',
-      headers: { ...auth(k), 'content-type': 'application/json', accept: 'application/x-ndjson' },
+      headers: { 'user-agent': UA, ...auth(k), 'content-type': 'application/json', accept: 'application/x-ndjson' },
       body: JSON.stringify({ command: 'bash', args: ['-lc', command], wait: true, logs: true, timeout: 600000 }),
     });
     const text = await res.text();

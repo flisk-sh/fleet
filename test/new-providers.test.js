@@ -3,6 +3,7 @@
 import { describe, expect, test } from 'bun:test';
 import hopx from '../src/providers/hopx.js';
 import runloop, { runloopSize, uuidv7 } from '../src/providers/runloop.js';
+import e2b from '../src/providers/e2b.js';
 import blaxel, { blaxelGb } from '../src/providers/blaxel.js';
 import vercel, { parseVercelKey, readNdjson, vercelVcpus } from '../src/providers/vercel.js';
 import sprites, { readSpriteFrames } from '../src/providers/sprites.js';
@@ -231,5 +232,23 @@ describe('credentials with more than one part', async () => {
     expect(f.calls[0].headers).toMatchObject({ authorization: 'Bearer boat_k', 'x-boat-org': 'acme' });
     await boat.create('boat_k', size, f);
     expect(f.calls[1].headers['x-boat-org']).toBeUndefined();
+  });
+});
+
+describe('every request to a provider carries a User-Agent', () => {
+  test('call() and the direct fetches (e2b, sprites, vercel run) say who fleet is', async () => {
+    const { UA } = await import('../src/providers/http.js');
+    expect(UA).toContain('fleet');
+    const seen = [];
+    const spy = async (url, init = {}) => {
+      seen.push(init.headers || {});
+      return new Response('{}', { status: 200 });
+    };
+    await blaxel.create('ws:k', size, { fetchImpl: async (u, i) => (seen.push(i.headers), new Response(JSON.stringify({ metadata: { name: 'n', url: 'https://x' } }))) }).catch(() => {});
+    await e2b.run('k', 'sb~tok~', 'ls', { fetchImpl: spy }).catch(() => {});
+    await sprites.run('k', 'sp', 'ls', { fetchImpl: spy }).catch(() => {});
+    await vercel.run('t:p', 'n.s', 'ls', { fetchImpl: spy }).catch(() => {});
+    expect(seen).toHaveLength(4);
+    for (const h of seen) expect(h['user-agent']).toBe(UA);
   });
 });

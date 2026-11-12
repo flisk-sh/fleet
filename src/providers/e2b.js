@@ -1,7 +1,7 @@
 // E2B (e2b.dev). Control API: https://api.e2b.app (OpenAPI in e2b-dev/E2B spec/openapi.yml) · prices: https://e2b.dev/pricing
 // Commands run through the in-sandbox daemon (envd) over Connect RPC with JSON frames; no SDK needed.
 // E2B has no memory field on create: memory comes from the template. Fleet uses the stock "base" template.
-import { call } from './http.js';
+import { call, UA } from './http.js';
 
 const API = 'https://api.e2b.app';
 const CPU_HOUR = 0.000014 * 3600;
@@ -87,6 +87,7 @@ export default {
     const res = await fetchImpl(`https://${ENVD_PORT}-${sandboxID}.${domain}/process.Process/Start`, {
       method: 'POST',
       headers: {
+        'user-agent': UA,
         'content-type': 'application/connect+json',
         'connect-protocol-version': '1',
         'e2b-sandbox-id': sandboxID,

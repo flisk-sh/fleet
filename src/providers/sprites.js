@@ -2,7 +2,7 @@
 // Persistent microVMs that pause when idle (no compute charge then). Size is fixed by Fly: up to 8 vCPU, memory autoscaled.
 // Exec answers a binary framed stream, as in Fly's JS SDK: each chunk starts with a stream id, 1 stdout, 2 stderr, 3 exit.
 // Coming soon: written from the OpenAPI spec and SDK on 2026-11-12, never run on a real account.
-import { call } from './http.js';
+import { call, UA } from './http.js';
 
 const API = 'https://api.sprites.dev';
 const CPU_HOUR = 0.0385; // billed on CPU time used, not reserved
@@ -71,7 +71,7 @@ export default {
   async run(key, id, command, { fetchImpl = fetch } = {}) {
     const qs = new URLSearchParams();
     for (const a of ['bash', '-lc', command]) qs.append('cmd', a);
-    const res = await fetchImpl(`${API}/v1/sprites/${encodeURIComponent(id)}/exec?${qs}`, { method: 'POST', headers: auth(key) });
+    const res = await fetchImpl(`${API}/v1/sprites/${encodeURIComponent(id)}/exec?${qs}`, { method: 'POST', headers: { 'user-agent': UA, ...auth(key) } });
     if (!res.ok) {
       const err = new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
       err.status = res.status;
