@@ -136,11 +136,21 @@ describe('e2b', () => {
   });
 });
 
+test('daytona: the smallest default snapshot that fits, never cpu and memory next to it', async () => {
+  const { snapshotFor } = await import('../src/providers/daytona.js');
+  expect(snapshotFor({ cpu: 1, ram: 1 }).name).toBe('daytona-small');
+  expect(snapshotFor({ cpu: 2, ram: 4 }).name).toBe('daytona-medium');
+  expect(snapshotFor({ cpu: 3, ram: 2 }).name).toBe('daytona-large');
+  expect(snapshotFor({ cpu: 8, ram: 8 })).toBeNull();
+  expect(daytona.price({ cpu: 1, ram: 1 })).toBe(0.067);
+  expect(daytona.price({ cpu: 3, ram: 2 })).toBe(0.331);
+});
+
 describe('daytona', () => {
   test('create waits until started', async () => {
     const f = fakeFetch([{ body: { id: 'd1', state: 'creating' } }, { body: { id: 'd1', state: 'started' } }]);
     expect(await daytona.create('dk', size, { ...f, wait })).toEqual({ id: 'd1' });
-    expect(json(f.calls[0])).toEqual({ cpu: 2, memory: 4, autoStopInterval: 60, autoDeleteInterval: 0 });
+    expect(json(f.calls[0])).toEqual({ snapshot: 'daytona-medium', autoStopInterval: 60, autoDeleteInterval: 0 });
     expect(f.calls[1].url).toBe('https://app.daytona.io/api/sandbox/d1');
   });
   test('create fails on an error state', async () => {

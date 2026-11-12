@@ -8,13 +8,26 @@ const CPU_HOUR = 0.0504;
 const GIB_HOUR = 0.0162;
 const auth = (key) => ({ authorization: `Bearer ${key}` });
 const BAD = new Set(['error', 'build_failed', 'destroyed', 'destroying']);
+// Daytona's default snapshots come with a fixed size, and its API refuses cpu/memory next to a snapshot
+// ("Cannot specify Sandbox resources when using a snapshot", seen live on 2026-11-12). So fleet picks the smallest
+// snapshot that fits the asked size, and prices the pod at that snapshot's size.
+// Sizes from https://www.daytona.io/docs/en/sandboxes (default snapshots).
+const SNAPSHOTS = [
+  { name: 'daytona-small', cpu: 1, ram: 1 },
+  { name: 'daytona-medium', cpu: 2, ram: 4 },
+  { name: 'daytona-large', cpu: 4, ram: 8 },
+];
+export const snapshotFor = (size) => SNAPSHOTS.find((s) => s.cpu >= size.cpu && s.ram >= size.ram) || null;
 
 export default {
   label: 'Daytona',
   keyHeader: 'X-Daytona-Key',
   priceSource: 'https://www.daytona.io/pricing',
-  note: 'Up to 4 vCPU and 8 GB a pod. Output comes back as one stream.',
-  price: (size) => (size.cpu > 4 || size.ram > 8 ? null : Math.round((size.cpu * CPU_HOUR + size.ram * GIB_HOUR) * 1000) / 1000),
+  note: 'Sizes 1/1, 2/4 or 4/8 (vCPU/GB): fleet picks the smallest that fits. Output comes back as one stream.',
+  price: (size) => {
+    const s = snapshotFor(size);
+    return s ? Math.round((s.cpu * CPU_HOUR + s.ram * GIB_HOUR) * 1000) / 1000 : null;
+  },
   facts: {
     blurb: 'Sandboxes that start in milliseconds, with GPUs and Windows on request.',
     regions: ['EU', 'US'],
@@ -33,11 +46,13 @@ export default {
   },
 
   async create(key, size, { fetchImpl = fetch, wait = sleep } = {}) {
-    // autoStopInterval 60 min, autoDeleteInterval 0: a forgotten pod stops after an hour and is deleted on stop.
+    // autoStopInterval = the pod's lifetime in minutes, autoDeleteInterval 0: a forgotten pod stops by itself and is deleted on stop.
+    const snap = snapshotFor(size);
+    if (!snap) throw new Error('size not offered: Daytona pods are at most 4 vCPU and 8 GB');
     let box = await call(fetchImpl, `${API}/sandbox`, {
       method: 'POST',
       headers: auth(key),
-      body: { cpu: size.cpu, memory: Math.ceil(size.ram), autoStopInterval: Math.max(1, Math.ceil((size.ttl ?? 3600) / 60)), autoDeleteInterval: 0 },
+      body: { snapshot: snap.name, autoStopInterval: Math.max(1, Math.ceil((size.ttl ?? 3600) / 60)), autoDeleteInterval: 0 },
     });
     if (!box?.id) throw new Error('Daytona returned no sandbox id');
     for (let i = 0; box.state !== 'started' && i < 30; i++) {
