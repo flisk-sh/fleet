@@ -6,8 +6,9 @@ import { homePage, messagePage, shell } from './page.js';
 import { docsPage, skillMd, DOCS_CSS } from './docs.js';
 import { pricingPage, PRICING_CSS } from './pricing.js';
 import { cabinetPage } from './console.js';
-import { checkLimits, createKey, getLimits, LIMIT_DEFAULTS, listCalls, listKeys, listPods, logCall, loginForKey, podRef, podsStartedToday, recordPod, revokeKey, setLimits } from './store.js';
+import { connectedKeys, connectProvider, disconnectProvider, listConnections, checkLimits, createKey, getLimits, LIMIT_DEFAULTS, listCalls, listKeys, listPods, logCall, loginForKey, podRef, podsStartedToday, recordPod, revokeKey, setLimits } from './store.js';
 import { overMinuteLimit, PODS_PER_DAY } from './limit.js';
+import { vaultReady } from './vault.js';
 import { clearSession, makeSession, readSession, sameOrigin } from './session.js';
 
 const SECURITY = {
@@ -22,7 +23,14 @@ const json = (status, body) =>
 const html = (body, status = 200, extra = {}) => new Response(body, { status, headers: { 'content-type': 'text/html; charset=utf-8', ...SECURITY, ...extra } });
 const redirect = (location, extra = {}) => new Response(null, { status: 303, headers: { location, ...extra } });
 
-// Provider keys come with the request and are never written anywhere.
+// The provider keys for one call: keys the user connected in the cabinet, then any sent in headers (headers win).
+// Header keys are never written anywhere.
+async function keysFor(request, env, login, providers) {
+  const stored = vaultReady(env) ? await connectedKeys(env, login).catch(() => ({})) : {};
+  return { ...stored, ...providerKeys(request, providers) };
+}
+
+// Provider keys that come with the request.
 export function providerKeys(request, providers = PROVIDERS) {
   const keys = {};
   for (const [name, p] of Object.entries(providers)) {
@@ -58,7 +66,8 @@ async function cabinet(env, origin, login, section, providers, extra = {}) {
     section === 'usage' ? listCalls(env, login, { errorsOnly: extra.errorsOnly }) : [],
     extra.limits ? extra.limits : getLimits(env, login),
   ]);
-  return html(cabinetPage({ origin, login, section, keys, pods, calls, limits, prices: priceTable(providers), providers, ...extra }), 200, { 'cache-control': 'no-store' });
+  const connections = vaultReady(env) ? await listConnections(env, login) : {};
+  return html(cabinetPage({ origin, login, section, keys, pods, calls, limits, connections, canConnect: vaultReady(env), prices: priceTable(providers), providers, ...extra }), 200, { 'cache-control': 'no-store' });
 }
 
 // Every pod call records pod facts, goes to the usage log, and follows the account's own limits.
@@ -84,10 +93,11 @@ const podCtx = (env, login, fetchImpl, waitUntil = null) => {
 async function tryPod(request, env, login, providers, fetchImpl, waitUntil = null) {
   const body = await readJson(request);
   const provider = String(body?.provider || '');
-  const key = String(body?.key || '').trim() || (providers[body?.provider]?.demo ? 'demo' : '');
+  let key = String(body?.key || '').trim() || (providers[body?.provider]?.demo ? 'demo' : '');
+  if (!key && providers[provider] && vaultReady(env)) key = (await connectedKeys(env, login).catch(() => ({})))[provider] || '';
   const command = String(body?.command || '').trim() || 'uname -sr; nproc; free -m | head -2';
   if (!providers[provider]) return json(400, { error: 'pick a provider' });
-  if (!key) return json(400, { error: 'paste your provider API key first' });
+  if (!key) return json(400, { error: 'paste your provider API key, or connect this provider on the Providers page' });
   if (command.length > 500) return json(400, { error: 'keep the command under 500 characters' });
   const keys = { [provider]: key };
   const ctx = podCtx(env, login, fetchImpl, waitUntil);
@@ -183,6 +193,19 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
         return cabinet(env, origin, login, 'keys', providers, { keys: made.list, newKey: made.key, error: made.error });
       }
       if (path === '/console/try') return tryPod(request, env, login, providers, fetchImpl, waitUntil);
+      const pc = /^\/console\/providers\/([a-z0-9]+)\/(connect|disconnect)$/.exec(path);
+      if (pc) {
+        const [, provider, action] = pc;
+        if (!providers[provider] || providers[provider].demo) return cabinet(env, origin, login, 'providers', providers, { error: 'No such provider.' });
+        if (!vaultReady(env)) return cabinet(env, origin, login, 'providers', providers, { error: 'Connecting providers is not set up on this copy of fleet.' });
+        if (action === 'disconnect') {
+          await disconnectProvider(env, login, provider);
+          return cabinet(env, origin, login, 'providers', providers, { notice: `${providers[provider].label} disconnected. Fleet no longer has that key.` });
+        }
+        const form = await request.formData().catch(() => null);
+        const done = await connectProvider(env, login, provider, form?.get('key'));
+        return cabinet(env, origin, login, 'providers', providers, done.error ? { error: done.error } : { notice: `${providers[provider].label} connected. Your agent no longer needs to send ${providers[provider].keyHeader}.` });
+      }
       if (path === '/console/limits') {
         const form = await request.formData().catch(() => null);
         const input = Object.fromEntries(['podsPerDay', 'maxCpu', 'maxRam', 'lifetimeMin'].map((k) => [k, form?.get(k)]));
@@ -207,7 +230,7 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
   const login = await loginForKey(env, bearer(request));
   if (!login) return json(401, { error: `missing, revoked or unknown fleet key. Create one at ${origin}/console?section=keys and send it as "Authorization: Bearer fleet_..."` });
   if (await overMinuteLimit(login, { cache: env.LIMIT_CACHE })) return json(429, { error: 'too many requests for this account: at most 120 a minute. Wait a minute' });
-  const keys = providerKeys(request, providers);
+  const keys = await keysFor(request, env, login, providers);
   const ctx = podCtx(env, login, fetchImpl, waitUntil);
 
   if (path === '/mcp') {

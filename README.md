@@ -2,7 +2,7 @@
 
 One API for every agent pod. A pod is a Linux machine your agent can run commands in.
 
-Fleet starts each pod on the cheapest sandbox provider you have a key for, and moves to the next one when a provider fails. You bring your own provider accounts; fleet stores none of your provider keys.
+Fleet starts each pod on the cheapest sandbox provider you have a key for, and moves to the next one when a provider fails. You bring your own provider accounts: connect each one once in the cabinet (fleet keeps the key encrypted), or send its key with each call.
 
 Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the cabinet: up to 10 named fleet keys, your pods, an overview, providers and docs. The four adapters are written from the providers' public API docs and tested against recorded-style fake replies only. None has been run against a real provider account yet.
 
@@ -57,7 +57,8 @@ In Cloudflare D1 (`schema.sql`), sized for the free plan: every write is one row
 
 - A SHA-256 hash of each fleet key, its name and when it was created and last used (written at most once a day).
 - Pod facts for the cabinet: provider, size, price, start and stop times, and which providers failed first. The pod id is cut at the first `~`, so E2B's access token is never stored.
-- Never a provider key. Sessions are signed cookies, not stored.
+- Provider keys you connect in the cabinet, encrypted with AES-GCM under the `PROVIDER_KEYS_SECRET` secret (`src/vault.js`); only the last 4 characters are kept readable, to tell keys apart. Disconnect deletes the key. Keys sent in headers are never stored.
+- Sessions are signed cookies, not stored.
 
 ## Free-plan guards
 

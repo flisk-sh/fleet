@@ -21,7 +21,7 @@ export function pickOrder(providers, keys, size, { provider, order } = {}) {
   }
   if (!have.length) {
     const headers = Object.values(providers).map((p) => p.keyHeader).join(', ');
-    return { error: `no provider key sent. Send at least one of: ${headers}` };
+    return { error: `no provider key: connect a provider in the cabinet, or send one of: ${headers}` };
   }
   if (Array.isArray(order) && order.length) {
     const unknown = order.find((name) => !providers[name]);

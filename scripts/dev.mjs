@@ -6,6 +6,6 @@ import { fakeD1 } from '../test/d1.js';
 
 const DB = fakeD1(readFileSync(new URL('../schema.sql', import.meta.url), 'utf8'));
 const port = Number(process.env.PORT || 8799);
-const env = { DB, SESSION_SECRET: 'dev-only-secret', DEV_LOGIN: process.env.DEV_LOGIN || 'local-dev', PUBLIC_ORIGIN: `http://localhost:${port}` };
+const env = { DB, SESSION_SECRET: 'dev-only-secret', PROVIDER_KEYS_SECRET: 'dev-only-provider-keys-secret-0123456789', DEV_LOGIN: process.env.DEV_LOGIN || 'local-dev', PUBLIC_ORIGIN: `http://localhost:${port}` };
 Bun.serve({ port, fetch: (request) => worker.fetch(request, env) });
 console.log(`fleet on http://localhost:${port}`);

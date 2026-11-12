@@ -2,6 +2,7 @@
 // Free plan: 100,000 rows written and 5 million rows read a day, so every write here is one row and every read uses an index.
 import { sha256, newFleetKey } from './auth.js';
 import { PODS_PER_DAY } from './limit.js';
+import { open, seal } from './vault.js';
 
 export const MAX_KEYS = 10;
 const MAX_PODS = 100;
@@ -181,4 +182,40 @@ export async function setLimits(env, login, l) {
   )
     .bind(login, l.podsPerDay, l.maxCpu, l.maxRam, l.lifetimeMin, nowIso())
     .run();
+}
+
+// ---- provider keys connected once in the cabinet (encrypted; see vault.js)
+
+export async function connectProvider(env, login, provider, key) {
+  const clean = String(key || '').trim();
+  if (clean.length < 8 || clean.length > 400 || /\s/.test(clean)) return { error: 'That does not look like an API key. Paste the whole key, with no spaces.' };
+  const sealed = await seal(env.PROVIDER_KEYS_SECRET, clean);
+  await env.DB.prepare(
+    'INSERT INTO provider_keys (login, provider, sealed, hint, created) VALUES (?, ?, ?, ?, ?) ON CONFLICT(login, provider) DO UPDATE SET sealed = excluded.sealed, hint = excluded.hint, created = excluded.created',
+  )
+    .bind(login, provider, sealed, clean.slice(-4), nowIso())
+    .run();
+  return { ok: true };
+}
+
+export async function disconnectProvider(env, login, provider) {
+  await env.DB.prepare('DELETE FROM provider_keys WHERE login = ? AND provider = ?').bind(login, provider).run();
+}
+
+// For pages: which providers are connected, never the key itself.
+export async function listConnections(env, login) {
+  const { results } = await env.DB.prepare('SELECT provider, hint, created FROM provider_keys WHERE login = ?').bind(login).all();
+  return Object.fromEntries(results.map((r) => [r.provider, { hint: r.hint, created: r.created }]));
+}
+
+// For pod calls: the decrypted keys, used for this call only. A key that no longer decrypts (secret changed) is skipped.
+export async function connectedKeys(env, login) {
+  const { results } = await env.DB.prepare('SELECT provider, sealed FROM provider_keys WHERE login = ?').bind(login).all();
+  const out = {};
+  for (const r of results) {
+    try {
+      out[r.provider] = await open(env.PROVIDER_KEYS_SECRET, r.sealed);
+    } catch {}
+  }
+  return out;
 }

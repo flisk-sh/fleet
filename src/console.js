@@ -96,6 +96,10 @@ input:disabled{opacity:.55}
 .badge{font:10.5px/1 var(--mono);text-transform:uppercase;letter-spacing:.05em;border:1px solid var(--green);color:var(--green);padding:4px 6px;margin:0 6px 6px 0;display:inline-block}
 .links a{font:12px var(--mono);text-transform:uppercase;margin-left:12px}
 .b.on{background:var(--ink);color:var(--paper)}
+.conn{display:flex;gap:8px;align-items:center;border-top:1px solid var(--ink);padding-top:10px}
+.conn input{flex:1;min-width:0;font-size:13px;padding:9px 10px}
+.conn.on{justify-content:space-between;color:var(--green);font:13px var(--mono)}
+.conn.on i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:8px}
 td.nw{white-space:nowrap}
 .st{font:12px var(--mono);border:1px solid;padding:2px 6px}.st.ok{color:var(--green)}.st.bad{color:#b42318}
 .limgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px}
@@ -134,12 +138,13 @@ ${body}
 
 // Get started, after Monid's: set up your agent (picker), your key, then copy-ready things to ask it. Steps tick off
 // when fleet can see them done.
-function startSection(origin, keys, pods) {
-  const real = pods.some((p) => !p.failedStart && p.provider !== 'demo');
+function startSection(origin, keys, pods, connections = {}) {
+  const connected = Object.keys(connections);
+  const real = connected.length > 0 || pods.some((p) => !p.failedStart && p.provider !== 'demo');
   const any = pods.some((p) => !p.failedStart);
   const agents = [
-    ['claude', 'Claude Code', `claude mcp add --transport http fleet ${origin}/mcp \\\n  --header "Authorization: Bearer fleet_..." \\\n  --header "X-Daytona-Key: ..."`],
-    ['cursor', 'Cursor', `// .cursor/mcp.json\n{ "mcpServers": { "fleet": {\n    "url": "${origin}/mcp",\n    "headers": { "Authorization": "Bearer fleet_...", "X-Daytona-Key": "..." }\n} } }`],
+    ['claude', 'Claude Code', `claude mcp add --transport http fleet ${origin}/mcp \\\n  --header "Authorization: Bearer fleet_..."`],
+    ['cursor', 'Cursor', `// .cursor/mcp.json\n{ "mcpServers": { "fleet": {\n    "url": "${origin}/mcp",\n    "headers": { "Authorization": "Bearer fleet_..." }\n} } }`],
     ['any', 'Any agent', `set up ${origin}/SKILL.md`],
   ];
   const examples = [
@@ -155,7 +160,7 @@ ${step(
   1,
   false,
   `Set up your <select id="agent" aria-label="Your agent">${agents.map(([id, label]) => `<option value="${id}">${esc(label)}</option>`).join('')}</select>`,
-  `${agents.map(([id, , code], i) => `<div data-agent="${id}"${i ? ' hidden' : ''}><p>${id === 'any' ? 'In your agent’s chat, send:' : 'Run this once, with your own keys in place of the dots:'}</p><div class="codebox"><pre>${esc(code)}</pre><button type="button" class="b" data-copy="${esc(code)}">Copy</button></div></div>`).join('')}`,
+  `${agents.map(([id, , code], i) => `<div data-agent="${id}"${i ? ' hidden' : ''}><p>${id === 'any' ? 'In your agent’s chat, send:' : 'Run this once, with your fleet key in place of the dots. Connected providers need nothing more.'}</p><div class="codebox"><pre>${esc(code)}</pre><button type="button" class="b" data-copy="${esc(code)}">Copy</button></div></div>`).join('')}`,
 )}
 ${step(
   2,
@@ -168,8 +173,8 @@ ${step(
 ${step(
   3,
   real,
-  'Bring a provider key',
-  `<p>Fleet starts pods on your own provider account. ${real ? 'You have started a real pod.' : any ? 'You tried the demo pod; now start a real one.' : 'No account yet? Try the demo pod first.'}</p><div class="row" style="margin-top:12px"><a class="b${real ? '' : ' inv'}" href="/console?section=providers">Pick a provider</a><a class="b" href="/console?section=try">Try a pod</a></div>`,
+  'Connect a provider',
+  `<p>Fleet starts pods on your own provider account. Paste its key once and fleet keeps it encrypted. ${connected.length ? `Connected: ${connected.map(esc).join(', ')}.` : any ? 'You tried the demo pod; now connect a real provider.' : 'No account yet? Try the demo pod first.'}</p><div class="row" style="margin-top:12px"><a class="b${real ? '' : ' inv'}" href="/console?section=providers">${connected.length ? 'Manage providers' : 'Connect a provider'}</a><a class="b" href="/console?section=try">Try a pod</a></div>`,
 )}
 ${step(
   4,
@@ -223,7 +228,7 @@ function podsSection(pods) {
     )
     .join('');
   return `<div class="scroll" style="margin-top:22px"><table><tr><th>Pod</th><th>Provider</th><th>Size</th><th>Per hour</th><th>Started</th><th>Status</th><th>Moved from</th></tr>${rows}</table></div>
-<p class="note">A failed start lists each provider fleet tried and what it answered; a 401 means that provider's key is wrong. Fleet keeps no provider keys, so it can't stop pods for you. Stop one with DELETE /v1/pods/:id and your provider key. Pod ids here are cut short on purpose.</p>`;
+<p class="note">A failed start lists each provider fleet tried and what it answered; a 401 means that provider's key is wrong. Fleet can't stop a pod from here. Stop one with DELETE /v1/pods/:id and your provider key. Pod ids here are cut short on purpose.</p>`;
 }
 
 function keysSection({ keys, newKey, error }) {
@@ -241,8 +246,17 @@ ${keys.length ? `<div class="scroll" style="margin-top:22px"><table><tr><th>Name
 <p class="note">"Last used" updates at most once an hour.</p>`;
 }
 
+// Connect once: paste a provider key a single time; fleet stores it encrypted (vault.js) and uses it on every call.
+function connectBox(p, conn, canConnect) {
+  if (!canConnect) return '';
+  if (conn) {
+    return `<form class="conn on" method="post" action="/console/providers/${esc(p.provider)}/disconnect" onsubmit="return confirm('Disconnect ${esc(p.label)}? Fleet deletes the saved key; your agent must send it again.')"><span><i></i>Connected · key ending ${esc(conn.hint)}</span><button class="b" type="submit">Disconnect</button></form>`;
+  }
+  return `<form class="conn" method="post" action="/console/providers/${esc(p.provider)}/connect" autocomplete="off"><input type="password" name="key" placeholder="Paste your ${esc(p.label)} API key" aria-label="${esc(p.label)} API key" required><button class="b inv" type="submit">Connect</button></form>`;
+}
+
 // Provider catalog, after Monid's tools page: search, filters with counts, one card per provider with badges.
-function providersSection(prices, providers) {
+function providersSection(prices, providers, { connections = {}, canConnect = false, notice, error } = {}) {
   const list = prices.map((p) => ({ ...p, meta: providers[p.provider], facts: providers[p.provider].facts || {} }));
   const FILTERS = [
     ['all', 'All', () => true],
@@ -261,15 +275,16 @@ function providersSection(prices, providers) {
 <p>${esc(p.facts.blurb || p.note)}</p>
 <dl><div><dt>Credit</dt><dd>${esc(p.facts.credit || '—')}</dd></div><div><dt>Biggest pod</dt><dd>${p.facts.maxCpu ? `${p.facts.maxCpu} vCPU · ${p.facts.maxRam} GB` : '—'}</dd></div><div><dt>Regions</dt><dd>${esc((p.facts.regions || []).join(', ') || '—')}</dd></div><div><dt>Header</dt><dd class="n">${esc(p.meta.keyHeader)}</dd></div></dl>
 <div class="pf"><span class="badges">${(p.facts.badges || []).map((b) => `<span class="badge">${esc(b)}</span>`).join('')}</span><span class="links"><a href="${SIGNUP[p.provider] || p.source}" target="_blank" rel="noopener">Sign up</a>${kp ? `<a href="${kp.url}" target="_blank" rel="noopener">Get a key</a>` : ''}</span></div>
+${connectBox(p, connections[p.provider], canConnect)}
 </article>`;
     })
     .join('');
-  return `<div class="search"><input type="text" id="q" placeholder="Search providers (for example EU, no card, GPU)" aria-label="Search providers"></div>
+  return `${error ? `<div class="err">${esc(error)}</div>` : ''}${notice ? `<div class="box">${esc(notice)}</div>` : ''}<div class="search"><input type="text" id="q" placeholder="Search providers (for example EU, no card, GPU)" aria-label="Search providers"></div>
 <div class="catalog">
 <nav class="filters" aria-label="Filter providers">${FILTERS.map(([id, label, f], i) => `<button type="button" data-f="${id}"${i ? '' : ' class="on"'}><span>${esc(label)}</span><span class="c">${list.filter(f).length}</span></button>`).join('')}</nav>
 <div class="pgrid" id="pgrid">${cards}<p class="note" id="none" hidden>No provider matches. Clear the search.</p></div>
 </div>
-<p class="note">List prices for 2 vCPU and 4 GB, per hour, from each provider's own page. Bring your own account: no callback comes back from a provider, so make a key there and send it in the header, or paste it in <a href="/console?section=try">Try a pod</a>. Compare a whole month on the <a href="/pricing">pricing page</a>.</p>
+<p class="note">List prices for 2 vCPU and 4 GB, per hour, from each provider's own page. Providers don't offer "sign in with" for other apps, so connect once: make a key on the provider's site and paste it here. Fleet keeps it encrypted and your agent then only needs its fleet key. You can still send a key in a header instead; header keys are never stored. Compare a whole month on the <a href="/pricing">pricing page</a>.</p>
 <script>
 (()=>{let f='all';const q=document.getElementById('q');const cards=[...document.querySelectorAll('.pcard')];
 const draw=()=>{const t=q.value.trim().toLowerCase();let n=0;cards.forEach(c=>{const ok=c.dataset.tags.split(' ').includes(f)&&(!t||c.dataset.text.includes(t));c.hidden=!ok;n+=ok});document.getElementById('none').hidden=n>0};
@@ -277,7 +292,7 @@ document.querySelectorAll('[data-f]').forEach(b=>b.addEventListener('click',()=>
 </script>`;
 }
 
-function trySection(prices, providers) {
+function trySection(prices, providers, connections = {}) {
   const demo = Object.entries(providers).find(([, p]) => p.demo);
   const opts =
     (demo ? `<option value="${esc(demo[0])}">Demo · simulated, no account needed</option>` : '') +
@@ -286,7 +301,8 @@ function trySection(prices, providers) {
       .map((p) => `<option value="${esc(p.provider)}">${esc(p.label)} · ${money(p.pricePerHour)} an hour</option>`)
       .join('');
   const pages = JSON.stringify(Object.fromEntries(Object.entries(KEY_PAGE).map(([k, v]) => [k, v.url])));
-  return `<p class="note">Pick Demo to see the whole flow with no account: a simulated pod that fleet runs itself. Pick a provider to start one real pod on your own account, run one command, and stop it. Fleet times each step. Your provider key goes to the provider for this one call and is not stored; tick the box to keep it in this browser only.</p>
+  const conn = JSON.stringify(Object.keys(connections));
+  return `<p class="note">Pick Demo to see the whole flow with no account: a simulated pod that fleet runs itself. Pick a provider to start one real pod on your own account, run one command, and stop it. Fleet times each step. A connected provider needs no key here. A key you paste goes to the provider for this one call and is not stored; tick the box to keep it in this browser only.</p>
 <form id="try" class="box" autocomplete="off">
 <div class="row" style="margin-top:0"><label>Provider <select id="prov">${opts}</select></label><a id="getkey" class="note" style="margin:0" target="_blank" rel="noopener" href="#">Get a key</a></div>
 <div class="row"><input type="password" id="pkey" placeholder="Your provider API key" aria-label="Provider API key" style="flex:1"></div>
@@ -307,14 +323,14 @@ function trySection(prices, providers) {
 <p class="note" id="meta"></p>
 </div>
 <script>
-(()=>{const P=${pages};const $=(i)=>document.getElementById(i);
+(()=>{const P=${pages};const C=${conn};const $=(i)=>document.getElementById(i);
 const store=(()=>{try{return window.localStorage}catch{return null}})();
-const load=()=>{const v=$('prov').value;const k=store&&store.getItem('fleet_try_'+v);$('pkey').value=k||'';$('remember').checked=!!k;$('getkey').href=P[v]||'#';$('getkey').style.display=P[v]?'':'none';$('pkey').disabled=v==='demo';$('pkey').placeholder=v==='demo'?'No key needed for the demo pod':'Your provider API key'};
+const load=()=>{const v=$('prov').value;const k=store&&store.getItem('fleet_try_'+v);$('pkey').value=k||'';$('remember').checked=!!k;$('getkey').href=P[v]||'#';$('getkey').style.display=P[v]?'':'none';$('pkey').disabled=v==='demo';$('pkey').placeholder=v==='demo'?'No key needed for the demo pod':C.includes(v)?'Connected: leave empty to use your saved key':'Your provider API key'};
 $('prov').addEventListener('change',load);load();
 const s=(ms)=>ms==null?'—':(ms/1000).toFixed(1)+' s';
 $('try').addEventListener('submit',async(e)=>{e.preventDefault();const key=$('pkey').value.trim();const err=$('err');err.style.display='none';
 const isDemo=$('prov').value==='demo';$('pkey').disabled=isDemo;
-if(!key&&!isDemo){err.textContent='Paste your provider API key first.';err.style.display='block';$('pkey').focus();return}
+if(!key&&!isDemo&&!C.includes($('prov').value)){err.textContent='Paste your provider API key first, or connect this provider on the Providers page.';err.style.display='block';$('pkey').focus();return}
 try{if(store){if($('remember').checked)store.setItem('fleet_try_'+$('prov').value,key);else store.removeItem('fleet_try_'+$('prov').value)}}catch{}
 $('go').textContent='Starting…';$('go').disabled=true;$('out').style.display='none';$('waitt').textContent='Starting a pod on '+$('prov').selectedOptions[0].textContent.split(' · ')[0];$('wait').style.display='block';
 try{const r=await fetch('/console/try',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({provider:$('prov').value,key,command:$('cmd').value})});
@@ -364,7 +380,7 @@ ${field('maxRam', 'Biggest pod: memory', 'GB', 'Bigger requests answer 400.')}
 <p class="note">Fleet doesn't bill you, so there is no money budget here: these caps keep your provider bills small. Fleet's own caps stay on top: 120 calls a minute and 300 pods a day per account.</p>`;
 }
 
-export function cabinetPage({ origin, login, section, keys, pods, calls = [], limits, prices, providers, newKey, error, saved, errorsOnly }) {
+export function cabinetPage({ origin, login, section, keys, pods, calls = [], limits, connections = {}, canConnect = false, prices, providers, newKey, error, saved, errorsOnly, notice }) {
   const auto = !keys.length && !pods.length ? 'start' : 'overview';
   const id = SECTIONS.some(([s]) => s === section) ? section : auto;
   const title = SECTIONS.find(([s]) => s === id)[1];
@@ -376,11 +392,11 @@ export function cabinetPage({ origin, login, section, keys, pods, calls = [], li
         : id === 'keys'
           ? keysSection({ keys, newKey, error })
           : id === 'try'
-            ? trySection(prices, providers)
+            ? trySection(prices, providers, connections)
             : id === 'providers'
-              ? providersSection(prices, providers)
+              ? providersSection(prices, providers, { connections, canConnect, notice, error })
               : id === 'start'
-                ? startSection(origin, keys, pods)
+                ? startSection(origin, keys, pods, connections)
                 : id === 'usage'
                   ? usageSection(calls, errorsOnly)
                   : id === 'limits'

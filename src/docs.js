@@ -74,7 +74,7 @@ const ERRORS = [
 ];
 
 const HEADERS = [
-  ['Authorization', 'Bearer fleet_…, your fleet key from the cabinet'],
+  ['Authorization', 'Bearer fleet_…, your fleet key from the cabinet. With connected providers this is the only header you need.'],
   ['X-Boat-Key', 'your boat API key'],
   ['X-Isorun-Key', 'your Isorun API key'],
   ['X-E2B-Key', 'your E2B API key'],
@@ -92,12 +92,12 @@ description: Start Linux pods for an agent on the cheapest sandbox provider the 
 
 # fleet
 
-One API for every agent pod. Fleet starts each pod on the cheapest provider you have a key for and moves to the next one when a provider fails. It stores no provider key.
+One API for every agent pod. Fleet starts each pod on the cheapest provider you have a key for and moves to the next one when a provider fails. Provider keys the user connects in the cabinet are stored encrypted; keys sent in headers are never stored.
 
 ## Set up
 
 1. Ask the user for a fleet key (they make one at ${origin}/console?section=keys). Keep it in FLEET_KEY.
-2. Ask for at least one provider key: boat, Isorun, E2B or Daytona, from the user's own account. To try first without any, send \`X-Demo-Key: demo\`.
+2. Ask the user to connect at least one provider (boat, Isorun, E2B or Daytona) on ${origin}/console?section=providers. Then only the fleet key is needed. Without a connection, send the provider key in its header. To try first without any, send \`X-Demo-Key: demo\`.
 3. Or add fleet as an MCP server: url ${origin}/mcp, the same headers. Tools: pod_create, pod_run, pod_stop.
 
 ## Headers
@@ -128,7 +128,7 @@ ${ERRORS.map(([c, t]) => `- ${c}: ${t}`).join('\n')}
 
 - Always stop every pod you started, even when a step failed.
 - A 410 means the pod is gone; start a new one instead of retrying.
-- Never print or store the user's provider keys.
+- Never print or store the user's provider keys. Prefer connected providers over sending keys in headers.
 `;
 }
 
@@ -168,7 +168,7 @@ ${nav}
 <div class="cmd"><code>set up ${esc(origin)}/SKILL.md</code><button type="button" data-copy="set up ${esc(origin)}/SKILL.md">Copy</button></div>
 <p>Or by hand: make a fleet key in the <a href="/console?section=keys">cabinet</a>, get a key from at least one provider, and start a pod. To try with no provider account, send <code>X-Demo-Key: demo</code>.</p>
 </section>
-<section class="ep" id="headers"><h2>Keys and headers</h2><p>Fleet never stores a provider key: send it with each call.</p><div class="scroll"><table><tr><th>Header</th><th>What goes in it</th></tr>${HEADERS.map(([h, t]) => `<tr><td class="n">${esc(h)}</td><td>${esc(t)}</td></tr>`).join('')}</table></div></section>
+<section class="ep" id="headers"><h2>Keys and headers</h2><p>Connect each provider once on the cabinet's Providers page and fleet keeps the key encrypted, so calls need only the fleet key. Or send a provider key with each call in its header; header keys are never stored. A header key wins over a connected one.</p><div class="scroll"><table><tr><th>Header</th><th>What goes in it</th></tr>${HEADERS.map(([h, t]) => `<tr><td class="n">${esc(h)}</td><td>${esc(t)}</td></tr>`).join('')}</table></div></section>
 ${sections}
 <section class="ep" id="mcp"><h2>MCP</h2><p>The same calls as tools for Claude Code, Cursor or any MCP client: pod_create, pod_run, pod_stop.</p>
 <div class="tabs" data-tabs><div class="tabbar"><button type="button" class="on" data-tab="cc">Claude Code</button><button type="button" data-tab="cu">Cursor</button><button type="button" class="cp" data-copy-tab>Copy</button></div>

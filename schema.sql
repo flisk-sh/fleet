@@ -47,3 +47,13 @@ CREATE TABLE IF NOT EXISTS limits (
   lifetime_min INTEGER NOT NULL,
   updated TEXT NOT NULL
 );
+
+-- Provider keys a user connected in the cabinet, encrypted with PROVIDER_KEYS_SECRET (src/vault.js). Never in plain text.
+CREATE TABLE IF NOT EXISTS provider_keys (
+  login TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  sealed TEXT NOT NULL,          -- base64(iv || AES-GCM ciphertext)
+  hint TEXT NOT NULL,            -- last 4 characters, to tell keys apart
+  created TEXT NOT NULL,
+  PRIMARY KEY (login, provider)
+);

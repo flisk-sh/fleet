@@ -128,7 +128,7 @@ ${body}
 <div><span class="m h">03 / Source</span><a href="https://github.com/flisk-sh/fleet">GitHub</a><a href="https://github.com/flisk-sh/fleet/issues">Report a bug</a><a href="https://github.com/flisk-sh/fleet#what-fleet-stores">What fleet stores</a></div>
 </div>
 <div class="word" aria-hidden="true">fleet</div>
-<div class="legal"><span><a href="https://github.com/flisk-sh/fleet/blob/main/LICENSE">MIT licence</a><a href="https://github.com/flisk-sh/fleet#what-fleet-stores">No provider key stored</a></span><span>fleet.flisk.si</span></div>
+<div class="legal"><span><a href="https://github.com/flisk-sh/fleet/blob/main/LICENSE">MIT licence</a><a href="https://github.com/flisk-sh/fleet#what-fleet-stores">What fleet stores</a></span><span>fleet.flisk.si</span></div>
 </div>
 ${COPY_JS}
 </body></html>`;
@@ -213,7 +213,7 @@ ${laneArt(prices)}
 
 <div class="steps">
 <div><span class="m">01 / Sign in</span><b>Get a fleet key</b><span>With GitHub, in the cabinet.</span></div>
-<div><span class="m">02 / Bring a key</span><b>Your own provider</b><span>boat, Isorun, E2B or Daytona.</span></div>
+<div><span class="m">02 / Connect</span><b>Your own provider</b><span>Paste a boat, Isorun, E2B or Daytona key once.</span></div>
 <div><span class="m">03 / Start a pod</span><b>One call</b><span>POST /v1/pods, or pod_create over MCP.</span></div>
 <div><span class="m">04 / Run, then stop</span><b>Stdout and exit code</b><span>A pod that's gone answers 410.</span></div>
 </div>
@@ -234,7 +234,7 @@ ${routeExample(prices)}
 <div class="feat">
 <div><b>Cheapest first</b><span>Sorted by each provider's list price for your size.</span></div>
 <div><b>Next one on failure</b><span>An error or no capacity moves the pod to the next provider.</span></div>
-<div><b>No provider key stored</b><span>Your provider keys travel with each call. Fleet keeps none of them.</span></div>
+<div><b>Connect once</b><span>Paste each provider key one time; fleet keeps it encrypted. Your agent sends only its fleet key.</span></div>
 </div>
 
 <section class="sec" id="prices">

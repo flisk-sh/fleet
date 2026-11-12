@@ -308,6 +308,63 @@ test('with waitUntil, the usage log is written after the answer and still lands'
   expect(env.DB.raw.query("SELECT kind, status FROM calls").all()).toEqual([{ kind: 'start', status: 201 }]);
 });
 
+describe('connect a provider once', () => {
+  const SECRET = 'x'.repeat(40);
+  async function connectedSetup() {
+    const base = await setup();
+    base.env.PROVIDER_KEYS_SECRET = SECRET;
+    return base;
+  }
+  test('the key is stored encrypted, shows only its last 4 characters, and pod calls use it', async () => {
+    const { env, key, page } = await connectedSetup();
+    const used = [];
+    const original = providers.mid.create;
+    providers.mid.create = async (k) => (used.push(k), { id: 'one' });
+    try {
+      const r = await (await page('POST', '/console/providers/mid/connect', { key: 'mid-secret-key-1234' })).text();
+      expect(r).toContain('mid connected');
+      expect(r).toContain('key ending 1234');
+      expect(dump(env)).not.toContain('mid-secret-key-1234');
+      const call = await handle(new Request(`${ORIGIN}/v1/pods`, { method: 'POST', headers: { authorization: `Bearer ${key}` }, body: '{"provider":"mid"}' }), env, { providers });
+      expect(call.status).toBe(201);
+      expect(used).toEqual(['mid-secret-key-1234']);
+      await handle(new Request(`${ORIGIN}/v1/pods`, { method: 'POST', headers: { authorization: `Bearer ${key}`, 'X-mid-Key': 'from-header' }, body: '{"provider":"mid"}' }), env, { providers });
+      expect(used[1]).toBe('from-header');
+    } finally {
+      providers.mid.create = original;
+    }
+  });
+  test('disconnect deletes the key', async () => {
+    const { env, key, page } = await connectedSetup();
+    await page('POST', '/console/providers/mid/connect', { key: 'mid-secret-key-1234' });
+    expect(await (await page('POST', '/console/providers/mid/disconnect')).text()).toContain('mid disconnected');
+    expect(env.DB.raw.query('SELECT COUNT(*) AS c FROM provider_keys').get().c).toBe(0);
+    const call = await handle(new Request(`${ORIGIN}/v1/pods`, { method: 'POST', headers: { authorization: `Bearer ${key}` }, body: '{"provider":"mid"}' }), env, { providers });
+    expect(call.status).toBe(400);
+  });
+  test('a key that does not look like one is refused; no secret means no connect', async () => {
+    const { page } = await connectedSetup();
+    expect(await (await page('POST', '/console/providers/mid/connect', { key: 'a b' })).text()).toContain('does not look like an API key');
+    const plain = await setup();
+    expect(await (await plain.page('POST', '/console/providers/mid/connect', { key: 'mid-secret-key-1234' })).text()).toContain('not set up');
+    expect(await (await plain.page('GET', '/console?section=providers')).text()).not.toContain('class="conn"');
+  });
+  test('a key sealed with another secret is skipped, not crashed on', async () => {
+    const { env, key, page } = await connectedSetup();
+    await page('POST', '/console/providers/mid/connect', { key: 'mid-secret-key-1234' });
+    env.PROVIDER_KEYS_SECRET = 'y'.repeat(40);
+    const call = await handle(new Request(`${ORIGIN}/v1/pods`, { method: 'POST', headers: { authorization: `Bearer ${key}` }, body: '{"provider":"mid"}' }), env, { providers });
+    expect(call.status).toBe(400);
+  });
+  test('try a pod uses the connected key when none is pasted', async () => {
+    const { env, page } = await connectedSetup();
+    await page('POST', '/console/providers/mid/connect', { key: 'mid-secret-key-1234' });
+    const cookie = (await makeSession(env, 'octo')).split(';')[0];
+    const r = await handle(new Request(`${ORIGIN}/console/try`, { method: 'POST', headers: { cookie, origin: ORIGIN, 'content-type': 'application/json' }, body: JSON.stringify({ provider: 'mid', command: 'echo hi' }) }), env, { providers });
+    expect(r.status).toBe(200);
+  });
+});
+
 describe('try a pod', () => {
   test('starts, runs, stops, times each step, and keeps no key', async () => {
     const { env, page } = await setup();
