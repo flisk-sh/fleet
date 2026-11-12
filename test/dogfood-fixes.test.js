@@ -42,5 +42,7 @@ describe('podlytics tab strip', () => {
     expect(html).toMatch(/strip\.classList\.toggle\(["']more["']/);
     expect(html).toContain('@media (max-width:1500px){.tabs{gap:13px');
     expect(html).toContain('id="tabnext"'); // an arrow for mouse users, who cannot scroll the strip sideways
+    // on a phone the tabs get their own full-width row, so they are readable and the arrow cannot push the header wider than the screen
+    expect(html).toContain('.hd{gap:4px 12px;padding:8px 16px 0;flex-wrap:wrap;height:auto}.tabs{order:3;flex:0 0 100%');
   });
 });
