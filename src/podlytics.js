@@ -478,6 +478,19 @@ function client(D, SIZES) {
 
   // Tabs scroll to their chart and follow the scroll, and ?chart= opens one.
   const tabs = $$('.tabs a');
+  const strip = document.querySelector('.tabs');
+  // A fade on the right edge shows that more tabs wait off to the side; it goes away at the end.
+  const next = document.getElementById('tabnext');
+  const more = () => {
+    const left = strip.scrollWidth - strip.clientWidth - strip.scrollLeft > 2;
+    strip.classList.toggle('more', left);
+    next.hidden = !left;
+  };
+  // Mouse users cannot scroll sideways: the arrow does it for them.
+  next.addEventListener('click', () => strip.scrollBy({ left: Math.max(160, strip.clientWidth * 0.7), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }));
+  strip.addEventListener('scroll', more, { passive: true });
+  addEventListener('resize', more);
+  more();
   tabs.forEach((a) =>
     a.addEventListener('click', (e) => {
       e.preventDefault();
@@ -488,7 +501,14 @@ function client(D, SIZES) {
   );
   const io = new IntersectionObserver(
     (es) => {
-      for (const e of es) if (e.isIntersecting) tabs.forEach((a) => a.classList.toggle('on', a.dataset.c === e.target.id));
+      for (const e of es)
+        if (e.isIntersecting)
+          tabs.forEach((a) => {
+            const on = a.dataset.c === e.target.id;
+            a.classList.toggle('on', on);
+            // keep the current tab in view inside the strip, without moving the page
+            if (on && strip.scrollWidth > strip.clientWidth) strip.scrollLeft = Math.max(0, a.offsetLeft - strip.clientWidth / 2 + a.offsetWidth / 2);
+          });
     },
     { rootMargin: '-30% 0px -60% 0px' },
   );
@@ -516,10 +536,14 @@ a{color:inherit}
 .brand{display:flex;align-items:center;gap:9px;text-decoration:none;font:700 21px/1 var(--sans);letter-spacing:-.04em;white-space:nowrap}
 .brand svg.mark{width:22px;height:22px;flex-shrink:0}.brand .mk{display:inline-grid;place-items:center;width:22px;height:22px;background:var(--green);color:#0b0b0d;font:500 10px/1 var(--mono)}
 .sw{display:flex;padding:3px;gap:2px;border:1px solid var(--line);border-radius:999px;background:var(--panel);font:500 12.5px/1 var(--mono);white-space:nowrap}.sw a{display:flex;align-items:center;gap:6px;text-decoration:none;color:var(--dim);padding:7px 12px;border-radius:999px}.sw a:hover{color:var(--ink)}.sw a.on{background:var(--ink);color:var(--bg)}.sw a i{width:6px;height:6px;border-radius:50%;background:var(--faint)}.sw a.on i{background:var(--green)}
-.tabs{display:flex;gap:20px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;align-self:stretch;border-left:1px solid var(--line);padding-left:20px}
+.tabs{display:flex;gap:16px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;align-self:stretch;border-left:1px solid var(--line);padding-left:20px}
 .tabs::-webkit-scrollbar{display:none}
 .tabs a{display:flex;align-items:center;text-decoration:none;color:var(--dim);font-size:13.5px;white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-1px}
 .tabs a:hover{color:var(--ink)}.tabs a.on{color:var(--ink);border-bottom-color:var(--green)}
+.tabs.more{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 44px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 44px),transparent)}
+.tabnext{flex:none;margin-left:-14px;width:30px;height:30px;border:1px solid var(--line);border-radius:50%;background:var(--panel);color:var(--ink);font:600 18px/1 var(--sans);cursor:pointer;display:grid;place-items:center;padding:0 0 2px;z-index:1}
+.tabnext:hover{border-color:var(--green);color:var(--green)}.tabnext[hidden]{display:none}
+@media (max-width:1500px){.tabs{gap:13px;padding-left:14px}.tabs a{font-size:13px}}
 .tabs .sep{width:1px;background:var(--line);margin:16px 0}
 .tools{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--dim);white-space:nowrap}
 .tools label{display:flex;align-items:center;gap:7px;cursor:pointer}
@@ -623,6 +647,7 @@ ${FLISK_BAR}
 <a class="brand" href="/" title="fleet">${FLEET_MARK}<span>fleet</span></a>
 <nav class="sw" aria-label="Fleet products"><a href="/"><i></i>fleet</a><a class="on" href="/podlytics" aria-current="page"><i></i>podlytics</a></nav>
 <nav class="tabs" aria-label="Charts">${CHARTS.map(([id, l]) => (id === '|' ? '<span class="sep"></span>' : `<a href="?chart=${id}" data-c="${id}"${id === 'size' ? ' class="on"' : ''}>${esc(l)}</a>`)).join('')}</nav>
+<button type="button" class="tabnext" id="tabnext" aria-label="Show more charts" title="More charts" hidden>›</button>
 <div class="tools"><label><input type="checkbox" id="working"><span>Working only</span></label><button type="button" class="ib" id="csv" title="Download the data as CSV">CSV ↓</button></div>
 </header>
 <div class="app">

@@ -27,6 +27,7 @@ export function pricingData(providers) {
       label: p.label,
       logo: logoSvg(id, p.label, 20),
       blocked: p.blocked ? p.blocked.kind : null,
+      working: p.working || null, // date of the first real-account run; null = untested or blocked
       source: p.priceSource,
       hourly: SIZES.map((s) => p.price(s)),
       minimum: p.facts.minimum || 0,
@@ -52,6 +53,7 @@ export function pricingPage(origin, providers, shellFn) {
 <div class="inputs">
 <label class="m label" for="n">Pods a month <b id="nv">1,000</b></label>
 <input type="range" id="n" min="1" max="5" step="0.01" value="3" aria-describedby="nv">
+<label class="wk"><input type="checkbox" id="wk" checked> <b>Working only</b> <small id="wkn"></small></label>
 <p class="m label">Each pod runs for</p>${seg('len', LENGTHS, 1800)}
 <p class="m label">Size of each pod</p>${seg('size', SIZES.map((s, i) => [i, `${s.cpu} vCPU · ${s.ram} GB`]), 1)}
 <p class="m label">Most pods at once</p>${seg('peak', PEAKS.map((p) => [p, String(p)]), 10)}
@@ -79,7 +81,7 @@ export function pricingPage(origin, providers, shellFn) {
 const st={len:1800,size:1,peak:10};const $=(i)=>document.getElementById(i);
 const money=(v)=>v>=100?'$'+Math.round(v).toLocaleString('en-US'):'$'+v.toFixed(2);
 document.querySelectorAll('.seg').forEach(g=>g.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{g.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));st[g.dataset.name]=Number(b.dataset.v);draw()})));
-$('n').addEventListener('input',draw);
+$('n').addEventListener('input',draw);$('wk').addEventListener('change',draw);
 function cost(p,n,hours){const h=p.hourly[st.size];if(h==null)return{no:'Does not offer this size'};let usage=n*hours*h,extra=0,notes=[];
 if(p.minimum&&usage<p.minimum){notes.push('$'+p.minimum+' plan minimum');usage=p.minimum}
 if(p.session&&(st.len>p.session||(p.concurrent&&st.peak>p.concurrent))){if(p.pro&&st.len<=p.pro.session&&st.peak<=p.pro.concurrent){extra=p.pro.monthly;notes.push('+$'+p.pro.monthly+' Pro plan')}else return{no:'Over its plan limits'}}
@@ -87,11 +89,11 @@ if(p.poolCpu&&st.peak*S[st.size].cpu>p.poolCpu)notes.push('needs a higher accoun
 if(p.startsPerDay&&n/30>p.startsPerDay)notes.push('needs a bigger plan for '+Math.round(n/30)+' starts a day');
 return{v:usage+extra,notes}}
 function draw(){const n=Math.round(Math.pow(10,Number($('n').value)));$('nv').textContent=n.toLocaleString('en-US');const hours=st.len/3600;
-const why={down:'down right now',card:'needs a card',invite:'invitation only'};const rows=D.map(p=>({p,...cost(p,n,hours)})).sort((a,b)=>(!!a.p.blocked-!!b.p.blocked)||((a.v??Infinity)-(b.v??Infinity)));const ok=rows.filter(r=>r.v!=null&&!r.p.blocked);const best=ok[0];
-$('best').textContent=best?money(best.v):'—';$('bestp').textContent=best?'a month on '+best.p.label:'no provider fits';
+const why={down:'down right now',card:'needs a card',invite:'invitation only'};const shown=$('wk').checked?D.filter(p=>p.working):D;$('wkn').textContent=$('wk').checked?'Run for real through fleet: '+shown.length+' of '+D.length+' providers. Untick to see the rest, untested ones marked.':'All '+D.length+' providers, in price order.';const rows=shown.map(p=>({p,...cost(p,n,hours)})).sort((a,b)=>(!!a.p.blocked-!!b.p.blocked)||((a.v??Infinity)-(b.v??Infinity)));const ok=rows.filter(r=>r.v!=null&&!r.p.blocked);const best=ok[0];
+$('best').textContent=best?money(best.v):'—';$('bestp').textContent=best?'a month on '+best.p.label+(best.p.working?'':' (untested)'):'no provider fits';
 $('math').textContent=n.toLocaleString('en-US')+' pods × '+(hours<1?Math.round(hours*60)+' min':hours+' h')+' × '+S[st.size].cpu+' vCPU · '+S[st.size].ram+' GB';
 const max=Math.max(...rows.filter(r=>r.v!=null).map(r=>r.v),0.01);
-$('bars').innerHTML=rows.map(r=>r.v==null?'<div class="brow off"><span class="bn">'+r.p.logo+r.p.label+'</span><span class="bt">'+(r.p.blocked?(why[r.p.blocked]||'cannot start yet')+' · ':'')+r.no+'</span></div>':'<div class="brow'+(r===best?' win':'')+(r.p.blocked?' blk':'')+'"><span class="bn">'+r.p.logo+r.p.label+'</span><span class="bb"><i style="width:'+Math.max(2,r.v/max*100)+'%"></i></span><span class="bv">'+money(r.v)+'</span><span class="bx">'+(r.p.blocked?'':r===best?'cheapest':(r.v/best.v).toFixed(1)+'×')+'</span>'+((r.notes.length||r.p.blocked)?'<span class="bnote">'+(r.p.blocked?[why[r.p.blocked]||'cannot start yet'].concat(r.notes):r.notes).join(' · ')+'</span>':'')+'</div>').join('')}
+$('bars').innerHTML=rows.map(r=>r.v==null?'<div class="brow off"><span class="bn">'+r.p.logo+r.p.label+'</span><span class="bt">'+(r.p.blocked?(why[r.p.blocked]||'cannot start yet')+' · ':'')+r.no+'</span></div>':'<div class="brow'+(r===best?' win':'')+(r.p.blocked?' blk':'')+'"><span class="bn">'+r.p.logo+r.p.label+'</span><span class="bb"><i style="width:'+Math.max(2,r.v/max*100)+'%"></i></span><span class="bv">'+money(r.v)+'</span><span class="bx">'+(r.p.blocked?'':r===best?'cheapest':(r.v/best.v).toFixed(1)+'×')+'</span>'+((r.notes.length||r.p.blocked||!r.p.working)?'<span class="bnote">'+(r.p.blocked?[why[r.p.blocked]||'cannot start yet'].concat(r.notes):(r.p.working?r.notes:['untested'].concat(r.notes))).join(' · ')+'</span>':'')+'</div>').join('')}
 draw()})();
 </script>`;
   return shellFn('fleet pricing: what a month of pods costs', body);
@@ -104,6 +106,7 @@ export const PRICING_CSS = `
 .inputs .label b{color:var(--ink);font-weight:500;margin-left:8px}
 input[type=range]{width:100%;accent-color:var(--green)}
 .seg{display:flex;flex-wrap:wrap}
+.wk{display:block;margin:0 0 22px;font-size:14px}.wk small{display:block;color:var(--dim);margin:4px 0 0 24px;max-width:46ch}.wk input{vertical-align:-2px;margin-right:6px}
 .seg button{font:12px/1 var(--mono);border:1px solid var(--ink);background:var(--card);padding:10px 12px;margin:0 -1px -1px 0;cursor:pointer}
 .seg button.on{background:var(--ink);color:var(--paper)}
 .out{border:1px solid var(--ink);background:var(--card);padding:24px}
