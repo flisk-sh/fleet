@@ -229,9 +229,13 @@ export const stopPod = timed('stop', stopPodInner, (r, [providers, , id]) => fro
 export const writeFile = timed('write', writeFileInner, (r, [providers, , id]) => fromId(providers, id));
 export const readFile = timed('read', readFileInner, (r, [providers, , id]) => fromId(providers, id));
 
+// Working = run end to end on a real account. Every other provider is coming soon, with an issue asking for help.
+export const HELP_NEW = 'https://github.com/flisk-sh/fleet/issues/4';
+export const statusLabel = (p) => (p.status === 'working' ? 'Working' : 'Coming soon');
+
 export function priceTable(providers, size = DEFAULT_SIZE) {
   return Object.entries(providers)
     .filter(([, p]) => !p.demo)
-    .map(([name, p]) => ({ provider: name, label: p.label, pricePerHour: p.price(size), note: p.note || '', source: p.priceSource }))
+    .map(([name, p]) => ({ provider: name, label: p.label, pricePerHour: p.price(size), note: p.note || '', source: p.priceSource, status: p.working ? 'working' : 'soon', ...(p.working ? { tested: p.working } : { help: p.help || HELP_NEW }) }))
     .sort((a, b) => (a.pricePerHour ?? Infinity) - (b.pricePerHour ?? Infinity));
 }

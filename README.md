@@ -4,16 +4,18 @@ One API for every agent pod. A pod is a Linux machine your agent can run command
 
 Fleet starts each pod on the cheapest sandbox provider you have a key for, and moves to the next one when a provider fails. You bring your own provider accounts: connect each one once in the cabinet (fleet keeps the key encrypted), or send its key with each call.
 
-Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the cabinet: up to 10 named fleet keys, your pods, an overview, providers and docs. The four adapters are written from the providers' public API docs and tested against recorded-style fake replies only. None has been run against a real provider account yet.
+Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the cabinet: up to 10 named fleet keys, your pods, an overview, providers and docs. Daytona has been run end to end on a real account. The boat, Isorun and E2B adapters are written from the providers' public API docs and tested against fake replies only.
 
 ## Providers
 
-| Provider | Header for your key | List price, 2 vCPU / 4 GB, per hour | Source |
-|---|---|---|---|
-| boat | `X-Boat-Key` | $0.018 | https://docs.boat.dev/pricing |
-| Isorun | `X-Isorun-Key` | $0.110 | https://docs.isorun.ai/getting-started/pricing |
-| E2B | `X-E2B-Key` | $0.166 | https://e2b.dev/pricing |
-| Daytona | `X-Daytona-Key` | $0.166 | https://www.daytona.io/pricing |
+| Provider | Status | Header for your key | List price, 2 vCPU / 4 GB, per hour | Source |
+|---|---|---|---|---|
+| Daytona | **Working**: run end to end on a real account on 2026-11-12 | `X-Daytona-Key` | $0.166 | https://www.daytona.io/pricing |
+| boat | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/1) | `X-Boat-Key` | $0.018 | https://docs.boat.dev/pricing |
+| Isorun | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/2) | `X-Isorun-Key` | $0.110 | https://docs.isorun.ai/getting-started/pricing |
+| E2B | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/3) | `X-E2B-Key` | $0.166 | https://e2b.dev/pricing |
+
+Working means fleet has started, run commands and files in, and stopped pods on a real account of that provider. Coming soon providers are written from public docs and tested against fake replies only. Have an account at one of them, or want another provider ([#4](https://github.com/flisk-sh/fleet/issues/4))? Help is welcome.
 
 Prices were read on 2026-11-12. You pay each provider directly on your own account; fleet adds nothing.
 

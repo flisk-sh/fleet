@@ -15,6 +15,7 @@ const auth = (key) => ({ authorization: `Bearer ${key}` });
 export default {
   label: 'boat',
   keyHeader: 'X-Boat-Key',
+  help: 'https://github.com/flisk-sh/fleet/issues/1', // coming soon: never run against a real account
   priceSource: 'https://docs.boat.dev/pricing',
   note: 'Needs a boat plan ($20 a month after a 7-day trial). Machines in Europe only.',
   price: (size) => fit(size)?.price ?? null,

@@ -36,6 +36,9 @@ a{color:inherit}
 .b:disabled{opacity:.5;cursor:wait}
 .pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--ink);padding:5px 10px;font:11px/1 var(--mono);text-transform:uppercase;letter-spacing:.06em}
 .pill i{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.st{display:inline-flex;align-items:center;gap:6px;font:10.5px/1 var(--mono);text-transform:uppercase;letter-spacing:.05em;padding:4px 7px;border:1px solid var(--ink);white-space:nowrap;vertical-align:middle}
+.st.ok{background:var(--ink);color:var(--paper)}.st.ok i{width:6px;height:6px;border-radius:50%;background:var(--glow)}
+.st.soon{color:var(--dim);border-color:var(--dim);border-style:dashed}
 .hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);border-bottom:1px solid var(--ink);min-height:560px}
 .hero .l{padding:36px 48px 44px;display:flex;flex-direction:column;justify-content:space-between;gap:36px}
 h1{font:800 clamp(46px,7.2vw,96px)/.95 var(--serif);letter-spacing:-.045em;margin:20px 0 18px}
@@ -185,11 +188,18 @@ function routeExample(prices) {
 </div>`;
 }
 
+// Working: run end to end on a real account. Coming soon: written from the docs, never run for real; links to the help issue.
+export const statusTag = (p) =>
+  p.status === 'working'
+    ? `<span class="st ok" title="Tested on a real ${esc(p.label)} account on ${esc(p.tested || '')}"><i></i>Working</span>`
+    : `<span class="st soon">Coming soon</span>`;
+
 export function homePage({ origin, prices, size }) {
-  const offered = prices.filter((p) => p.pricePerHour !== null).length;
+  const working = prices.filter((p) => p.status === 'working').length;
+  const soon = prices.length - working;
   const rows = prices
     .map(
-      (p, i) => `<tr><td>${esc(p.label)}</td><td class="n">${money(p.pricePerHour)}</td><td>${p.pricePerHour !== null && i === 0 ? '<span class="first">first</span>' : p.pricePerHour === null ? '' : i + 1}</td><td>${esc(p.note)}</td></tr>`,
+      (p, i) => `<tr><td>${esc(p.label)}</td><td>${statusTag(p)}</td><td class="n">${money(p.pricePerHour)}</td><td>${p.pricePerHour !== null && i === 0 ? '<span class="first">first</span>' : p.pricePerHour === null ? '' : i + 1}</td><td>${esc(p.note)}</td></tr>`,
     )
     .join('');
   return shell(
@@ -198,7 +208,7 @@ export function homePage({ origin, prices, size }) {
 <div class="l">
 <div>
 <a class="logo" href="/"><span class="mark">&gt;_</span>fleet</a>
-<div style="margin-top:28px"><span class="pill"><i></i>Beta · ${offered} providers</span></div>
+<div style="margin-top:28px"><span class="pill"><i></i>Beta · ${working} working · ${soon} coming soon</span></div>
 <h1>One key.<br>Every <em>agent<br>pod.</em></h1>
 <p class="lede">Your agent asks for a Linux machine. Fleet starts it on the cheapest sandbox provider you have an account at, and moves to the next one when a provider fails. Over HTTP or MCP.</p>
 </div>
@@ -213,7 +223,7 @@ ${laneArt(prices)}
 
 <div class="steps">
 <div><span class="m">01 / Sign in</span><b>Get a fleet key</b><span>With GitHub, in the cabinet.</span></div>
-<div><span class="m">02 / Connect</span><b>Your own provider</b><span>Paste a boat, Isorun, E2B or Daytona key once.</span></div>
+<div><span class="m">02 / Connect</span><b>Your own provider</b><span>Paste a Daytona key once. boat, Isorun and E2B are coming soon.</span></div>
 <div><span class="m">03 / Start a pod</span><b>One call</b><span>POST /v1/pods, or pod_create over MCP.</span></div>
 <div><span class="m">04 / Run, then stop</span><b>Stdout and exit code</b><span>A pod that's gone answers 410.</span></div>
 </div>
@@ -241,19 +251,22 @@ ${routeExample(prices)}
 <p class="m label">Prices · ${size.cpu} vCPU · ${size.ram} GB · per hour</p>
 <h2>Today's route order</h2>
 <div class="scroll"><table>
-<tr><th>Provider</th><th>List price</th><th>Route</th><th>Note</th></tr>
+<tr><th>Provider</th><th>Status</th><th>List price</th><th>Route</th><th>Note</th></tr>
 ${rows}
 </table></div>
-<p class="note">List prices from each provider's own page. You pay the provider directly on your own account; fleet adds nothing.</p>
+<p class="note">List prices from each provider's own page. You pay the provider directly on your own account; fleet adds nothing. <b>Working</b> means fleet has run pods end to end on a real account of that provider. <b>Coming soon</b> providers are written from their public docs but not yet run for real. Have an account there? <a href="https://github.com/flisk-sh/fleet/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22">Help us finish them</a>.</p>
 </section>
 
 <section class="sec" id="api">
 <p class="m label">API</p>
-<h2>Three calls and a price list</h2>
+<h2>Start, run, files, stop</h2>
 <div class="scroll"><table>
 <tr><th>Call</th><th>Body</th><th>Returns</th></tr>
 <tr><td class="n">POST /v1/pods</td><td>cpu, ram, provider?, order?</td><td>id, provider, pricePerHour, failed</td></tr>
-<tr><td class="n">POST /v1/pods/:id/run</td><td>command</td><td>stdout, stderr, exitCode</td></tr>
+<tr><td class="n">POST /v1/pods/:id/run</td><td>command, cwd?, env?, timeout?</td><td>stdout, stderr, exitCode, timedOut</td></tr>
+<tr><td class="n">PUT /v1/pods/:id/files</td><td>path, content, encoding?</td><td>path, bytes</td></tr>
+<tr><td class="n">GET /v1/pods/:id/files?path=</td><td></td><td>content, encoding, bytes</td></tr>
+<tr><td class="n">GET /v1/pods</td><td></td><td>your pods with status</td></tr>
 <tr><td class="n">DELETE /v1/pods/:id</td><td></td><td>stopped</td></tr>
 <tr><td class="n">GET /v1/prices</td><td></td><td>price table, no key needed</td></tr>
 </table></div>

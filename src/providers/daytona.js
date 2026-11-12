@@ -22,6 +22,7 @@ export const snapshotFor = (size) => SNAPSHOTS.find((s) => s.cpu >= size.cpu && 
 export default {
   label: 'Daytona',
   keyHeader: 'X-Daytona-Key',
+  working: '2026-11-12', // first real-account run: start, run, files, timeout, stop (1 to 10 pods at once)
   priceSource: 'https://www.daytona.io/pricing',
   note: 'Sizes 1/1, 2/4 or 4/8 (vCPU/GB): fleet picks the smallest that fits. Output comes back as one stream.',
   price: (size) => {

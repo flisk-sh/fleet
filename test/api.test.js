@@ -432,3 +432,24 @@ test('every inline page script parses', async () => {
     for (const m of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) expect(() => new Function(m[1])).not.toThrow();
   }
 });
+
+describe('provider status', () => {
+  test('Daytona is working, the rest are coming soon with a help link, on the home page, the API and the cabinet', async () => {
+    const { PROVIDERS } = await import('../src/providers/index.js');
+    const { priceTable } = await import('../src/route.js');
+    const table = priceTable(PROVIDERS);
+    expect(table.find((p) => p.provider === 'daytona')).toMatchObject({ status: 'working', tested: '2026-11-12' });
+    for (const p of table.filter((x) => x.provider !== 'daytona')) {
+      expect(p.status).toBe('soon');
+      expect(p.help).toMatch(/^https:\/\/github\.com\/flisk-sh\/fleet\/issues\/\d+$/);
+    }
+    const home = await (await handle(new Request(`${ORIGIN}/`), {}, { providers: PROVIDERS })).text();
+    expect(home).toContain('1 working · 3 coming soon');
+    expect(home.match(/class="st ok"/g)).toHaveLength(1);
+    expect(home.match(/class="st soon"/g)).toHaveLength(3);
+    const cab = await (await handle(new Request(`${ORIGIN}/console?section=providers`, { headers: { cookie: (await makeSession({ SESSION_SECRET: 's3cret' }, 'octo')).split(';')[0] } }), { DB: db(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' }, { providers: PROVIDERS })).text();
+    expect(cab.indexOf('<b>Daytona</b>')).toBeLessThan(cab.indexOf('<b>boat</b>'));
+    expect(cab).toContain('Help us finish it');
+    expect(cab).toContain('Working now');
+  });
+});

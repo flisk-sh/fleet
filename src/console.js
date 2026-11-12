@@ -1,5 +1,5 @@
 // The cabinet: same layout as inference.flisk.si's console (sidebar, title with a beta tag, ruled tables), in black and white.
-import { CSS, esc, FONTS, FLISK_BAR } from './page.js';
+import { CSS, esc, FONTS, FLISK_BAR, statusTag } from './page.js';
 import { LIMIT_RANGES, MAX_KEYS, podStatus, summarize } from './store.js';
 
 const SECTIONS = [
@@ -87,9 +87,10 @@ input:disabled{opacity:.55}
 .pcard{border:1px solid var(--ink);background:var(--card);padding:16px;display:flex;flex-direction:column;gap:10px}
 .pcard[hidden]{display:none}
 .ph{display:flex;align-items:center;gap:10px}.ph b{font:800 22px/1 var(--serif);letter-spacing:-.02em;flex:1}
-.pmark{width:34px;height:34px;display:grid;place-items:center;background:var(--night);color:var(--glow);font:500 15px var(--mono)}
+.pmark{flex-shrink:0;width:34px;height:34px;display:grid;place-items:center;background:var(--night);color:var(--glow);font:500 15px var(--mono)}
 .pp{font:500 18px var(--mono)}.pp small{font-size:12px;color:var(--dim)}
 .pcard p{margin:0;color:var(--dim)}
+.pcard p.soon{font-size:13px;border-left:2px dashed var(--dim);padding-left:10px}
 .pcard dl{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin:0;border-top:1px solid var(--ink);padding-top:10px}
 .pcard dt{font:10.5px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--dim)}.pcard dd{margin:2px 0 0;font-size:13.5px}
 .pf{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--ink);padding-top:10px;margin-top:auto}
@@ -257,9 +258,12 @@ function connectBox(p, conn, canConnect) {
 
 // Provider catalog, after Monid's tools page: search, filters with counts, one card per provider with badges.
 function providersSection(prices, providers, { connections = {}, canConnect = false, notice, error } = {}) {
-  const list = prices.map((p) => ({ ...p, meta: providers[p.provider], facts: providers[p.provider].facts || {} }));
+  const list = prices
+    .map((p) => ({ ...p, meta: providers[p.provider], facts: providers[p.provider].facts || {} }))
+    .sort((a, b) => (a.status === 'working' ? 0 : 1) - (b.status === 'working' ? 0 : 1));
   const FILTERS = [
     ['all', 'All', () => true],
+    ['working', 'Working now', (p) => p.status === 'working'],
     ['nocard', 'No card needed', (p) => p.facts.card === false],
     ['credit', 'Free credit', (p) => /credit/i.test(p.facts.credit || '')],
     ['nomin', 'No monthly minimum', (p) => !p.facts.minimum],
@@ -272,7 +276,9 @@ function providersSection(prices, providers, { connections = {}, canConnect = fa
       const kp = KEY_PAGE[p.provider];
       return `<article class="pcard" data-tags="all ${tags(p)}" data-text="${esc(`${p.label} ${p.facts.blurb || ''} ${(p.facts.badges || []).join(' ')}`.toLowerCase())}">
 <div class="ph"><span class="pmark">${esc(p.label.slice(0, 1).toUpperCase())}</span><b>${esc(p.label)}</b><span class="pp">${money(p.pricePerHour)}<small>/h</small></span></div>
+<div>${statusTag(p)}</div>
 <p>${esc(p.facts.blurb || p.note)}</p>
+${p.status === 'working' ? '' : `<p class="soon">Written from ${esc(p.label)}'s public docs, not yet run on a real account. Fleet may still route to it if you connect a key. Have an account? <a href="${esc(p.help)}" target="_blank" rel="noopener">Help us finish it</a>.</p>`}
 <dl><div><dt>Credit</dt><dd>${esc(p.facts.credit || '—')}</dd></div><div><dt>Biggest pod</dt><dd>${p.facts.maxCpu ? `${p.facts.maxCpu} vCPU · ${p.facts.maxRam} GB` : '—'}</dd></div><div><dt>Regions</dt><dd>${esc((p.facts.regions || []).join(', ') || '—')}</dd></div><div><dt>Header</dt><dd class="n">${esc(p.meta.keyHeader)}</dd></div></dl>
 <div class="pf"><span class="badges">${(p.facts.badges || []).map((b) => `<span class="badge">${esc(b)}</span>`).join('')}</span><span class="links"><a href="${SIGNUP[p.provider] || p.source}" target="_blank" rel="noopener">Sign up</a>${kp ? `<a href="${kp.url}" target="_blank" rel="noopener">Get a key</a>` : ''}</span></div>
 ${connectBox(p, connections[p.provider], canConnect)}
@@ -298,7 +304,7 @@ function trySection(prices, providers, connections = {}) {
     (demo ? `<option value="${esc(demo[0])}">Demo · simulated, no account needed</option>` : '') +
     prices
       .filter((p) => p.pricePerHour !== null)
-      .map((p) => `<option value="${esc(p.provider)}">${esc(p.label)} · ${money(p.pricePerHour)} an hour</option>`)
+      .map((p) => `<option value="${esc(p.provider)}">${esc(p.label)} · ${money(p.pricePerHour)} an hour${p.status === 'working' ? '' : ' · coming soon'}</option>`)
       .join('');
   const pages = JSON.stringify(Object.fromEntries(Object.entries(KEY_PAGE).map(([k, v]) => [k, v.url])));
   const conn = JSON.stringify(Object.keys(connections));
