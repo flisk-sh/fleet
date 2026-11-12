@@ -33,7 +33,7 @@ export default {
   keyHeader: 'X-Runloop-Key',
   help: 'https://github.com/flisk-sh/fleet/issues/4',
   priceSource: 'https://www.runloop.ai/pricing',
-  note: 'Devboxes for coding agents. The free trial allows 3 at once, up to 2 vCPU / 4 GB.',
+  note: 'Devboxes for coding agents. Sign-up is by invitation only (waitlist).',
   price: (size) => {
     const s = runloopSize(size);
     return s ? Math.round((s.cpu * CPU_HOUR + s.ram * GB_HOUR) * 1000) / 1000 : null;
@@ -42,17 +42,17 @@ export default {
     blurb: 'Devboxes for building, running and testing AI coding agents, with snapshots and blueprints.',
     regions: ['US'],
     billing: 'per second',
-    credit: '$50 trial credit, no card',
-    card: false,
+    credit: 'Invitation only: join the waitlist (support@runloop.ai)', // was a $50 trial; Runloop closed sign-up, seen 2026-11-12
+    card: null,
     minimum: 0,
     maxCpu: 16,
     maxRam: 64,
     session: 172800,
     concurrent: 3, // on the trial
     startsPerDay: null,
-    badges: ['$50 credit', 'No card', 'Up to 48 h'],
+    badges: ['Invitation only', 'Up to 48 h'],
     source: 'https://www.runloop.ai/pricing',
-    signup: 'https://platform.runloop.ai',
+    signup: 'mailto:support@runloop.ai?subject=Waitlist',
     keyPage: 'https://platform.runloop.ai/settings#api-keys',
   },
 
