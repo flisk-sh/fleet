@@ -7,6 +7,9 @@
 // Keys stay on the server; the page never sees them.
 import { createPod, pickOrder, runPod, stopPod, writeFile } from './route.js';
 import { esc, shell } from './page.js';
+import { RECORDED } from './demo-recorded.js';
+
+export { RECORDED };
 
 export const DEMO_PROVIDERS = ['daytona', 'blaxel', 'upstash', 'vercel'];
 
@@ -85,6 +88,7 @@ async function runJob(providers, keys, job, order, t0, ctx, emit) {
     emit({ type: 'step-start', id: job.id, kind, name, t: s });
     const r = await fn().catch((e) => ({ ok: false, detail: String(e?.message || e).slice(0, 200) }));
     const rec = { kind, name, startMs: s, endMs: now() - t0, ok: r.ok !== false, detail: r.detail || '' };
+    if (r.output) rec.output = r.output; // each test run keeps its own lines, so a failed first run stays visible
     row.steps.push(rec);
     emit({ type: 'step-end', id: job.id, ...rec, provider: r.provider });
     return r;
@@ -101,7 +105,8 @@ async function runJob(providers, keys, job, order, t0, ctx, emit) {
     if (r.status !== 200) return { ok: false, detail: r.error };
     row.output = testLines(r.result.stdout || r.result.stderr);
     const failed = row.output.filter((l) => !l.endsWith(' ok')).length;
-    return r.result.exitCode === 0 ? { detail: `${row.output.length} passed` } : { ok: false, detail: `${failed || 'some'} of ${row.output.length || '?'} failed` };
+    const output = row.output;
+    return r.result.exitCode === 0 ? { detail: `${output.length} passed`, output } : { ok: false, detail: `${failed || 'some'} of ${output.length || '?'} failed`, output };
   };
 
   const started = await step('start', 'Start a pod', async () => {
@@ -194,10 +199,11 @@ const PAGE_CSS = `
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend i{width:14px;height:10px;display:inline-block}
 .board{border:1px solid var(--ink);background:var(--card)}
-.job{display:grid;grid-template-columns:260px minmax(0,1fr) 120px;border-bottom:1px solid var(--ink);min-height:68px}
+.job{display:grid;grid-template-columns:260px minmax(0,1fr) 150px;border-bottom:1px solid var(--ink);min-height:68px}
 .job:last-child{border-bottom:0}
 .who{padding:12px 16px;border-right:1px solid var(--ink);display:flex;flex-direction:column;justify-content:center;gap:5px;min-width:0}
 .who b{font:650 16px/1.25 var(--sans)}
+.replay{margin:14px 0 0;max-width:64ch;color:var(--dim);font-size:15px}
 .who small{font:11.5px/1.3 var(--mono);color:var(--dim);overflow-wrap:anywhere}
 .track{position:relative;margin:0 14px}
 .track .lane{position:absolute;left:0;right:0;top:50%;height:22px;transform:translateY(-50%);background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 1px),rgba(23,23,21,.08) calc(10% - 1px) 10%)}
@@ -216,7 +222,7 @@ const PAGE_CSS = `
 .chip.pass{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .chip.pass:before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--glow);margin-right:6px;vertical-align:1px}
 .chip.fail{border-color:#c2410c;color:#c2410c}
-.axis{display:grid;grid-template-columns:260px minmax(0,1fr) 120px;border-top:1px solid var(--ink);font:10.5px/1 var(--mono);color:var(--dim)}
+.axis{display:grid;grid-template-columns:260px minmax(0,1fr) 150px;border-top:1px solid var(--ink);font:10.5px/1 var(--mono);color:var(--dim)}
 .axis .ticks{position:relative;height:24px;margin:0 14px}
 .axis .ticks span{position:absolute;top:7px;transform:translateX(-50%);white-space:nowrap}.axis .ticks span:last-child{transform:translateX(-100%)}.axis .ticks span:first-child{transform:none}
 .axis>div:first-child{border-right:1px solid var(--ink);padding:7px 16px}
@@ -284,17 +290,28 @@ function finish(res){running=false;clearInterval(timer);clock.firstChild.nodeVal
   if(fx)line+=' <b>'+esc(fx.title)+'</b> had a bug we planted on purpose: its tests failed, the agent wrote the fix in the same pod, and the tests passed on the second run.';
   h+='<p class="story">'+line+'</p><p class="story">Pod start times: '+starts.join(' · ')+'. Every pod was stopped at the end'+(bad.length?'; '+bad.map(function(j){return esc(j.title)+': '+esc(j.error||'tests failed')}).join('; '):'')+'.</p>';
   h+='<details><summary>What ran in each pod</summary><pre>';
-  res.jobs.forEach(function(j){h+=esc(j.title)+'  ['+esc(j.provider||'no pod')+']\n';(j.steps||[]).forEach(function(s){h+='  '+(s.ok?'ok  ':'FAIL')+' '+esc(s.name)+'  '+secs(s.endMs-s.startMs)+(s.detail?'  '+esc(s.detail):'')+'\n'});(j.output||[]).forEach(function(l){h+='      '+esc(l)+'\n'});h+='\n'});
+  res.jobs.forEach(function(j){h+=esc(j.title)+'  ['+esc(j.provider||'no pod')+']\n';(j.steps||[]).forEach(function(s){h+='  '+(s.ok?'ok  ':'FAIL')+' '+esc(s.name)+'  '+secs(s.endMs-s.startMs)+(s.detail?'  '+esc(s.detail):'')+'\n';(s.output||[]).forEach(function(l){h+='      '+esc(l)+'\n'})});h+='\n'});
   h+='</pre></details>';
-  result.innerHTML=h;result.hidden=false;go.disabled=false;go.textContent='Run again'}
+  result.innerHTML=h;result.hidden=false;go.disabled=false;go.textContent=window.__REPLAY__?'Watch again':'Run again'}
 function fail(msg){running=false;clearInterval(timer);var d=document.createElement('div');d.className='err';
   var p=document.createElement('p');p.textContent=msg;d.appendChild(p);
-  if(/connect/i.test(msg)){var a=document.createElement('a');a.className='b inv';a.href='/console?section=providers';a.textContent='Connect a provider';d.appendChild(a)}
+  if(/connect/i.test(msg)){var a=document.createElement('a');a.className='b inv';a.href='/console?section=providers';a.textContent='Connect a provider';d.appendChild(a);var w=document.createElement('a');w.className='b';w.href='/demo';w.style.marginLeft='10px';w.textContent='Watch a recorded run';d.appendChild(w)}
   result.innerHTML='';result.appendChild(d);result.hidden=false;go.disabled=false;
   Object.keys(rows).forEach(function(id){var r=rows[id];if(!/pass|fail/.test(r.chip.className))chip(r,'','Not run')})}
+function replay(rec){
+  // Play a recorded run back at its real speed: the same events a live run streams, at the times they happened.
+  var ev=[{at:0,e:{type:'plan',jobs:rec.jobs.map(function(j){return {id:j.id,provider:j.provider}})}}];
+  rec.jobs.forEach(function(j){j.steps.forEach(function(s){
+    ev.push({at:s.startMs,e:{type:'step-start',id:j.id,kind:s.kind,name:s.name,t:s.startMs}});
+    ev.push({at:s.endMs,e:{type:'step-end',id:j.id,kind:s.kind,name:s.name,startMs:s.startMs,endMs:s.endMs,ok:s.ok,detail:s.detail}})});
+    ev.push({at:j.endMs,e:{type:'job-end',id:j.id,ok:j.ok,fixed:j.fixed,endMs:j.endMs}})});
+  ev.forEach(function(x,i){x.i=i});ev.sort(function(a,b){return a.at-b.at||a.i-b.i});
+  ev.forEach(function(x){setTimeout(function(){onEvent(x.e)},x.at)});
+  setTimeout(function(){finish(rec)},rec.totalMs+60)}
 go.addEventListener('click',async function(){
   go.disabled=true;result.hidden=true;result.innerHTML='';build();t0=performance.now();running=true;clock.firstChild.nodeValue='0.0';
   timer=setInterval(function(){clock.firstChild.nodeValue=elapsed().toFixed(1);layout()},100);
+  if(window.__REPLAY__)return replay(window.__REPLAY__);
   var res;try{res=await fetch('/console/demo',{method:'POST',headers:{accept:'application/x-ndjson'}})}catch(e){return fail('Could not reach fleet: '+e.message)}
   if(!res.ok||!res.body){var j={};try{j=await res.json()}catch(e){}return fail(j.error||'The run could not start')}
   var reader=res.body.getReader(),dec=new TextDecoder(),buf='',final=null;
@@ -315,20 +332,31 @@ const LEGEND = [
   ['k-stop', 'Stop pod'],
 ];
 
-export function demoPage() {
+// replay: the public page plays back RECORDED instead of starting pods, so it needs no sign-in and no provider key.
+export function demoPage({ replay = false } = {}) {
   const jobs = JOBS.map((j) => ({ id: j.id, title: j.title }));
+  const lead = replay
+    ? `<p class="m label">Recorded run · real pods on four providers</p>`
+    : `<p class="m label">Live demo · parallel agent pods</p>`;
+  const sub = replay
+    ? 'Each row is one coding agent with its own pod: it writes a small function and its tests, runs them, and stops the pod. Fleet spread the four over Daytona, Blaxel, Upstash Box and Vercel and started them together. One agent\'s first try has a bug we planted, so you can watch it fail its tests, fix the code in the same pod, and pass.'
+    : 'Each row is one coding agent with its own pod: it writes a small function and its tests, runs them, and stops the pod. Fleet spreads the four over the providers you connected and starts them together. One agent\'s first try has a bug we planted, so you can watch it fail its tests, fix the code in the same pod, and pass.';
+  const note = replay
+    ? `<p class="replay">This plays back a real run from ${esc(RECORDED.recordedOn)} at its real speed. <a href="/console/demo">Run it live</a> on your own providers: sign in with GitHub and connect one.</p>`
+    : '';
   return shell(
-    'Agent race · fleet demo',
+    replay ? 'Agent race · recorded run · fleet' : 'Agent race · fleet demo',
     `<section class="race">
-<p class="m label">Live demo · parallel agent pods</p>
+${lead}
 <h1>Four agents. Four pods. <em>All at once.</em></h1>
-<p class="sub">Each row is one coding agent with its own pod: it writes a small function and its tests, runs them, and stops the pod. Fleet spreads the four over the providers you connected and starts them together. One agent's first try has a bug we planted, so you can watch it fail its tests, fix the code in the same pod, and pass.</p>
-<div class="ctl"><button id="go" class="b inv" type="button">Run 4 agents</button><span class="clock" aria-live="off"><span id="clock">0.0</span><small>s</small></span>
+<p class="sub">${sub}</p>
+${note}
+<div class="ctl"><button id="go" class="b inv" type="button">${replay ? 'Watch the run' : 'Run 4 agents'}</button><span class="clock" aria-live="off"><span id="clock">0.0</span><small>s</small></span>
 <span class="legend" aria-hidden="true">${LEGEND.map(([c, t]) => `<span><i class="${c}"></i>${esc(t)}</span>`).join('')}</span></div>
 <div class="board"><div id="board" aria-label="Agent jobs"></div><div class="axis"><div>Job</div><div class="ticks" id="ticks"></div><div></div></div></div>
 <div id="result" class="result" hidden aria-live="polite"></div>
 </section>
-<script>window.__JOBS__=${JSON.stringify(jobs).replace(/</g, '\\u003c')};</script>
+<script>window.__JOBS__=${JSON.stringify(jobs).replace(/</g, '\\u003c')};${replay ? `window.__REPLAY__=${JSON.stringify(RECORDED).replace(/</g, '\\u003c')};` : ''}</script>
 <script>${PAGE_JS}</script>`,
     PAGE_CSS,
   );

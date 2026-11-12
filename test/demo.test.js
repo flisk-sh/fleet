@@ -2,7 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { demoPage, demoRun, JOBS, jobOrders } from '../src/demo.js';
+import { demoPage, demoRun, JOBS, jobOrders, RECORDED } from '../src/demo.js';
+import { handle } from '../src/index.js';
 
 // A local "provider": a pod is a folder, and commands really run in it with sh (python3 runs the written tests).
 function localProvider() {
@@ -48,6 +49,9 @@ describe('agent race', () => {
     expect(fixed.steps.map((s) => s.kind)).toEqual(['start', 'write', 'test', 'fix', 'test', 'stop']);
     expect(fixed.steps[2].ok).toBe(false);
     expect(fixed.steps[4].ok).toBe(true);
+    // each test run keeps its own lines: the failing first run stays visible in the log
+    expect(fixed.steps[2].output).toContain('test_extra_spaces FAIL');
+    expect(fixed.steps[4].output).toContain('test_extra_spaces ok');
     for (const j of r.jobs.filter((x) => !x.fixed)) expect(j.steps.map((s) => s.kind)).toEqual(['start', 'write', 'test', 'stop']);
     expect(stops).toHaveLength(JOBS.length);
     expect(events[0].type).toBe('plan');
@@ -89,5 +93,26 @@ describe('agent race', () => {
     expect(html).toContain('id="board"');
     expect(html).toContain('noindex');
     expect(html.split('<main')[1].split('</main>')[0].toLowerCase()).not.toContain('sandbox');
+  });
+  test('the recorded run is consistent: real providers, the fix, and the totals add up', () => {
+    expect(RECORDED.jobs.map((j) => j.id)).toEqual(JOBS.map((j) => j.id));
+    expect(RECORDED.sequentialMs).toBe(RECORDED.jobs.reduce((sum, j) => sum + j.endMs - j.startMs, 0));
+    expect(RECORDED.totalMs).toBe(Math.max(...RECORDED.jobs.map((j) => j.endMs)));
+    expect(RECORDED.jobs.filter((j) => j.fixed).map((j) => j.id)).toEqual(['wordcount']);
+    for (const j of RECORDED.jobs) for (const [a, b] of j.steps.slice(1).map((s, i) => [j.steps[i], s])) expect(b.startMs).toBe(a.endMs);
+    expect(JSON.stringify(RECORDED)).not.toContain('pod_');
+  });
+  test('/demo is public: it plays the recorded run and links to the live race', async () => {
+    const r = await handle(new Request('https://fleet.flisk.si/demo'), {});
+    expect(r.status).toBe(200);
+    const html = await r.text();
+    expect(html).toContain('window.__REPLAY__=');
+    expect(html).toContain('href="/console/demo"');
+    expect(html).toContain('Watch the run');
+    expect(demoPage()).not.toContain('window.__REPLAY__=');
+  });
+  test('the home page sends visitors to the public recorded race, not to a sign-in', async () => {
+    const html = await (await handle(new Request('https://fleet.flisk.si/'), {})).text();
+    expect(html).toContain('href="/demo">Watch agents race');
   });
 });

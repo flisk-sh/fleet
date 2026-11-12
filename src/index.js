@@ -147,6 +147,8 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
   if (request.method === 'GET' && /^\/(icon\.svg|favicon\.ico|apple-touch-icon\.png|icon-512\.png|og\.png)$/.test(path)) return assetResponse(path.slice(1));
   if (request.method === 'GET' && path === '/docs') return html(docsPage(origin, (t, b) => shell(t, b, DOCS_CSS, { path: '/docs' })), 200, { 'cache-control': 'public, max-age=300' });
   if (request.method === 'GET' && path === '/pricing') return html(pricingPage(origin, providers, (t, b) => shell(t, b, PRICING_CSS, { path: '/pricing' })), 200, { 'cache-control': 'public, max-age=300' });
+  // The agent race as a recorded real run: public, no sign-in, no provider key. The live race is /console/demo.
+  if (request.method === 'GET' && path === '/demo') return html(demoPage({ replay: true }), 200, { 'cache-control': 'public, max-age=300' });
   if (request.method === 'GET' && path === '/podlytics') {
     return html(podlyticsPage(podlyticsData(providers, await measured(env))), 200, { 'cache-control': 'public, max-age=300' });
   }
