@@ -507,7 +507,11 @@ function client(D, SIZES) {
             const on = a.dataset.c === e.target.id;
             a.classList.toggle('on', on);
             // keep the current tab in view inside the strip, without moving the page
-            if (on && strip.scrollWidth > strip.clientWidth) strip.scrollLeft = Math.max(0, a.offsetLeft - strip.clientWidth / 2 + a.offsetWidth / 2);
+            if (on && strip.scrollWidth > strip.clientWidth) {
+              // offsetLeft is measured from the nearest positioned ancestor, which is not always the strip: use rects
+              const x = a.getBoundingClientRect().left - strip.getBoundingClientRect().left + strip.scrollLeft;
+              strip.scrollLeft = Math.max(0, x - strip.clientWidth / 2 + a.offsetWidth / 2);
+            }
           });
     },
     { rootMargin: '-30% 0px -60% 0px' },
@@ -648,7 +652,7 @@ ${FLISK_BAR}
 <nav class="sw" aria-label="Fleet products"><a href="/"><i></i>fleet</a><a class="on" href="/podlytics" aria-current="page"><i></i>podlytics</a></nav>
 <nav class="tabs" aria-label="Charts">${CHARTS.map(([id, l]) => (id === '|' ? '<span class="sep"></span>' : `<a href="?chart=${id}" data-c="${id}"${id === 'size' ? ' class="on"' : ''}>${esc(l)}</a>`)).join('')}</nav>
 <button type="button" class="tabnext" id="tabnext" aria-label="Show more charts" title="More charts" hidden>›</button>
-<div class="tools"><label><input type="checkbox" id="working"><span>Working only</span></label><button type="button" class="ib" id="csv" title="Download the data as CSV">CSV ↓</button></div>
+<div class="tools"><label><input type="checkbox" id="working" aria-label="Working only"><span>Working only</span></label><button type="button" class="ib" id="csv" title="Download the data as CSV">CSV ↓</button></div>
 </header>
 <div class="app">
 <main>
