@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "ask": [
+      "Bash(wrangler deploy:*)",
+      "Bash(wrangler secret:*)",
+      "Bash(wrangler d1 execute:*)",
+      "Bash(*wrangler* deploy*)",
+      "Bash(*wrangler* secret*)",
+      "Bash(*wrangler* d1 execute*)"
+    ]
+  }
+}
