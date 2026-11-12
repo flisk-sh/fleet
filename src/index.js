@@ -11,6 +11,7 @@ import { connectedKeys, connectProvider, disconnectProvider, listConnections, ch
 import { overMinuteLimit, PODS_PER_DAY } from './limit.js';
 import { vaultReady } from './vault.js';
 import { assetResponse, llmsTxt, robotsTxt, sitemapXml } from './seo.js';
+import { DEMO_PROVIDERS, demoPage, demoRun } from './demo.js';
 import { fieldsOf, joinFields } from './providers/fields.js';
 import { clearSession, makeSession, readSession, sameOrigin } from './session.js';
 
@@ -192,6 +193,15 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
     const session = await readSession(env, request);
     if (!session) return request.method === 'GET' ? redirect(`/auth/start?next=${encodeURIComponent(path + url.search)}`) : html(messagePage('Signed out', 'Sign in again.'), 401);
     const { login } = session;
+    if (request.method === 'GET' && path === '/console/demo') return html(demoPage(), 200, { 'cache-control': 'no-store' });
+    if (request.method === 'POST' && path === '/console/demo') {
+      if (!sameOrigin(request, origin)) return json(403, { error: 'this only works from fleet itself' });
+      const connected = vaultReady(env) ? await connectedKeys(env, login).catch(() => ({})) : {};
+      const keys = Object.fromEntries(DEMO_PROVIDERS.filter((p) => connected[p] && providers[p]).map((p) => [p, connected[p]]));
+      if (!Object.keys(keys).length) return json(400, { error: `connect ${DEMO_PROVIDERS.map((p) => providers[p]?.label || p).join(', ')} on the Providers page first` });
+      const result = await demoRun(providers, keys, podCtx(env, login, fetchImpl, waitUntil));
+      return json(200, result);
+    }
     if (request.method === 'GET' && path === '/console') {
       return cabinet(env, origin, login, url.searchParams.get('section') || 'auto', providers, { errorsOnly: url.searchParams.get('only') === 'errors' });
     }
