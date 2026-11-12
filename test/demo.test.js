@@ -45,11 +45,13 @@ describe('ice-cream saga', () => {
     const straw = r.flavours.find((f) => f.name === 'Strawberry');
     expect(straw.ok).toBe(false);
     expect(straw.steps.at(-1).name).toBe('Undo: close the kitchen');
+    expect(straw.steps.at(-1).kind).toBe('undo'); // the page keeps the recalled ship in the harbour for this kind
+    expect(r.flavours.find((f) => f.name === 'Vanilla').steps.at(-1).kind).toBe('close');
     expect(stops).toHaveLength(FLAVOURS.length); // every kitchen closes, served or undone
     // parallel: every flavour starts before the first one ends
     const firstEnd = Math.min(...r.flavours.map((f) => f.endMs));
     expect(r.flavours.every((f) => f.startMs < firstEnd)).toBe(true);
-  });
+  }, 30000); // four real python runs at once: slow on a busy machine
   test('a flavour without the bug has passing tests in its own output', async () => {
     const f = FLAVOURS.find((x) => !x.bug);
     const files = flavourFiles(f);

@@ -199,8 +199,19 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
       const connected = vaultReady(env) ? await connectedKeys(env, login).catch(() => ({})) : {};
       const keys = Object.fromEntries(DEMO_PROVIDERS.filter((p) => connected[p] && providers[p]).map((p) => [p, connected[p]]));
       if (!Object.keys(keys).length) return json(400, { error: `connect ${DEMO_PROVIDERS.map((p) => providers[p]?.label || p).join(', ')} on the Providers page first` });
-      const result = await demoRun(providers, keys, podCtx(env, login, fetchImpl, waitUntil));
-      return json(200, result);
+      const ctx = podCtx(env, login, fetchImpl, waitUntil);
+      if (!(request.headers.get('accept') || '').includes('application/x-ndjson')) return json(200, await demoRun(providers, keys, ctx));
+      // Live: one JSON line per event as the sandboxes work, then a final "done" line with the whole result.
+      const { readable, writable } = new TransformStream();
+      const w = writable.getWriter();
+      const enc = new TextEncoder();
+      const emit = (e) => w.write(enc.encode(JSON.stringify(e) + '\n')).catch(() => {});
+      const job = demoRun(providers, keys, ctx, emit)
+        .then((result) => emit({ type: 'done', result }))
+        .catch((e) => emit({ type: 'error', error: String(e?.message || e).slice(0, 200) }))
+        .finally(() => w.close().catch(() => {}));
+      if (waitUntil) waitUntil(job);
+      return new Response(readable, { headers: { 'content-type': 'application/x-ndjson', 'cache-control': 'no-store', 'x-accel-buffering': 'no' } });
     }
     if (request.method === 'GET' && path === '/console') {
       return cabinet(env, origin, login, url.searchParams.get('section') || 'auto', providers, { errorsOnly: url.searchParams.get('only') === 'errors' });

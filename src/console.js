@@ -116,7 +116,7 @@ const when = (iso) => (iso ? iso.replace('T', ' ').slice(0, 16) + ' UTC' : 'neve
 const money = (n) => (n === null || n === undefined ? '—' : `$${Number(n).toFixed(3)}`);
 
 function shell({ login, section, title, body }) {
-  const nav = SECTIONS.map(([id, label]) => `<a class="nav${id === section ? ' on' : ''}" href="/console?section=${id}">${esc(label)}</a>`).join('');
+  const nav = SECTIONS.map(([id, label]) => `<a class="nav${id === section ? ' on' : ''}" href="/console?section=${id}">${esc(label)}</a>`).join('') + '<a class="nav" href="/console/demo">Agent race</a>';
   return `<!doctype html>
 <html lang="en">
 <head>
