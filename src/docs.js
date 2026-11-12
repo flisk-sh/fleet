@@ -1,6 +1,7 @@
 // /docs (people) and /SKILL.md (agents), from one source. Layout after boat's docs: endpoint list on the left,
 // code tabs (curl, TypeScript, Python), "Copy page", and an on-this-page list on wide screens.
 import { esc } from './page.js';
+import { logoSvg } from './logos.js';
 import { PROVIDERS } from './providers/index.js';
 import { fieldsOf } from './providers/fields.js';
 
@@ -128,9 +129,10 @@ const headerRows = () => [
     .filter((p) => !p.demo)
     .map((p) => {
       const f = fieldsOf(p);
-      if (f.length === 1) return [p.keyHeader, `your ${p.label} API key`];
+      const id = Object.keys(PROVIDERS).find((k) => PROVIDERS[k] === p);
+      if (f.length === 1) return [p.keyHeader, `your ${p.label} API key`, id, p.label];
       const shape = f.map((x) => (x.optional ? `[${x.label}]` : x.label)).join(' : ');
-      return [p.keyHeader, `your ${p.label} credentials in one value, the parts joined with colons: ${shape}${f.some((x) => x.optional) ? ' (square brackets are optional)' : ''}`];
+      return [p.keyHeader, `your ${p.label} credentials in one value, the parts joined with colons: ${shape}${f.some((x) => x.optional) ? ' (square brackets are optional)' : ''}`, id, p.label];
     }),
   ['X-Demo-Key', 'any value: a simulated pod, no provider account'],
 ];
@@ -227,7 +229,7 @@ ${nav}
 <div class="cmd"><code>set up ${esc(origin)}/SKILL.md</code><button type="button" data-copy="set up ${esc(origin)}/SKILL.md">Copy</button></div>
 <p>Or by hand: make a fleet key in the <a href="/console?section=keys">cabinet</a>, get a key from at least one provider, and start a pod. To try with no provider account, send <code>X-Demo-Key: demo</code>.</p>
 </section>
-<section class="ep" id="headers"><h2>Keys and headers</h2><p>Connect each provider once on the cabinet's Providers page and fleet keeps the key encrypted, so calls need only the fleet key. Or send a provider key with each call in its header; header keys are never stored. A header key wins over a connected one.</p><div class="scroll"><table><tr><th>Header</th><th>What goes in it</th></tr>${HEADERS.map(([h, t]) => `<tr><td class="n">${esc(h)}</td><td>${esc(t)}</td></tr>`).join('')}</table></div></section>
+<section class="ep" id="headers"><h2>Keys and headers</h2><p>Connect each provider once on the cabinet's Providers page and fleet keeps the key encrypted, so calls need only the fleet key. Or send a provider key with each call in its header; header keys are never stored. A header key wins over a connected one.</p><div class="scroll"><table><tr><th>Header</th><th>What goes in it</th></tr>${HEADERS.map(([h, t, id, label]) => `<tr><td class="n"><span class="ptag">${id ? logoSvg(id, label, 18) : ''}${esc(h)}</span></td><td>${esc(t)}</td></tr>`).join('')}</table></div></section>
 ${sections}
 <section class="ep" id="mcp"><h2>MCP</h2><p>The same calls as tools for Claude Code, Cursor or any MCP client: pod_create, pod_run, pod_write_file, pod_read_file, pod_list, pod_stop.</p>
 <div class="tabs" data-tabs><div class="tabbar"><button type="button" class="on" data-tab="cc">Claude Code</button><button type="button" data-tab="cu">Cursor</button><button type="button" class="cp" data-copy-tab>Copy</button></div>

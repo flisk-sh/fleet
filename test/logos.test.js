@@ -30,3 +30,25 @@ describe('provider logos', () => {
     expect(logoSvg('x', '<b>&"')).not.toContain('<b>');
   });
 });
+
+describe('provider logos everywhere a provider is named', () => {
+  test('providerTag puts the logo before the name', async () => {
+    const { providerTag } = await import('../src/logos.js');
+    const t = providerTag('daytona', 'Daytona');
+    expect(t).toStartWith('<span class="ptag">');
+    expect(t).toContain('alt="Daytona logo"');
+    expect(t).toEndWith('Daytona</span>');
+    expect(providerTag('')).toBe('—');
+  });
+  test('the race, the home route, the docs headers and Try a pod carry logos', async () => {
+    const { demoPage } = await import('../src/demo.js');
+    const { handle } = await import('../src/index.js');
+    const race = demoPage({ replay: true });
+    expect(race).toContain('window.__PTAGS__=');
+    expect(race).toContain('Daytona logo');
+    const home = await (await handle(new Request('https://fleet.flisk.si/'), {})).text();
+    expect(home).toMatch(/<li class="win"[^>]*>[^]*?(alt|aria-label)="[^"]+ logo"/);
+    const docs = await (await handle(new Request('https://fleet.flisk.si/docs'), {})).text();
+    expect(docs).toMatch(/<span class="ptag">[^]*?logo"[^]*?X-Daytona-Key<\/span>/);
+  });
+});

@@ -460,7 +460,7 @@ describe('provider status', () => {
     expect(home.match(/class="st untested"/g)).toHaveLength(n.untested);
     expect(home.match(/class="st blocked"/g)).toHaveLength(n.blocked);
     // the example route only ever shows a working provider starting the pod
-    const winner = home.match(/<li class="win"[^>]*><span>●<\/span><span>([^<]*)<\/span>/)[1];
+    const winner = home.match(/<li class="win"[^>]*><span>●<\/span><span[^>]*>[^]*?(?:alt|aria-label)="([^"]*) logo"/)[1];
     expect(Object.keys(WORKING).map((k) => PROVIDERS[k].label)).toContain(winner);
     const cab = await (await handle(new Request(`${ORIGIN}/console?section=providers`, { headers: { cookie: (await makeSession({ SESSION_SECRET: 's3cret' }, 'octo')).split(';')[0] } }), { DB: db(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret', PROVIDER_KEYS_SECRET: 'x'.repeat(40) }, { providers: PROVIDERS })).text();
     expect(cab).not.toMatch(/coming soon/i);

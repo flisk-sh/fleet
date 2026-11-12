@@ -14,6 +14,7 @@ const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.06'/%3E%3C/svg%3E\")";
 
 export const CSS = `
+.ptag{display:inline-flex;align-items:center;gap:7px;vertical-align:middle;white-space:nowrap}.ptag .plogo{flex-shrink:0}
 :root{--paper:#f7f5e4;--card:#fffef6;--ink:#171715;--dim:#6b6a5f;--green:#16a34a;--glow:#22c55e;--night:#0a0a0e;--mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;--serif:Fraunces,'Times New Roman',serif;--sans:'Inter Tight',system-ui,-apple-system,'Segoe UI',sans-serif}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;overflow-x:clip}
@@ -203,7 +204,7 @@ function routeExample(prices) {
       const cls = i === 0 ? 'fail' : i === 1 ? 'win' : 'idle';
       const st = i === 0 ? '401, next' : i === 1 ? 'started' : 'not needed';
       const mark = i === 0 ? '×' : i === 1 ? '●' : '·';
-      return `<li class="${cls}" style="animation-delay:${0.35 + i * 0.45}s"><span>${mark}</span><span>${esc(p.label)}</span><span>${money(p.pricePerHour)}</span><span class="st">${st}</span></li>`;
+      return `<li class="${cls}" style="animation-delay:${0.35 + i * 0.45}s"><span>${mark}</span><span style="display:inline-flex;align-items:center;gap:8px">${logoSvg(p.provider, p.label, 18)}${esc(p.label)}</span><span>${money(p.pricePerHour)}</span><span class="st">${st}</span></li>`;
     })
     .join('');
   return `<div class="route" role="img" aria-label="Example route: one provider answers 401, so fleet starts the pod on the next one">

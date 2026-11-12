@@ -8,6 +8,8 @@
 import { createPod, pickOrder, runPod, stopPod, writeFile } from './route.js';
 import { esc, shell } from './page.js';
 import { RECORDED } from './demo-recorded.js';
+import { providerTag } from './logos.js';
+import { PROVIDERS } from './providers/index.js';
 
 export { RECORDED };
 
@@ -205,6 +207,7 @@ const PAGE_CSS = `
 .who b{font:650 16px/1.25 var(--sans)}
 .replay{margin:14px 0 0;max-width:64ch;color:var(--dim);font-size:15px}
 .who small{font:11.5px/1.3 var(--mono);color:var(--dim);overflow-wrap:anywhere}
+.who small .ptag,.story .ptag{gap:5px;color:var(--ink)}
 .track{position:relative;margin:0 14px}
 .track .lane{position:absolute;left:0;right:0;top:50%;height:22px;transform:translateY(-50%);background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 1px),rgba(23,23,21,.08) calc(10% - 1px) 10%)}
 .seg{position:absolute;top:0;height:22px;min-width:2px;transition:width .12s linear}
@@ -256,6 +259,7 @@ var JOBS=window.__JOBS__,go=document.getElementById('go'),clock=document.getElem
 var LIVE={start:'Starting pod',write:'Writing',test:'Testing',fix:'Fixing',stop:'Stopping'};
 var rows={},timer=null,t0=0,scale=10,running=false;
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+var TAGS=window.__PTAGS__||{};function ptag(id){return TAGS[id]||esc(id)}
 function secs(ms){return (ms/1000).toFixed(1)+' s'}
 function elapsed(){return (performance.now()-t0)/1000}
 function build(){board.innerHTML='';rows={};
@@ -270,12 +274,12 @@ function layout(){var now=elapsed();
   Object.keys(rows).forEach(function(id){rows[id].segs.forEach(function(s){var end=s.end==null?now:s.end;s.el.style.left=(s.start/scale*100)+'%';s.el.style.width=Math.max(0,(end-s.start)/scale*100)+'%'})})}
 function chip(r,cls,text){r.chip.className='chip '+cls;r.chip.textContent=text}
 function onEvent(e){
-  if(e.type==='plan'){e.jobs.forEach(function(p){if(rows[p.id])rows[p.id].who.textContent='asks '+p.provider+' first'});return}
+  if(e.type==='plan'){e.jobs.forEach(function(p){if(rows[p.id])rows[p.id].who.innerHTML='asks '+ptag(p.provider)+' first'});return}
   var r=rows[e.id];if(!r)return;
   if(e.type==='step-start'){var el=document.createElement('i');el.className='seg run k-'+e.kind;el.title=e.name;r.lane.appendChild(el);
     var s={el:el,start:e.t/1000,end:null};r.segs.push(s);r.open=s;chip(r,'live',LIVE[e.kind]||e.name)}
   else if(e.type==='step-end'){var o=r.open;if(o){o.end=e.endMs/1000;o.el.classList.remove('run');if(!e.ok)o.el.classList.add('bad');o.el.title=e.name+' · '+secs(e.endMs-e.startMs)+(e.detail?' · '+e.detail:'')}
-    if(e.kind==='start'&&e.ok)r.who.textContent='pod on '+e.detail+' · up in '+secs(e.endMs-e.startMs);
+    if(e.kind==='start'&&e.ok){var fb=/\(after (.*) failed\)/.exec(e.detail||'');r.who.innerHTML='pod on '+ptag(e.provider||e.detail)+' · up in '+secs(e.endMs-e.startMs)+(fb?' · after '+fb[1].split(', ').map(ptag).join(' ')+' failed':'')}
     if(e.kind==='start'&&!e.ok)r.who.textContent=e.detail;
     if(e.kind==='test'&&!e.ok)chip(r,'live','Tests failed')}
   else if(e.type==='job-end'){if(e.ok)chip(r,'pass',e.fixed?'Fixed · '+secs(e.endMs):'Passed · '+secs(e.endMs));else chip(r,'fail','Failed')}
@@ -285,8 +289,8 @@ function finish(res){running=false;clearInterval(timer);clock.firstChild.nodeVal
   h+='<div class="versus"><div class="par"><span>Parallel pods</span><i style="width:'+(res.totalMs/res.sequentialMs*100)+'%"></i></div><div class="seq"><span>One at a time</span><b>'+res.jobs.map(function(j){return '<i title="'+esc(j.title)+'" style="flex:'+(j.endMs-j.startMs)+' 1 0"></i>'}).join('')+'</b></div></div>';
   var fx=res.jobs.filter(function(j){return j.fixed})[0];
   var bad=res.jobs.filter(function(j){return !j.ok});
-  var starts=res.jobs.filter(function(j){return j.provider}).map(function(j){var s=j.steps[0];return esc(j.provider)+' '+secs(s.endMs-s.startMs)});
-  var line=res.passed===res.total?'All '+res.total+' agents finished green on '+res.providersUsed.length+' provider'+(res.providersUsed.length===1?'':'s')+' ('+res.providersUsed.map(esc).join(', ')+').':res.passed+' of '+res.total+' agents finished green.';
+  var starts=res.jobs.filter(function(j){return j.provider}).map(function(j){var s=j.steps[0];return ptag(j.provider)+' '+secs(s.endMs-s.startMs)});
+  var line=res.passed===res.total?'All '+res.total+' agents finished green on '+res.providersUsed.length+' provider'+(res.providersUsed.length===1?'':'s')+': '+res.providersUsed.map(ptag).join(' ')+'.':res.passed+' of '+res.total+' agents finished green.';
   if(fx)line+=' <b>'+esc(fx.title)+'</b> had a bug we planted on purpose: its tests failed, the agent wrote the fix in the same pod, and the tests passed on the second run.';
   h+='<p class="story">'+line+'</p><p class="story">Pod start times: '+starts.join(' · ')+'. Every pod was stopped at the end'+(bad.length?'; '+bad.map(function(j){return esc(j.title)+': '+esc(j.error||'tests failed')}).join('; '):'')+'.</p>';
   h+='<details><summary>What ran in each pod</summary><pre>';
@@ -303,7 +307,7 @@ function replay(rec){
   var ev=[{at:0,e:{type:'plan',jobs:rec.jobs.map(function(j){return {id:j.id,provider:j.provider}})}}];
   rec.jobs.forEach(function(j){j.steps.forEach(function(s){
     ev.push({at:s.startMs,e:{type:'step-start',id:j.id,kind:s.kind,name:s.name,t:s.startMs}});
-    ev.push({at:s.endMs,e:{type:'step-end',id:j.id,kind:s.kind,name:s.name,startMs:s.startMs,endMs:s.endMs,ok:s.ok,detail:s.detail}})});
+    ev.push({at:s.endMs,e:{type:'step-end',id:j.id,kind:s.kind,name:s.name,startMs:s.startMs,endMs:s.endMs,ok:s.ok,detail:s.detail,provider:s.kind==='start'?j.provider:undefined}})});
     ev.push({at:j.endMs,e:{type:'job-end',id:j.id,ok:j.ok,fixed:j.fixed,endMs:j.endMs}})});
   ev.forEach(function(x,i){x.i=i});ev.sort(function(a,b){return a.at-b.at||a.i-b.i});
   ev.forEach(function(x){setTimeout(function(){onEvent(x.e)},x.at)});
@@ -333,6 +337,9 @@ const LEGEND = [
 ];
 
 // replay: the public page plays back RECORDED instead of starting pods, so it needs no sign-in and no provider key.
+// Logo and name for every provider the race can land on, so the page names each one with its mark.
+const PTAGS = Object.fromEntries(Object.entries(PROVIDERS).filter(([, p]) => !p.demo).map(([id, p]) => [id, providerTag(id, p.label, 16)]));
+
 export function demoPage({ replay = false } = {}) {
   const jobs = JOBS.map((j) => ({ id: j.id, title: j.title }));
   const lead = replay
@@ -356,7 +363,7 @@ ${note}
 <div class="board"><div id="board" aria-label="Agent jobs"></div><div class="axis"><div>Job</div><div class="ticks" id="ticks"></div><div></div></div></div>
 <div id="result" class="result" hidden aria-live="polite"></div>
 </section>
-<script>window.__JOBS__=${JSON.stringify(jobs).replace(/</g, '\\u003c')};${replay ? `window.__REPLAY__=${JSON.stringify(RECORDED).replace(/</g, '\\u003c')};` : ''}</script>
+<script>window.__JOBS__=${JSON.stringify(jobs).replace(/</g, '\\u003c')};window.__PTAGS__=${JSON.stringify(PTAGS).replace(/</g, '\\u003c')};${replay ? `window.__REPLAY__=${JSON.stringify(RECORDED).replace(/</g, '\\u003c')};` : ''}</script>
 <script>${PAGE_JS}</script>`,
     PAGE_CSS,
     replay ? { path: '/demo' } : undefined, // the public recorded run is indexable; the live demo in the cabinet is not

@@ -1,6 +1,10 @@
 // The cabinet: same layout as inference.flisk.si's console (sidebar, title with a beta tag, ruled tables), in black and white.
 import { CSS, esc, FLEET_MARK, FONTS, FLISK_BAR, statusTag } from './page.js';
-import { logoSvg } from './logos.js';
+import { logoSvg, providerTag } from './logos.js';
+import { PROVIDERS } from './providers/index.js';
+
+// Logo and name of a provider id; an id fleet does not know is shown as plain text.
+const ptag = (id) => (id && PROVIDERS[id] ? providerTag(id, PROVIDERS[id].label) : esc(id || '—'));
 import { fieldsOf } from './providers/fields.js';
 import { ICON_TAGS } from './seo.js';
 import { LIMIT_RANGES, MAX_KEYS, podStatus, summarize } from './store.js';
@@ -180,7 +184,7 @@ ${step(
   3,
   real,
   'Connect a provider',
-  `<p>Fleet starts pods on your own provider account. Paste its key once and fleet keeps it encrypted. ${connected.length ? `Connected: ${connected.map(esc).join(', ')}.` : any ? 'You tried the demo pod; now connect a real provider.' : 'No account yet? Try the demo pod first.'}</p><div class="row" style="margin-top:12px"><a class="b${real ? '' : ' inv'}" href="/console?section=providers">${connected.length ? 'Manage providers' : 'Connect a provider'}</a><a class="b" href="/console?section=try">Try a pod</a></div>`,
+  `<p>Fleet starts pods on your own provider account. Paste its key once and fleet keeps it encrypted. ${connected.length ? `Connected: ${connected.map(ptag).join(' ')}.` : any ? 'You tried the demo pod; now connect a real provider.' : 'No account yet? Try the demo pod first.'}</p><div class="row" style="margin-top:12px"><a class="b${real ? '' : ' inv'}" href="/console?section=providers">${connected.length ? 'Manage providers' : 'Connect a provider'}</a><a class="b" href="/console?section=try">Try a pod</a></div>`,
 )}
 ${step(
   4,
@@ -230,7 +234,7 @@ function podsSection(pods) {
   };
   const rows = pods
     .map(
-      (p) => `<tr><td>${esc(p.ref || '—')}</td><td>${esc(p.provider || '—')}</td><td>${p.cpu} vCPU · ${p.ram} GB</td><td class="n">${money(p.price)}</td><td>${when(p.started)}</td><td>${status(p)}</td><td>${esc((p.movedFrom || []).join(', ') || '—')}</td></tr>`,
+      (p) => `<tr><td>${esc(p.ref || '—')}</td><td>${ptag(p.provider)}</td><td>${p.cpu} vCPU · ${p.ram} GB</td><td class="n">${money(p.price)}</td><td>${when(p.started)}</td><td>${status(p)}</td><td>${(p.movedFrom || []).map(ptag).join(' ') || '—'}</td></tr>`,
     )
     .join('');
   return `<div class="scroll" style="margin-top:22px"><table><tr><th>Pod</th><th>Provider</th><th>Size</th><th>Per hour</th><th>Started</th><th>Status</th><th>Moved from</th></tr>${rows}</table></div>
@@ -319,9 +323,11 @@ function trySection(prices, providers, connections = {}) {
       .join('');
   const pages = JSON.stringify(Object.fromEntries(Object.entries(KEY_PAGE).map(([k, v]) => [k, v.url])));
   const conn = JSON.stringify(Object.keys(connections));
+  // The picked provider's logo next to the list (an option cannot hold an image).
+  const logos = JSON.stringify(Object.fromEntries(prices.map((p) => [p.provider, logoSvg(p.provider, p.label, 26)]))).replace(/</g, '\\u003c');
   return `<p class="note">Pick Demo to see the whole flow with no account: a simulated pod that fleet runs itself. Pick a provider to start one real pod on your own account, run one command, and stop it. Fleet times each step. A connected provider needs no key here. A key you paste goes to the provider for this one call and is not stored; tick the box to keep it in this browser only.</p>
 <form id="try" class="box" autocomplete="off">
-<div class="row" style="margin-top:0"><label>Provider <select id="prov">${opts}</select></label><a id="getkey" class="note" style="margin:0" target="_blank" rel="noopener" href="#">Get a key</a></div>
+<div class="row" style="margin-top:0"><span id="plogo" aria-hidden="true" style="display:inline-flex"></span><label>Provider <select id="prov">${opts}</select></label><a id="getkey" class="note" style="margin:0" target="_blank" rel="noopener" href="#">Get a key</a></div>
 <div class="row"><input type="password" id="pkey" placeholder="Your provider API key" aria-label="Provider API key" style="flex:1"></div>
 <div class="row"><input type="text" id="cmd" value="uname -sr; nproc; free -m | head -2" aria-label="Command" style="flex:1"></div>
 <div class="row"><label><input type="checkbox" id="remember"> Remember this key in this browser</label><button class="b inv" type="submit" id="go">Start pod</button></div>
@@ -340,9 +346,9 @@ function trySection(prices, providers, connections = {}) {
 <p class="note" id="meta"></p>
 </div>
 <script>
-(()=>{const P=${pages};const C=${conn};const $=(i)=>document.getElementById(i);
+(()=>{const P=${pages};const C=${conn};const L=${logos};const $=(i)=>document.getElementById(i);
 const store=(()=>{try{return window.localStorage}catch{return null}})();
-const load=()=>{const v=$('prov').value;const k=store&&store.getItem('fleet_try_'+v);$('pkey').value=k||'';$('remember').checked=!!k;$('getkey').href=P[v]||'#';$('getkey').style.display=P[v]?'':'none';$('pkey').disabled=v==='demo';$('pkey').placeholder=v==='demo'?'No key needed for the demo pod':C.includes(v)?'Connected: leave empty to use your saved key':'Your provider API key'};
+const load=()=>{const v=$('prov').value;$('plogo').innerHTML=L[v]||'';const k=store&&store.getItem('fleet_try_'+v);$('pkey').value=k||'';$('remember').checked=!!k;$('getkey').href=P[v]||'#';$('getkey').style.display=P[v]?'':'none';$('pkey').disabled=v==='demo';$('pkey').placeholder=v==='demo'?'No key needed for the demo pod':C.includes(v)?'Connected: leave empty to use your saved key':'Your provider API key'};
 if(C.length&&[...$('prov').options].some(o=>o.value===C[0]))$('prov').value=C[0];
 const label=()=>{const v=$('prov').value;$('go').textContent=v==='demo'?'Start demo pod':'Start '+$('prov').selectedOptions[0].textContent.split(' · ')[0]+' pod'};
 $('prov').addEventListener('change',()=>{load();label()});load();label();
@@ -373,7 +379,7 @@ function usageSection(calls, errorsOnly) {
   const badge = (st) => `<span class="st ${st >= 400 ? 'bad' : 'ok'}">${st}</span>`;
   const rows = calls
     .map(
-      (c) => `<tr><td class="nw">${when(c.at)}</td><td class="n">${esc(c.kind)}</td><td>${esc(c.provider || (c.kind === 'start' && c.status >= 400 ? 'none started' : '—'))}</td><td class="n">${esc(c.ref || '—')}</td><td>${badge(c.status)}</td><td class="n nw">${(c.ms / 1000).toFixed(1)} s</td><td>${esc(c.error || '')}</td></tr>`,
+      (c) => `<tr><td class="nw">${when(c.at)}</td><td class="n">${esc(c.kind)}</td><td>${c.provider ? ptag(c.provider) : c.kind === 'start' && c.status >= 400 ? 'none started' : '—'}</td><td class="n">${esc(c.ref || '—')}</td><td>${badge(c.status)}</td><td class="n nw">${(c.ms / 1000).toFixed(1)} s</td><td>${esc(c.error || '')}</td></tr>`,
     )
     .join('');
   return `<div class="row"><a class="b${errorsOnly ? '' : ' on'}" href="/console?section=usage">All</a><a class="b${errorsOnly ? ' on' : ''}" href="/console?section=usage&only=errors">Errors</a><a class="b" style="margin-left:auto" href="/console?section=usage${errorsOnly ? '&only=errors' : ''}">Refresh</a></div>
