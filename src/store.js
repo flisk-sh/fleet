@@ -78,6 +78,13 @@ export async function listPods(env, login) {
   return read(env, `pods:${login}`, []);
 }
 
+// One line, at most 240 characters, cut at a word.
+const clip = (text) => {
+  const one = String(text || '').replace(/\s+/g, ' ').trim();
+  if (one.length <= 240) return one;
+  return `${one.slice(0, 240).replace(/\s+\S*$/, '')}…`;
+};
+
 export async function recordPod(env, login, type, data) {
   const list = await listPods(env, login);
   const now = new Date().toISOString();
@@ -105,7 +112,7 @@ export async function recordPod(env, login, type, data) {
       stopped: null,
       gone: null,
       movedFrom: [],
-      failedStart: (data.failed || []).map((f) => ({ provider: f.provider, error: String(f.error || '').slice(0, 160) })),
+      failedStart: (data.failed || []).map((f) => ({ provider: f.provider, error: clip(f.error) })),
     });
   } else {
     const pod = list.find((p) => p.ref && p.ref === podRef(data.id));

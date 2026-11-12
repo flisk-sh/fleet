@@ -10,7 +10,7 @@ async function call(fetchImpl, url, init) {
   } catch (e) {
     const host = new URL(url).host;
     if (!e.status || e.status >= 500) {
-      const err = new Error(`Isorun's runner at ${host} did not answer (${e.message}). Isorun's docs list only the US region; a key for another region may not work yet`);
+      const err = new Error(`Isorun's runner at ${host} did not answer (${String(e.message).replace(/\s+/g, ' ').trim()}). Isorun's docs list only the US region; a key for another region may not work yet`);
       err.status = e.status;
       throw err;
     }

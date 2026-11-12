@@ -86,7 +86,7 @@ function overview(pods) {
   const rows = s.days
     .map(
       (d) =>
-        `<tr><td>${d.day}</td><td class="n">${d.started}</td><td class="n">${d.failed}</td><td><span class="bar" style="width:${Math.round((d.started / max) * 220)}px"></span><span class="bar" style="width:${Math.round((d.failed / max) * 220)}px;background:transparent;border:1.5px solid var(--ink);box-sizing:border-box"></span></td></tr>`,
+        `<tr><td>${d.day}</td><td class="n">${d.started}</td><td class="n">${d.failed}</td><td>${d.started ? `<span class="bar" style="width:${Math.round((d.started / max) * 220)}px"></span>` : ''}${d.failed ? `<span class="bar" style="width:${Math.max(4, Math.round((d.failed / max) * 220))}px;background:transparent;border:1.5px solid var(--ink);box-sizing:border-box"></span>` : ''}</td></tr>`,
     )
     .join('');
   return `<div class="metrics">
