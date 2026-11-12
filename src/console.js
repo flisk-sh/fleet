@@ -273,14 +273,15 @@ function providersSection(prices, providers, { connections = {}, canConnect = fa
   const tags = (p) => FILTERS.filter(([id, , f]) => id !== 'all' && f(p)).map(([id]) => id).join(' ');
   const cards = list
     .map((p) => {
-      const kp = KEY_PAGE[p.provider];
+      const kp = KEY_PAGE[p.provider] || (p.facts.keyPage ? { url: p.facts.keyPage, kind: 'dashboard' } : null);
+      const biggest = [p.facts.maxCpu ? `${p.facts.maxCpu} vCPU` : '', p.facts.maxRam ? `${p.facts.maxRam} GB` : ''].filter(Boolean).join(' · ') || '—';
       return `<article class="pcard" data-tags="all ${tags(p)}" data-text="${esc(`${p.label} ${p.facts.blurb || ''} ${(p.facts.badges || []).join(' ')}`.toLowerCase())}">
 <div class="ph"><span class="pmark">${esc(p.label.slice(0, 1).toUpperCase())}</span><b>${esc(p.label)}</b><span class="pp">${money(p.pricePerHour)}<small>/h</small></span></div>
 <div>${statusTag(p)}</div>
 <p>${esc(p.facts.blurb || p.note)}</p>
 ${p.status === 'working' ? '' : `<p class="soon">Written from ${esc(p.label)}'s public docs, not yet run on a real account. Fleet may still route to it if you connect a key. Have an account? <a href="${esc(p.help)}" target="_blank" rel="noopener">Help us finish it</a>.</p>`}
-<dl><div><dt>Credit</dt><dd>${esc(p.facts.credit || '—')}</dd></div><div><dt>Biggest pod</dt><dd>${p.facts.maxCpu ? `${p.facts.maxCpu} vCPU · ${p.facts.maxRam} GB` : '—'}</dd></div><div><dt>Regions</dt><dd>${esc((p.facts.regions || []).join(', ') || '—')}</dd></div><div><dt>Header</dt><dd class="n">${esc(p.meta.keyHeader)}</dd></div></dl>
-<div class="pf"><span class="badges">${(p.facts.badges || []).map((b) => `<span class="badge">${esc(b)}</span>`).join('')}</span><span class="links"><a href="${SIGNUP[p.provider] || p.source}" target="_blank" rel="noopener">Sign up</a>${kp ? `<a href="${kp.url}" target="_blank" rel="noopener">Get a key</a>` : ''}</span></div>
+<dl><div><dt>Credit</dt><dd>${esc(p.facts.credit || '—')}</dd></div><div><dt>Biggest pod</dt><dd>${biggest}</dd></div><div><dt>Regions</dt><dd>${esc((p.facts.regions || []).join(', ') || '—')}</dd></div><div><dt>Header</dt><dd class="n">${esc(p.meta.keyHeader)}</dd></div></dl>
+<div class="pf"><span class="badges">${(p.facts.badges || []).map((b) => `<span class="badge">${esc(b)}</span>`).join('')}</span><span class="links"><a href="${SIGNUP[p.provider] || p.facts.signup || p.source}" target="_blank" rel="noopener">Sign up</a>${kp ? `<a href="${kp.url}" target="_blank" rel="noopener">Get a key</a>` : ''}</span></div>
 ${connectBox(p, connections[p.provider], canConnect)}
 </article>`;
     })

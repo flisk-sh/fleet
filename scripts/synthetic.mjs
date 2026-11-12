@@ -10,7 +10,8 @@ const KEY = process.env.FLEET_KEY;
 if (!KEY) throw new Error('set FLEET_KEY');
 const PROVIDER = process.env.PROVIDER || 'demo';
 const REAL = PROVIDER !== 'demo';
-const HEADER = { demo: 'x-demo-key', boat: 'x-boat-key', isorun: 'x-isorun-key', e2b: 'x-e2b-key', daytona: 'x-daytona-key' }[PROVIDER];
+const { PROVIDERS } = await import('../src/providers/index.js');
+const HEADER = PROVIDERS[PROVIDER]?.keyHeader.toLowerCase();
 if (!HEADER) throw new Error(`unknown PROVIDER ${PROVIDER}`);
 // A real provider with no PROVIDER_KEY uses the key connected in the cabinet for this fleet key's account.
 const VIA = REAL && !process.env.PROVIDER_KEY ? 'connected key' : REAL ? 'key from PROVIDER_KEY' : 'demo';

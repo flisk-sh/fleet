@@ -256,7 +256,7 @@ describe('screens from the owner: get started, catalog, usage, limits, pricing, 
     const env = { DB: db(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' };
     const cookie = (await makeSession(env, 'octo')).split(';')[0];
     const html = await (await handle(new Request(`${ORIGIN}/console?section=providers`, { headers: { cookie } }), env, { providers: PROVIDERS })).text();
-    expect((html.match(/class="pcard"/g) || []).length).toBe(4);
+    expect((html.match(/class="pcard"/g) || []).length).toBe(Object.values(PROVIDERS).filter((p) => !p.demo).length);
     expect(html).toContain('$200 credit');
     expect(html).toContain('No card needed');
   });
@@ -444,9 +444,12 @@ describe('provider status', () => {
       expect(p.help).toMatch(/^https:\/\/github\.com\/flisk-sh\/fleet\/issues\/\d+$/);
     }
     const home = await (await handle(new Request(`${ORIGIN}/`), {}, { providers: PROVIDERS })).text();
-    expect(home).toContain('1 working · 3 coming soon');
+    const soon = table.length - 1;
+    expect(home).toContain(`1 working · ${soon} coming soon`);
     expect(home.match(/class="st ok"/g)).toHaveLength(1);
-    expect(home.match(/class="st soon"/g)).toHaveLength(3);
+    expect(home.match(/class="st soon"/g)).toHaveLength(soon);
+    // the example route only ever shows a working provider starting the pod
+    expect(home).toMatch(/<li class="win"[^>]*><span>●<\/span><span>Daytona<\/span>/);
     const cab = await (await handle(new Request(`${ORIGIN}/console?section=providers`, { headers: { cookie: (await makeSession({ SESSION_SECRET: 's3cret' }, 'octo')).split(';')[0] } }), { DB: db(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' }, { providers: PROVIDERS })).text();
     expect(cab.indexOf('<b>Daytona</b>')).toBeLessThan(cab.indexOf('<b>boat</b>'));
     expect(cab).toContain('Help us finish it');

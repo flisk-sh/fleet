@@ -236,6 +236,6 @@ export const statusLabel = (p) => (p.status === 'working' ? 'Working' : 'Coming 
 export function priceTable(providers, size = DEFAULT_SIZE) {
   return Object.entries(providers)
     .filter(([, p]) => !p.demo)
-    .map(([name, p]) => ({ provider: name, label: p.label, pricePerHour: p.price(size), note: p.note || '', source: p.priceSource, status: p.working ? 'working' : 'soon', ...(p.working ? { tested: p.working } : { help: p.help || HELP_NEW }) }))
+    .map(([name, p]) => ({ provider: name, label: p.label, pricePerHour: p.price(size), note: p.note || '', source: p.priceSource, keyHeader: p.keyHeader, status: p.working ? 'working' : 'soon', ...(p.working ? { tested: p.working } : { help: p.help || HELP_NEW }) }))
     .sort((a, b) => (a.pricePerHour ?? Infinity) - (b.pricePerHour ?? Infinity));
 }

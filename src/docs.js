@@ -17,7 +17,7 @@ export function endpoints(origin) {
       body: [
         ['cpu', 'whole number, 1 to 16', '2'],
         ['ram', 'GB, 1 to 64', '4'],
-        ['provider', 'boat, isorun, e2b, daytona or demo', 'none'],
+        ['provider', 'a provider name from GET /v1/prices (daytona works today), or demo', 'none'],
         ['order', 'list of providers to try in this order', 'none'],
       ],
       answer: '201 {"id":"pod_daytona_…","provider":"daytona","cpu":2,"ram":4,"pricePerHour":0.166,"failed":[{"provider":"boat","error":"HTTP 401: unauthorized"}]}',
@@ -132,7 +132,7 @@ export function skillMd(origin) {
   const eps = endpoints(origin);
   return `---
 name: fleet
-description: Start Linux pods for an agent on the cheapest sandbox provider the user has a key for (boat, Isorun, E2B, Daytona), run commands in them, and stop them. Use when a task needs an isolated machine to run code.
+description: Start Linux pods for an agent on the cheapest sandbox provider the user has a key for (Daytona works today; boat, Isorun, E2B, Hopx, Runloop, Blaxel, Vercel, Fly Sprites, Morph and Upstash Box are coming soon), run commands in them, and stop them. Use when a task needs an isolated machine to run code.
 ---
 
 # fleet
@@ -142,7 +142,7 @@ One API for every agent pod. Fleet starts each pod on the cheapest provider you 
 ## Set up
 
 1. Ask the user for a fleet key (they make one at ${origin}/console?section=keys). Keep it in FLEET_KEY.
-2. Ask the user to connect at least one provider (boat, Isorun, E2B or Daytona) on ${origin}/console?section=providers. Then only the fleet key is needed. Without a connection, send the provider key in its header. To try first without any, send \`X-Demo-Key: demo\`.
+2. Ask the user to connect at least one provider (Daytona is the one that works today; the others are marked coming soon) on ${origin}/console?section=providers. Then only the fleet key is needed. Without a connection, send the provider key in its header. To try first without any, send \`X-Demo-Key: demo\`.
 3. Or add fleet as an MCP server: url ${origin}/mcp, the same headers. Tools: pod_create, pod_run, pod_write_file, pod_read_file, pod_list, pod_stop.
 
 ## Headers

@@ -11,7 +11,7 @@ const TOOLS = [
       properties: {
         cpu: { type: 'integer', description: 'vCPUs, default 2' },
         ram: { type: 'number', description: 'GB of memory, default 4' },
-        provider: { type: 'string', description: 'Use only this provider (boat, isorun, e2b, daytona)' },
+        provider: { type: 'string', description: 'Use only this provider: a name from GET /v1/prices, e.g. daytona' },
       },
     },
   },

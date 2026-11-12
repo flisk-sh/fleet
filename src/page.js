@@ -138,10 +138,20 @@ ${COPY_JS}
 
 const money = (n) => (n === null || n === undefined ? 'not offered' : `$${n.toFixed(3)}`);
 
+// The four lanes the pictures show: the cheapest provider that is not working fails, a working one starts the pod,
+// so the example never claims a start on a provider fleet has not run for real.
+export function exampleLanes(prices) {
+  const offered = prices.filter((p) => p.pricePerHour !== null);
+  const win = offered.find((p) => p.status === 'working');
+  if (!win) return offered.slice(0, 4);
+  const fail = offered.find((p) => p !== win);
+  return [fail, win, ...offered.filter((p) => p !== win && p !== fail)].filter(Boolean).slice(0, 4);
+}
+
 // Hero art: one lane per provider. The cheapest is crossed out, the pod sits in the next lane (green, hatched like
 // inference.flisk.si). Built from the real price order.
 function laneArt(prices) {
-  const lanes = prices.filter((p) => p.pricePerHour !== null).slice(0, 4);
+  const lanes = exampleLanes(prices);
   const fills = ['#e2552b', '#0b0b0d', '#efc415', '#2f6be9'];
   const w = 300 / Math.max(1, lanes.length);
   const cols = lanes
@@ -172,7 +182,7 @@ ${labels}
 
 // A worked example of one start: the real price order, the cheapest failing so the fallback shows. Labelled as an example.
 function routeExample(prices) {
-  const offered = prices.filter((p) => p.pricePerHour !== null).slice(0, 4);
+  const offered = exampleLanes(prices);
   const lines = offered
     .map((p, i) => {
       const cls = i === 0 ? 'fail' : i === 1 ? 'win' : 'idle';
@@ -181,7 +191,7 @@ function routeExample(prices) {
       return `<li class="${cls}" style="animation-delay:${0.35 + i * 0.45}s"><span>${mark}</span><span>${esc(p.label)}</span><span>${money(p.pricePerHour)}</span><span class="st">${st}</span></li>`;
     })
     .join('');
-  return `<div class="route" role="img" aria-label="Example route: the cheapest provider answers 401, so fleet starts the pod on the next one">
+  return `<div class="route" role="img" aria-label="Example route: one provider answers 401, so fleet starts the pod on the next one">
 <div class="head"><span>POST /v1/pods · 2 vCPU · 4 GB</span><span>Example</span></div>
 <ol>${lines}</ol>
 <div class="foot" style="animation-delay:${0.35 + offered.length * 0.45}s"><span>pod ready · moved 1 provider</span><span>201</span></div>
@@ -223,7 +233,7 @@ ${laneArt(prices)}
 
 <div class="steps">
 <div><span class="m">01 / Sign in</span><b>Get a fleet key</b><span>With GitHub, in the cabinet.</span></div>
-<div><span class="m">02 / Connect</span><b>Your own provider</b><span>Paste a Daytona key once. boat, Isorun and E2B are coming soon.</span></div>
+<div><span class="m">02 / Connect</span><b>Your own provider</b><span>Paste a ${esc(prices.filter((p) => p.status === 'working').map((p) => p.label).join(' or '))} key once. ${soon} more are coming soon.</span></div>
 <div><span class="m">03 / Start a pod</span><b>One call</b><span>POST /v1/pods, or pod_create over MCP.</span></div>
 <div><span class="m">04 / Run, then stop</span><b>Stdout and exit code</b><span>A pod that's gone answers 410.</span></div>
 </div>
@@ -270,7 +280,7 @@ ${rows}
 <tr><td class="n">DELETE /v1/pods/:id</td><td></td><td>stopped</td></tr>
 <tr><td class="n">GET /v1/prices</td><td></td><td>price table, no key needed</td></tr>
 </table></div>
-<p class="note">Send your fleet key as a Bearer token, and one header per provider you hold an account at: X-Boat-Key, X-Isorun-Key, X-E2B-Key, X-Daytona-Key.</p>
+<p class="note">Send your fleet key as a Bearer token, and one header per provider you hold an account at: ${esc(prices.map((p) => p.keyHeader).filter(Boolean).join(', '))}.</p>
 </section>
 
 <section class="sec two" id="mcp">
