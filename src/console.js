@@ -1,6 +1,7 @@
 // The cabinet: same layout as inference.flisk.si's console (sidebar, title with a beta tag, ruled tables), in black and white.
 import { CSS, esc, FONTS, FLISK_BAR, statusTag } from './page.js';
 import { fieldsOf } from './providers/fields.js';
+import { ICON_TAGS } from './seo.js';
 import { LIMIT_RANGES, MAX_KEYS, podStatus, summarize } from './store.js';
 
 const SECTIONS = [
@@ -121,6 +122,7 @@ function shell({ login, section, title, body }) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
+${ICON_TAGS}
 <title>${esc(title)} · fleet</title>
 <meta name="theme-color" content="#f7f5e4">
 ${FONTS}

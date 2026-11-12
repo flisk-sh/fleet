@@ -3,6 +3,8 @@
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
+import { headTags, ICON_TAGS, jsonLd, PAGES } from './seo.js';
+
 export const FONTS =
   '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
   '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,800&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">';
@@ -112,13 +114,15 @@ export const FLISK_BAR = '<script src="https://flisk.si/assets/bar.js" defer></s
 
 const COPY_JS = `<script>document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',()=>navigator.clipboard.writeText(b.dataset.copy).then(()=>{b.textContent='Copied';setTimeout(()=>{b.textContent='Copy'},1500)})))</script>`;
 
-export const shell = (title, body, extraCss = '') => `<!doctype html>
+export const shell = (title, body, extraCss = '', meta = null) => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title>
-<meta name="description" content="One API for every agent pod. Bring your own sandbox provider keys; fleet starts each pod on the cheapest one and moves on when a provider fails.">
+<meta name="description" content="${esc((meta?.path && PAGES[meta.path]?.description) || PAGES['/'].description)}">
+${meta ? headTags(meta) : `${ICON_TAGS}\n<meta name="robots" content="noindex">`}
+${meta?.jsonLd || ''}
 <meta name="theme-color" content="#f7f5e4">
 ${FONTS}
 <style>${CSS}${extraCss}</style>
@@ -317,6 +321,8 @@ ${rows}
     "headers": { "Authorization": "Bearer fleet_...", "X-E2B-Key": "..." }
 } } }</pre>
 </section>`,
+    '',
+    { path: '/', jsonLd: jsonLd() },
   );
 }
 

@@ -1,0 +1,35 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,800&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1200px;height:630px;background:#f7f5e4;color:#171715;font:20px/1.45 'Inter Tight',system-ui,sans-serif;display:grid;grid-template-columns:700px 500px;overflow:hidden}
+.l{padding:54px 56px 48px 64px;display:flex;flex-direction:column;justify-content:space-between;border-right:1px solid #171715}
+.logo{display:flex;align-items:center;gap:14px;font:800 44px/1 Fraunces,serif;letter-spacing:-.03em}
+.mark{display:grid;place-items:center;width:44px;height:44px;background:#22c55e;color:#0a0a0e;font:500 20px/1 'JetBrains Mono',monospace}
+h1{font:800 104px/.93 Fraunces,serif;letter-spacing:-.045em}
+h1 em{font-style:normal;color:#16a34a}
+.sub{font-size:25px;max-width:560px;color:#171715}
+.m{font:500 17px/1 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#6b6a5f}
+.r{position:relative;display:grid;grid-template-columns:repeat(4,1fr)}
+.lane{position:relative}
+.a{background:#e2552b}.b{background:#0b0b0d}.c{background:#efc415}.d{background:#2f6be9}
+.a,.c,.d{background-image:repeating-linear-gradient(55deg,rgba(23,23,21,.5) 0 4px,transparent 4px 12px)}
+.b{background-image:repeating-linear-gradient(45deg,#22c55e 0 2px,transparent 2px 9px)}
+.c,.d{background-blend-mode:normal}
+.pod{position:absolute;left:10px;top:214px;width:104px;height:104px;background:#22c55e;display:grid;place-items:center}
+.pod i{display:grid;place-items:center;width:70px;height:70px;background:#0b0b0d;color:#22c55e;font:500 24px 'JetBrains Mono',monospace;font-style:normal}
+.x{position:absolute;left:14px;top:60px;width:97px;height:97px}
+.foot{position:absolute;left:0;right:0;bottom:0;height:70px;background:#f7f5e4;border-top:1px solid #171715;display:grid;grid-template-columns:repeat(4,1fr);align-items:center}
+.foot span{padding-left:14px;white-space:nowrap;font:500 15px 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.04em}
+</style></head><body>
+<div class="l">
+<div class="logo"><span class="mark">&gt;_</span>fleet</div>
+<div><h1>One key.<br>Every <em>agent<br>pod.</em></h1></div>
+<div><p class="sub">Starts each sandbox on the cheapest provider you have an account at, and moves on when one fails. HTTP or MCP.</p><p class="m" style="margin-top:22px">fleet.flisk.si · open source · MIT</p></div>
+</div>
+<div class="r">
+<div class="lane a"><svg class="x" viewBox="0 0 97 97"><path d="M6 6L91 91M91 6L6 91" stroke="#171715" stroke-width="12"/></svg></div><div class="lane b"><span class="pod"><i>&gt;_</i></span></div><div class="lane c"></div><div class="lane d"></div>
+<div class="foot"><span>Boat ×</span><span style="color:#16a34a">Daytona ●</span><span>Blaxel</span><span>Upstash</span></div>
+</div>
+</body></html>

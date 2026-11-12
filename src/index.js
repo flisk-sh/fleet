@@ -10,6 +10,7 @@ import { cabinetPage } from './console.js';
 import { connectedKeys, connectProvider, disconnectProvider, listConnections, checkLimits, createKey, getLimits, LIMIT_DEFAULTS, listCalls, listKeys, listPods, logCall, loginForKey, podListItem, podRef, podStatus, podsStartedToday, recordPod, revokeKey, setLimits } from './store.js';
 import { overMinuteLimit, PODS_PER_DAY } from './limit.js';
 import { vaultReady } from './vault.js';
+import { assetResponse, llmsTxt, robotsTxt, sitemapXml } from './seo.js';
 import { fieldsOf, joinFields } from './providers/fields.js';
 import { clearSession, makeSession, readSession, sameOrigin } from './session.js';
 
@@ -138,10 +139,13 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
     return html(homePage({ origin, prices: priceTable(providers), size: DEFAULT_SIZE }), 200, { 'cache-control': 'public, max-age=300' });
   }
   if (request.method === 'GET' && path === '/robots.txt') {
-    return new Response('User-agent: *\nAllow: /$\nAllow: /pricing\nAllow: /podlytics\nAllow: /docs\nAllow: /SKILL.md\nDisallow: /\n', { headers: { 'content-type': 'text/plain' } });
+    return new Response(robotsTxt(), { headers: { 'content-type': 'text/plain', 'cache-control': 'public, max-age=3600' } });
   }
-  if (request.method === 'GET' && path === '/docs') return html(docsPage(origin, (t, b) => shell(t, b, DOCS_CSS)), 200, { 'cache-control': 'public, max-age=300' });
-  if (request.method === 'GET' && path === '/pricing') return html(pricingPage(origin, providers, (t, b) => shell(t, b, PRICING_CSS)), 200, { 'cache-control': 'public, max-age=300' });
+  if (request.method === 'GET' && path === '/sitemap.xml') return new Response(sitemapXml(), { headers: { 'content-type': 'application/xml', 'cache-control': 'public, max-age=3600' } });
+  if (request.method === 'GET' && path === '/llms.txt') return new Response(llmsTxt(), { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=3600', 'access-control-allow-origin': '*' } });
+  if (request.method === 'GET' && /^\/(icon\.svg|favicon\.ico|apple-touch-icon\.png|icon-512\.png|og\.png)$/.test(path)) return assetResponse(path.slice(1));
+  if (request.method === 'GET' && path === '/docs') return html(docsPage(origin, (t, b) => shell(t, b, DOCS_CSS, { path: '/docs' })), 200, { 'cache-control': 'public, max-age=300' });
+  if (request.method === 'GET' && path === '/pricing') return html(pricingPage(origin, providers, (t, b) => shell(t, b, PRICING_CSS, { path: '/pricing' })), 200, { 'cache-control': 'public, max-age=300' });
   if (request.method === 'GET' && path === '/podlytics') {
     return html(podlyticsPage(podlyticsData(providers, await measured(env))), 200, { 'cache-control': 'public, max-age=300' });
   }

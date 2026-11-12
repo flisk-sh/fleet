@@ -2,6 +2,8 @@
 // Prices come from the provider adapters (each provider's own price page). Speed and success come from fleet's own
 // usage log (the calls table), summed over every account for the last 30 days. No login or pod id leaves the server.
 import { esc, FLISK_BAR } from './page.js';
+import { headTags, PAGES } from './seo.js';
+import { REFERENCE, REFERENCE_TIERS, scenarios } from './reference.js';
 
 const PL_FONTS =
   '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
@@ -65,6 +67,7 @@ export function podlyticsData(providers, stats = {}) {
       minimum: p.facts.minimum || 0,
       hourly: PL_SIZES.map((s) => p.price(s)),
       stats: stats[id] || {},
+      ref: REFERENCE[id] ? { ...REFERENCE[id], tierName: REFERENCE_TIERS[REFERENCE[id].tier], scen: scenarios(REFERENCE[id].rate) } : null,
     }));
 }
 
@@ -360,8 +363,30 @@ function client(D, SIZES) {
       .join('');
   }
 
+  function isolation() {
+    const box = $('#c-iso');
+    const rows = shown().filter((p) => p.ref).sort((a, b) => a.ref.tier - b.ref.tier);
+    box.innerHTML = rows.length
+      ? '<table class="iso"><thead><tr><th>Provider</th><th>Isolation</th><th>Persistence</th><th>Billing</th><th>GPU</th><th>BYOC</th><th>Cold start (not fleet)</th></tr></thead><tbody>' +
+        rows.map((p) => `<tr><td><b style="color:${p.color}">${p.label}</b></td><td>${p.ref.isolation}</td><td>${p.ref.persistence}</td><td>${p.ref.billing}</td><td>${p.ref.gpu ? 'yes' : 'no'}</td><td>${p.ref.byoc || '—'}</td><td>${p.ref.cold}</td></tr>`).join('') +
+        '</tbody></table>'
+      : '<p class="note">No reference data for the shown providers.</p>';
+  }
+
+  function workload() {
+    const box = $('#c-work');
+    box.innerHTML = '';
+    for (const [key, title, sub] of [['burst', 'Bursty: 30,000 short sessions', '5 min alive, 30 s of CPU, nothing kept'], ['state', 'Stateful: 50 agents kept for a month', 'busy 2 h a day, paused 22 h, state kept']]) {
+      const rows = shown().filter((p) => p.ref && p.ref.scen).sort((a, b) => a.ref.scen[key] - b.ref.scen[key]);
+      const max = Math.max(1, ...rows.map((p) => p.ref.scen[key]));
+      box.insertAdjacentHTML('beforeend', `<h4 class="wh">${title}<small>${sub}</small></h4>` + rows.map((p) => `<div class="wr"><span>${p.label}</span><i style="width:${Math.max(1, (p.ref.scen[key] / max) * 100)}%;background:${p.color}"></i><em>${money(p.ref.scen[key])}/mo</em></div>`).join(''));
+    }
+  }
+
   function all() {
     sidebar();
+    workload();
+    isolation();
     costVsSize();
     startVsCost();
     costPerTask();
@@ -497,6 +522,8 @@ polyline.soon{stroke-dasharray:6 5}
 .grow{animation:grow .5s cubic-bezier(.2,.7,.2,1) both}
 @keyframes grow{from{transform:scaleY(0)}}
 .note{color:var(--dim);font-size:12.5px;margin:10px 0 0}
+h4.wh{margin:18px 0 8px;font-size:14px}h4.wh small{display:block;color:var(--dim);font-weight:400;font-size:12px}.wr{display:grid;grid-template-columns:90px 1fr 90px;gap:10px;align-items:center;font-size:13px;margin:5px 0}.wr i{height:12px;display:block}.wr em{font-style:normal;color:var(--dim);text-align:right}
+table.iso{width:100%;border-collapse:collapse;font-size:13px}.iso th{text-align:left;color:var(--dim);font-weight:500;padding:8px;border-bottom:1px solid var(--line)}.iso td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
 #c-calls{display:grid;gap:10px;margin-top:12px}
 .crow{display:grid;grid-template-columns:110px repeat(3,minmax(0,1fr));gap:10px;align-items:center}.crow.hd2{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}
 .cn{font-weight:600;letter-spacing:-.01em}
@@ -540,6 +567,9 @@ const CHARTS = [
   ['|'],
   ['ok', 'Starts that worked'],
   ['calls', 'Time per call'],
+  ['|'],
+  ['work', 'Bursty vs stateful'],
+  ['iso', 'Isolation & state'],
 ];
 
 export function podlyticsPage(data) {
@@ -551,7 +581,8 @@ export function podlyticsPage(data) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>podlytics: sandbox providers compared</title>
-<meta name="description" content="Price, start time and success rate of agent pod providers (boat, Daytona, E2B, Isorun), from list prices and fleet's own measured calls.">
+<meta name="description" content="${esc(PAGES['/podlytics'].description)}">
+${headTags({ path: '/podlytics' })}
 <meta name="theme-color" content="#0b0b0d">
 ${PL_FONTS}
 <style>${CSS}</style>
@@ -572,6 +603,8 @@ ${FLISK_BAR}
 <section class="chart" id="month"><div class="ch"><div><h2>Month of pods</h2><p>Pods of 30 minutes each, with each provider's plan minimum. <a href="/pricing">Full calculator</a> for plan limits and peaks.</p></div>${seg('monthn', [[100, '100'], [1000, '1k'], [10000, '10k'], [100000, '100k']], 1000)}</div><div class="plot" id="c-month"></div></section>
 <section class="chart" id="ok"><div class="ch"><div><h2>Starts that worked</h2><p>Share of pod starts through fleet that gave a running pod, last 30 days, every account.</p></div></div><div class="plot" id="c-ok"></div></section>
 <section class="chart" id="calls"><div class="ch"><div><h2>Time per call</h2><p>Median start, run and stop times through fleet. The thin mark is p90.</p></div></div><div id="c-calls"></div></section>
+<section class="chart" id="work"><div class="ch"><div><h2>Bursty vs stateful</h2><p>Monthly cost of two workloads at 2 vCPU / 4 GB from list prices (credits ignored), after the LogRocket article. The cheapest provider flips with the workload, because of how each one bills. Estimates, not measured.</p></div></div><div class="plot" id="c-work"></div></section>
+<section class="chart" id="iso"><div class="ch"><div><h2>Isolation &amp; state</h2><p>Sorted strongest isolation first. Taken from LogRocket's and Upstash's 2026 comparisons, not measured by fleet; cold starts mix vendor claims and the authors' own runs. Isolation is only the floor: check the default network and DNS rules too.</p></div></div><div class="plot" id="c-iso"></div></section>
 </main>
 <aside aria-label="Providers">
 <div class="ah"><h3>Providers<small id="pcount"></small></h3><button type="button" class="ib" id="reset" title="Show every provider">↺</button></div>

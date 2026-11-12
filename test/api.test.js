@@ -489,3 +489,70 @@ describe('provider status', () => {
     expect(await (await post('/console/providers/hopx/connect', { key: 'hopx_abcdefgh' })).text()).toContain('Hopx connected');
   });
 });
+
+describe('search and link previews', () => {
+  const get = (path, headers = {}) => handle(new Request(`${ORIGIN}${path}`, { headers }), {}, { providers });
+  const PUBLIC = ['/', '/docs', '/pricing', '/podlytics'];
+
+  test('every public page has icons, a canonical URL, Open Graph and Twitter tags and one description', async () => {
+    for (const path of PUBLIC) {
+      const html = await (await get(path)).text();
+      const url = `https://fleet.flisk.si${path}`;
+      expect(html, path).toContain(`<link rel="canonical" href="${url}">`);
+      expect(html, path).toContain('<link rel="icon" href="/favicon.ico"');
+      expect(html, path).toContain('<link rel="icon" href="/icon.svg" type="image/svg+xml">');
+      expect(html, path).toContain('<link rel="apple-touch-icon" href="/apple-touch-icon.png">');
+      expect(html, path).toContain('<meta property="og:image" content="https://fleet.flisk.si/og.png">');
+      expect(html, path).toContain('<meta name="twitter:card" content="summary_large_image">');
+      expect(html.match(/<meta name="description"/g), path).toHaveLength(1);
+      expect(html.match(/<title>/g), path).toHaveLength(1);
+      expect(html, path).not.toContain('noindex');
+    }
+  });
+  test('the home page says what fleet is in JSON-LD, valid JSON', async () => {
+    const html = await (await get('/')).text();
+    const ld = JSON.parse(/<script type="application\/ld\+json">(.*?)<\/script>/s.exec(html)[1]);
+    expect(ld).toMatchObject({ '@type': 'SoftwareApplication', name: 'fleet', isAccessibleForFree: true, license: 'https://opensource.org/licenses/MIT' });
+  });
+  test('the error page and the cabinet are kept out of search but still get the icon', async () => {
+    const nf = await (await get('/nothing-here')).text();
+    expect(nf).toContain('noindex');
+    expect(nf).toContain('/icon.svg');
+    const env = { DB: db(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' };
+    const cookie = (await makeSession(env, 'octo')).split(';')[0];
+    const cab = await (await handle(new Request(`${ORIGIN}/console`, { headers: { cookie } }), env, { providers })).text();
+    expect(cab).toContain('noindex');
+    expect(cab).toContain('/apple-touch-icon.png');
+  });
+  test('sitemap lists the public pages, robots.txt allows them and names the sitemap', async () => {
+    const sm = await get('/sitemap.xml');
+    expect(sm.headers.get('content-type')).toContain('xml');
+    const xml = await sm.text();
+    for (const path of PUBLIC) expect(xml).toContain(`<loc>https://fleet.flisk.si${path}</loc>`);
+    expect(xml).not.toContain('/console');
+    const robots = await (await get('/robots.txt')).text();
+    expect(robots).toContain('Sitemap: https://fleet.flisk.si/sitemap.xml');
+    for (const a of ['Allow: /$', 'Allow: /docs', 'Allow: /pricing', 'Allow: /og.png', 'Allow: /favicon.ico', 'Disallow: /\n']) expect(robots).toContain(a);
+  });
+  test('llms.txt is a plain-text map of the site', async () => {
+    const r = await get('/llms.txt');
+    expect(r.headers.get('content-type')).toContain('text/plain');
+    const t = await r.text();
+    expect(t).toMatch(/^# fleet\n\n> /);
+    for (const l of ['/docs', '/SKILL.md', '/pricing']) expect(t).toContain(`https://fleet.flisk.si${l}`);
+  });
+  test('the icons and the preview image are real images of the right kind and size', async () => {
+    const png = async (path) => new Uint8Array(await (await get(path)).arrayBuffer());
+    const dims = (b) => [new DataView(b.buffer).getUint32(16), new DataView(b.buffer).getUint32(20)];
+    const og = await png('/og.png');
+    expect([...og.slice(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+    expect(dims(og)).toEqual([1200, 630]);
+    expect(dims(await png('/apple-touch-icon.png'))).toEqual([180, 180]);
+    expect(dims(await png('/icon-512.png'))).toEqual([512, 512]);
+    const ico = await png('/favicon.ico');
+    expect([...ico.slice(0, 6)]).toEqual([0, 0, 1, 0, 2, 0]); // an ICO holding 2 images
+    const svg = await (await get('/icon.svg')).text();
+    expect(svg).toContain('<svg');
+    for (const [p, type] of [['/og.png', 'image/png'], ['/favicon.ico', 'image/x-icon'], ['/icon.svg', 'image/svg+xml']]) expect((await get(p)).headers.get('content-type')).toBe(type);
+  });
+});

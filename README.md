@@ -94,6 +94,10 @@ Send `X-Demo-Key: demo` (or `ttl=30` to make the pod die after 30 seconds) and f
 - Daytona: at most 4 vCPU and 8 GB a pod; output comes back as one stream, with no separate stderr.
 - Pods stop by themselves after about an hour on Isorun, E2B and Daytona if you forget them.
 
+## Icons and link previews
+
+`assets/` holds the sources (the icon from [flisk-emoji](https://github.com/flisk-sh/flisk-emoji), and `og.html`, the 1200 x 630 preview card). `bun scripts/build-assets.mjs` turns them into `src/assets.js` (needs `rsvg-convert` and Google Chrome), which the Worker serves as `/icon.svg`, `/favicon.ico`, `/apple-touch-icon.png` and `/og.png`. `src/seo.js` holds the page list behind the head tags, `/sitemap.xml`, `/robots.txt` and `/llms.txt`.
+
 ## Run it locally
 
 Needs [Bun](https://bun.sh).
