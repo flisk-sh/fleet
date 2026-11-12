@@ -165,3 +165,12 @@ describe('daytona', () => {
     expect(f.calls[1]).toMatchObject({ url: 'https://app.daytona.io/api/sandbox/d1', method: 'DELETE' });
   });
 });
+
+describe('daytona stop retried while it is still deleting', () => {
+  test('409 "state change in progress" counts as stopped; other errors still fail', async () => {
+    const answers = (status, message) => async () => new Response(JSON.stringify({ message }), { status });
+    await daytona.stop('k', 'sb1', { fetchImpl: answers(409, 'Sandbox state change in progress') });
+    await expect(daytona.stop('k', 'sb1', { fetchImpl: answers(409, 'something else') })).rejects.toThrow('409');
+    await expect(daytona.stop('k', 'sb1', { fetchImpl: answers(500, 'boom') })).rejects.toThrow('500');
+  });
+});

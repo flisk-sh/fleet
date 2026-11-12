@@ -75,6 +75,13 @@ export default {
   },
 
   async stop(key, id, { fetchImpl = fetch } = {}) {
-    await call(fetchImpl, `${API}/sandbox/${encodeURIComponent(id)}`, { method: 'DELETE', headers: auth(key) });
+    try {
+      await call(fetchImpl, `${API}/sandbox/${encodeURIComponent(id)}`, { method: 'DELETE', headers: auth(key) });
+    } catch (e) {
+      // A second stop while the first is still deleting answers 409 "Sandbox state change in progress" (seen live
+      // 2026-11-12, scripts/real-check.mjs). The pod is already on its way out, so a retried stop is a success.
+      if (e.status === 409 && /state change in progress/i.test(e.message)) return;
+      throw e;
+    }
   },
 };
