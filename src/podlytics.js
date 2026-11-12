@@ -467,7 +467,7 @@ function client(D, SIZES) {
   $('#csv').addEventListener('click', () => {
     const head = ['provider', 'status', ...SIZES.map((s) => `usd_per_hour_${s.cpu}cpu_${s.ram}gb`), 'start_p50_ms', 'start_p90_ms', 'starts_30d', 'starts_ok_30d'];
     const lines = [head.join(',')].concat(
-      D.map((p) => [p.label, p.working ? 'working' : 'not run yet', ...p.hourly.map((v) => (v == null ? '' : v)), p.stats.start?.p50 ?? '', p.stats.start?.p90 ?? '', p.stats.start?.n ?? 0, p.stats.start?.ok ?? 0].join(',')),
+      D.map((p) => [p.label, p.working ? 'working' : p.blocked ? 'blocked: ' + blockedNote(p) : 'not run yet', ...p.hourly.map((v) => (v == null ? '' : v)), p.stats.start?.p50 ?? '', p.stats.start?.p90 ?? '', p.stats.start?.n ?? 0, p.stats.start?.ok ?? 0].join(',')),
     );
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([lines.join('\n') + '\n'], { type: 'text/csv' }));
