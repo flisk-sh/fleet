@@ -65,6 +65,7 @@ export function podlyticsData(providers, stats = {}) {
 }
 
 // Runs in the browser. Kept as a real function so its source is embedded as-is (no escaping inside a template).
+// Wrangler's bundler (keepNames) adds __name(fn, "name") calls inside it, so the page defines a no-op __name first.
 function client(D, SIZES) {
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -583,7 +584,7 @@ ${FLISK_BAR}
 </div>
 <div class="ft"><span>Prices from each provider's own page · speed from fleet's call log · <a href="https://github.com/flisk-sh/fleet">source</a></span><a href="/console?section=try">Try a pod on fleet →</a></div>
 <div id="tip" hidden></div>
-<script>(${client.toString()})(${safe(data)},${safe(PL_SIZES)});</script>
+<script>var __name=function(f){return f};(${client.toString()})(${safe(data)},${safe(PL_SIZES)});</script>
 </body>
 </html>`;
 }
