@@ -36,9 +36,14 @@ CREATE TABLE IF NOT EXISTS calls (
   ref TEXT,                     -- pod id cut at the first "~"
   status INTEGER NOT NULL,
   ms INTEGER NOT NULL,
-  error TEXT
+  error TEXT,
+  detail TEXT,                  -- run: the first 200 characters of the command; write and read: the file path
+  exit_code INTEGER             -- run only
+  -- On a database made before detail existed, run once:
+  --   ALTER TABLE calls ADD COLUMN detail TEXT; ALTER TABLE calls ADD COLUMN exit_code INTEGER;
 );
 CREATE INDEX IF NOT EXISTS calls_login_at ON calls (login, at);
+CREATE INDEX IF NOT EXISTS calls_login_ref ON calls (login, ref, n);
 
 -- Each account's own limits, set in the cabinet. Missing row = the defaults.
 CREATE TABLE IF NOT EXISTS limits (

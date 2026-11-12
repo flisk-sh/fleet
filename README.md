@@ -51,6 +51,7 @@ curl -X POST https://fleet.flisk.si/v1/pods \
 | `PUT /v1/pods/:id/files` | `path`, `content`, `encoding?` (`utf8` or `base64`) | `path`, `bytes` |
 | `GET /v1/pods/:id/files?path=` | | `path`, `bytes`, `encoding`, `content` |
 | `GET /v1/pods?status=` | | `pods`: id, provider, size, price, times, status |
+| `GET /v1/pods/:id/history` | | `history`: tool, command or file path, exit code, status, time |
 | `DELETE /v1/pods/:id` | | `stopped` |
 | `GET /v1/prices` | | price table, no key needed |
 
@@ -80,6 +81,7 @@ In Cloudflare D1 (`schema.sql`), sized for the free plan: every write is one row
 
 - A SHA-256 hash of each fleet key, its name and when it was created and last used (written at most once a day).
 - Pod facts for the cabinet: provider, size, price, start and stop times, and which providers failed first. The pod id is cut at the first `~`, so E2B's access token is never stored.
+- A usage log with one row per pod call (start, run, write, read, stop): pod id, time, status, how long it took and, for `run`, the first 200 characters of the command and its exit code, and for `write` and `read` the file path. The cabinet shows it as a pod's history (click a pod id on the Pods page), and `GET /v1/pods/:id/history` returns it. The command line is stored as sent, so keep secrets in `env`, which is not recorded. A database made before this needs `ALTER TABLE calls ADD COLUMN detail TEXT; ALTER TABLE calls ADD COLUMN exit_code INTEGER;` once, and `schema.sql` re-run for the new index; until then fleet keeps logging without the detail.
 - Provider keys you connect in the cabinet, encrypted with AES-GCM under the `PROVIDER_KEYS_SECRET` secret (`src/vault.js`); only the last 4 characters are kept readable, to tell keys apart. Disconnect deletes the key. Keys sent in headers are never stored.
 - Sessions are signed cookies, not stored.
 

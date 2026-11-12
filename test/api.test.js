@@ -465,6 +465,42 @@ describe('MCP', () => {
   });
 });
 
+describe('pod history', () => {
+  test('a command shows in the API and the cabinet with its exit code, and a file shows its path', async () => {
+    const { req, page } = await setup();
+    const pod = await (await req('POST', '/v1/pods', {})).json();
+    const long = `echo ${'x'.repeat(300)}`;
+    expect((await req('POST', `/v1/pods/${pod.id}/run`, { command: 'ls -la /srv', env: { TOKEN: 'sekret' } })).status).toBe(200);
+    await req('POST', `/v1/pods/${pod.id}/run`, { command: long });
+    await req('PUT', `/v1/pods/${pod.id}/files`, { path: '/srv/a.txt', content: 'hi' });
+    const h = await (await req('GET', `/v1/pods/${pod.id}/history`)).json();
+    expect(h.history.map((c) => c.tool)).toEqual(['write', 'run', 'run', 'start']);
+    expect(h.history.find((c) => c.detail === 'ls -la /srv')).toMatchObject({ tool: 'run', exitCode: 0, status: 200 });
+    expect(h.history.find((c) => c.tool === 'run' && c.detail.startsWith('echo x')).detail).toHaveLength(200);
+    expect(h.history.find((c) => c.tool === 'write').detail).toBe('/srv/a.txt');
+    expect(JSON.stringify(h)).not.toContain('sekret');
+    const ref = pod.id.split('~')[0];
+    const html = await (await page('GET', `/console?section=pods&pod=${encodeURIComponent(ref)}`)).text();
+    expect(html).toContain('ls -la /srv');
+    expect(html).toContain('Pod history');
+  });
+  test('the usage log still works on a database made before detail existed', async () => {
+    const { env, req } = await setup();
+    env.DB.raw.exec('DROP INDEX calls_login_ref; ALTER TABLE calls DROP COLUMN detail; ALTER TABLE calls DROP COLUMN exit_code;');
+    const pod = await (await req('POST', '/v1/pods', {})).json();
+    await req('POST', `/v1/pods/${pod.id}/run`, { command: 'ls' });
+    expect(env.DB.raw.query("SELECT COUNT(*) AS c FROM calls WHERE kind = 'run'").get().c).toBe(1);
+  });
+  test('another account sees nothing of this pod', async () => {
+    const { env, req } = await setup();
+    const pod = await (await req('POST', '/v1/pods', {})).json();
+    await req('POST', `/v1/pods/${pod.id}/run`, { command: 'whoami' });
+    const other = (await createKey(env, 'someone', 'x')).key;
+    const h = await (await req('GET', `/v1/pods/${pod.id}/history`, undefined, { authorization: `Bearer ${other}` })).json();
+    expect(h.history).toEqual([]);
+  });
+});
+
 test('every inline page script parses', async () => {
   const { page } = await setup();
   for (const section of ['start', 'overview', 'pods', 'usage', 'keys', 'try', 'providers', 'limits', 'docs']) {

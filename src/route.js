@@ -211,7 +211,7 @@ async function readFileInner(providers, keys, id, body, ctx = {}) {
 }
 
 // Every start, run and stop goes to the usage log (ctx.log). Logging must never break a call.
-const timed = (kind, inner, refOf) => async (...args) => {
+const timed = (kind, inner, refOf, detailOf = () => null) => async (...args) => {
   const ctx = args[args.length - 1] || {};
   const t0 = Date.now();
   const r = await inner(...args);
@@ -219,7 +219,7 @@ const timed = (kind, inner, refOf) => async (...args) => {
     const ref = refOf(r, args);
     // A failed start keeps each provider's answer, the same detail the Pods page shows.
     const why = r.failed?.length && r.status >= 400 ? `${r.error}: ${r.failed.map((f) => `${f.provider} ${f.error}`).join('; ')}` : r.error;
-    await ctx.log?.({ kind, status: r.status, ms: Date.now() - t0, provider: ref.provider ?? null, id: ref.id ?? null, error: r.status >= 400 ? why : null });
+    await ctx.log?.({ kind, status: r.status, ms: Date.now() - t0, provider: ref.provider ?? null, id: ref.id ?? null, error: r.status >= 400 ? why : null, detail: detailOf(args), exitCode: kind === 'run' ? r.result?.exitCode : null });
   } catch {}
   return r;
 };
@@ -228,10 +228,13 @@ const fromId = (providers, id) => {
   return { provider: p?.provider, id: p ? id : null };
 };
 export const createPod = timed('start', createPodInner, (r) => ({ provider: r.pod?.provider, id: r.pod?.id }));
-export const runPod = timed('run', runPodInner, (r, [providers, , id]) => fromId(providers, id));
+// What the history shows: the first 200 characters of the command, or the file path.
+const commandOf = ([, , , body]) => (typeof body?.command === 'string' ? body.command.slice(0, 200) : null);
+const pathOf = ([, , , body]) => (typeof body?.path === 'string' ? body.path.slice(0, 200) : null);
+export const runPod = timed('run', runPodInner, (r, [providers, , id]) => fromId(providers, id), commandOf);
 export const stopPod = timed('stop', stopPodInner, (r, [providers, , id]) => fromId(providers, id));
-export const writeFile = timed('write', writeFileInner, (r, [providers, , id]) => fromId(providers, id));
-export const readFile = timed('read', readFileInner, (r, [providers, , id]) => fromId(providers, id));
+export const writeFile = timed('write', writeFileInner, (r, [providers, , id]) => fromId(providers, id), pathOf);
+export const readFile = timed('read', readFileInner, (r, [providers, , id]) => fromId(providers, id), pathOf);
 
 // A provider is in one of three states:
 //   working   run end to end on a real account (`working: '<date>'` in its file)

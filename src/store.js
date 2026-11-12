@@ -6,6 +6,7 @@ import { open, seal } from './vault.js';
 
 export const MAX_KEYS = 10;
 const MAX_PODS = 100;
+const DETAIL_MAX = 200;
 const DAY = 86400_000;
 const HOUR = 3600_000;
 
@@ -170,10 +171,24 @@ export function summarize(pods, now = new Date()) {
 
 // ---- usage log
 export async function logCall(env, login, c) {
-  await env.DB.prepare('INSERT INTO calls (login, at, kind, provider, ref, status, ms, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-    .bind(login, nowIso(), c.kind, c.provider ?? null, c.id ? podRef(c.id) : null, c.status, Math.round(c.ms), c.error ? clip(c.error) : null)
-    .run();
+  const base = [login, nowIso(), c.kind, c.provider ?? null, c.id ? podRef(c.id) : null, c.status, Math.round(c.ms), c.error ? clip(c.error) : null];
+  try {
+    await env.DB.prepare('INSERT INTO calls (login, at, kind, provider, ref, status, ms, error, detail, exit_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(...base, c.detail ? String(c.detail).slice(0, DETAIL_MAX) : null, Number.isInteger(c.exitCode) ? c.exitCode : null)
+      .run();
+  } catch {
+    // A database made before detail and exit_code existed: keep the usage log working without them.
+    await env.DB.prepare('INSERT INTO calls (login, at, kind, provider, ref, status, ms, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(...base).run();
+  }
 }
+
+// One pod's history, newest first: every start, run, write, read and stop that went through fleet.
+export async function listPodCalls(env, login, id, limit = 100) {
+  const { results } = await env.DB.prepare('SELECT * FROM calls WHERE login = ? AND ref = ? ORDER BY n DESC LIMIT ?').bind(login, podRef(id), limit).all();
+  return results;
+}
+
+export const callItem = (c) => ({ at: c.at, tool: c.kind, detail: c.detail ?? null, exitCode: c.exit_code ?? null, status: c.status, ms: c.ms, error: c.error ?? null });
 
 export async function listCalls(env, login, { errorsOnly = false, limit = 200 } = {}) {
   const sql = `SELECT * FROM calls WHERE login = ?${errorsOnly ? ' AND status >= 400' : ''} ORDER BY n DESC LIMIT ?`;
