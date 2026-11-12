@@ -115,4 +115,10 @@ describe('agent race', () => {
     const html = await (await handle(new Request('https://fleet.flisk.si/'), {})).text();
     expect(html).toContain('href="/demo">Watch agents race');
   });
+  test('every page has Demo in the top nav, pointing at the public race', async () => {
+    for (const path of ['/', '/pricing', '/docs', '/demo']) {
+      const html = await (await handle(new Request(`https://fleet.flisk.si${path}`), {})).text();
+      expect(html).toContain('<a href="/demo">Demo</a>');
+    }
+  });
 });

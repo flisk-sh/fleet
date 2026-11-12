@@ -140,7 +140,7 @@ ${FONTS}
 ${SKIP_LINK}
 ${FLISK_BAR}
 <div class="frame">
-<div class="top m"><nav><span class="swp" aria-label="Fleet products"><a class="on" href="/" aria-current="page">fleet</a><a href="/podlytics">podlytics</a></span><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/docs#mcp">MCP</a><a class="hide" href="https://github.com/flisk-sh/fleet">Source</a><a class="spons" href="https://github.com/sponsors/flisk-sh">Sponsor fleet</a></nav><a class="cta" href="/console">Console</a></div>
+<div class="top m"><nav><span class="swp" aria-label="Fleet products"><a class="on" href="/" aria-current="page">fleet</a><a href="/podlytics">podlytics</a></span><a href="/demo">Demo</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/docs#mcp">MCP</a><a class="hide" href="https://github.com/flisk-sh/fleet">Source</a><a class="spons" href="https://github.com/sponsors/flisk-sh">Sponsor fleet</a></nav><a class="cta" href="/console">Console</a></div>
 <main id="main">${body}</main>
 <footer>
 <div class="foot-grid">
