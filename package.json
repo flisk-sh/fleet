@@ -1,0 +1,9 @@
+{
+  "name": "fleet",
+  "private": true,
+  "type": "module",
+  "description": "One API for every agent pod: starts a pod on the cheapest sandbox provider you have a key for, and moves on when one fails.",
+  "scripts": {
+    "test": "bun test"
+  }
+}
