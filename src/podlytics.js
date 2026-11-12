@@ -154,53 +154,21 @@ function client(D, SIZES) {
     return 10 * p;
   };
 
-  // 1. Cost vs size
+  // 1. Cost vs size: one row per provider at the chosen size, cheapest on top.
   function costVsSize() {
-    const { svg, W, H } = frame($('#c-size'));
-    const ps = shown();
-    const L = 64, R = W < 600 ? 92 : 170, T = 24, B = 46;
-    const xs = SIZES.map((_, i) => L + (i * (W - L - R - 30)) / (SIZES.length - 1));
-    const vals = ps.flatMap((p) => p.hourly.filter((v) => v != null));
-    if (!vals.length) return empty(svg, W, H, 'Turn on a provider on the right.');
-    let yOf, ticks;
-    if (st.log) {
-      const lo = Math.pow(10, Math.floor(Math.log10(Math.min(...vals))));
-      const hi = Math.pow(10, Math.ceil(Math.log10(Math.max(...vals))));
-      yOf = (v) => T + (H - T - B) * (1 - (Math.log10(v) - Math.log10(lo)) / (Math.log10(hi) - Math.log10(lo)));
-      ticks = [];
-      for (let d = lo; d <= hi * 1.001; d *= 10) ticks.push(d, d * 2, d * 5);
-      ticks = ticks.filter((v) => v <= hi * 1.001);
-    } else {
-      const hi = niceMax(Math.max(...vals));
-      yOf = (v) => T + (H - T - B) * (1 - v / hi);
-      ticks = [0, hi / 4, hi / 2, (hi * 3) / 4, hi];
-    }
-    gridY(svg, L, W - R, ticks, (v) => money(v), yOf);
-    SIZES.forEach((s, i) => {
-      el('text', { x: xs[i], y: H - B + 20, 'text-anchor': 'middle', class: 'tick' }, svg).textContent = s.cpu + ' vCPU';
-      el('text', { x: xs[i], y: H - B + 34, 'text-anchor': 'middle', class: 'tick dim' }, svg).textContent = s.ram + ' GB';
-    });
-    el('text', { x: L, y: 12, class: 'axis' }, svg).textContent = 'USD per hour, list price';
-    const labels = [];
-    for (const p of ps) {
-      const pts = p.hourly.map((v, i) => (v == null ? null : [xs[i], yOf(v), v, i])).filter(Boolean);
-      if (!pts.length) continue;
-      const g = el('g', { class: 'series', 'data-id': p.id }, svg);
-      el('polyline', { points: pts.map((q) => q[0] + ',' + q[1]).join(' '), fill: 'none', stroke: p.color, 'stroke-width': 2, class: p.working ? '' : 'soon' }, g);
-      for (const q of pts) {
-        const c = el('circle', { cx: q[0], cy: q[1], r: 4.5, fill: p.color, stroke: '#0b0b0d', 'stroke-width': 1.5 }, g);
-        hover(c, `<b style="color:${p.color}">${p.label}</b><br>${sizeLabel(q[3])}<br>${money(q[2])} an hour<br>${money(q[2] * 24 * 30)} a month non-stop`);
-      }
-      const last = pts[pts.length - 1];
-      labels.push({ p, x: last[0], y0: last[1], y: last[1] });
-    }
-    for (const it of spreadLabels(labels, T + 6, H - B - 4)) {
-      const lx = W - R + 18;
-      el('line', { x1: it.x + 6, y1: it.y0, x2: lx - 6, y2: it.y, class: 'leader' }, svg);
-      const t = el('text', { x: lx, y: it.y + 4, class: 'lbl', fill: it.p.color }, svg);
-      t.textContent = it.p.label + (it.p.working ? '' : ' ·');
-      hover(t, `<b>${it.p.label}</b><br>${it.p.working ? 'Working: run for real on ' + it.p.working : 'Not run on a real account yet: built from its docs'}`);
-    }
+    const rows = shown()
+      .map((p) => {
+        const hr = p.hourly[st.size];
+        return {
+          p,
+          v: hr == null ? null : hr,
+          none: 'no such size',
+          soon: !p.working,
+          tip: hr == null ? '' : `${money(hr)} an hour at ${sizeLabel(st.size)}<br>${money(hr * 24 * 30)} a month non-stop<br>${p.working ? 'Working: run for real on ' + p.working : 'Not run on a real account yet: built from its docs'}`,
+        };
+      })
+      .sort((a, b) => (a.v ?? Infinity) - (b.v ?? Infinity));
+    hbars('#c-size', rows, { fmt: money, axis: 'USD per hour, list price, ' + sizeLabel(st.size) + '. Cheapest on top; dashed bar = not run for real yet.' });
   }
 
   // 2. Start time vs cost
@@ -242,40 +210,42 @@ function client(D, SIZES) {
     }
   }
 
-  // Bars shared by cost per task, month and reliability.
-  function bars(boxSel, rows, { fmt, axis, note, cap }) {
-    const { svg, W, H } = frame($(boxSel));
-    if (!rows.length) return empty(svg, W, H, 'Nothing to show for this choice.');
-    const L = 64, R = 20, T = 30;
-    const tight = (W - L - R) / rows.length < 72;
-    const B = tight ? 84 : 58;
-    const max = cap || niceMax(Math.max(...rows.filter((r) => r.v != null).map((r) => r.v), 0) * 1.12 || 1);
-    const yOf = (v) => T + (H - T - B) * (1 - v / max);
-    gridY(svg, L, W - R, [0, max / 4, max / 2, (max * 3) / 4, max], fmt, yOf);
-    el('text', { x: L, y: 14, class: 'axis' }, svg).textContent = axis;
-    const slot = (W - L - R) / rows.length;
-    const bw = Math.min(64, slot * 0.56);
+  // Ranked horizontal bars shared by cost vs size, cost per task, month and reliability.
+  // Rows arrive already sorted best first, so the best provider is always the top row.
+  function hbars(boxSel, rows, { fmt, axis, cap }) {
+    const box = $(boxSel);
+    box.innerHTML = '';
+    const W = Math.max(320, box.clientWidth);
+    const narrow = W < 600;
+    const rowH = 32;
+    const L = narrow ? 110 : 190, R = narrow ? 64 : 90, T = 44, B = 8;
+    const H = T + rows.length * rowH + B;
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img' }, box);
+    if (!rows.length) return empty(svg, W, 160, 'Nothing to show for this choice.');
+    const max = cap || niceMax(Math.max(...rows.filter((r) => r.v != null).map((r) => r.v), 0) * 1.05 || 1);
+    const xOf = (v) => L + ((W - L - R) * v) / max;
+    el('text', { x: 0, y: 14, class: 'axis' }, svg).textContent = axis;
+    for (const v of [0, max / 4, max / 2, (max * 3) / 4, max]) {
+      el('line', { x1: xOf(v), x2: xOf(v), y1: T - 6, y2: H - B, class: 'grid' }, svg);
+      el('text', { x: xOf(v), y: T - 10, 'text-anchor': 'middle', class: 'tick' }, svg).textContent = fmt(v);
+    }
     const best = rows.find((r) => r.v != null);
     rows.forEach((r, i) => {
-      const cx = L + slot * i + slot / 2;
-      if (tight) el('text', { x: cx + 4, y: H - B + 16, 'text-anchor': 'end', transform: `rotate(-40 ${cx + 4} ${H - B + 16})`, class: 'lbl', fill: r.p.color }, svg).textContent = r.p.label;
-      else {
-        el('text', { x: cx, y: H - B + 20, 'text-anchor': 'middle', class: 'lbl', fill: r.p.color }, svg).textContent = r.p.label;
-        if (r.sub) el('text', { x: cx, y: H - B + 36, 'text-anchor': 'middle', class: 'tick dim' }, svg).textContent = r.sub;
-      }
+      const y = T + i * rowH;
+      const cy = y + rowH / 2;
+      const name = el('text', { x: L - 12, y: cy + 4, 'text-anchor': 'end', class: 'lbl', fill: r.p.color }, svg);
+      name.textContent = (i + 1) + '. ' + r.p.label;
       if (r.v == null) {
-        el('rect', { x: cx - bw / 2, y: yOf(max * 0.12), width: bw, height: yOf(0) - yOf(max * 0.12), class: 'nobar' }, svg);
-        el('text', { x: cx, y: yOf(max * 0.12) - 8, 'text-anchor': 'middle', class: 'tick dim' }, svg).textContent = slot < 90 ? 'n/a' : r.none || 'no data';
+        el('text', { x: L + 6, y: cy + 4, class: 'tick dim' }, svg).textContent = r.none || 'no data';
         return;
       }
-      const y = yOf(r.v);
-      const rect = el('rect', { x: cx - bw / 2, y, width: bw, height: Math.max(1.5, yOf(0) - y), fill: r.p.color, rx: 2, opacity: r === best ? 1 : 0.78 }, svg);
-      rect.style.transformOrigin = `${cx}px ${yOf(0)}px`;
-      rect.classList.add('grow');
-      if (slot >= 48 || r === best) el('text', { x: cx, y: y - 8, 'text-anchor': 'middle', class: 'val' }, svg).textContent = fmt(r.v);
+      const w = Math.max(2, xOf(r.v) - L);
+      const attrs = { x: L, y: y + 6, width: w, height: rowH - 12, rx: 2, opacity: r === best ? 1 : 0.8, class: 'grow' };
+      const rect = el('rect', r.soon ? { ...attrs, fill: 'none', stroke: r.p.color, 'stroke-width': 1.5, 'stroke-dasharray': '5 3' } : { ...attrs, fill: r.p.color }, svg);
+      rect.style.transformOrigin = `${L}px ${cy}px`;
+      el('text', { x: L + w + 8, y: cy + 4, class: 'val' }, svg).textContent = fmt(r.v) + (r.sub && !narrow ? '  ·  ' + r.sub : '');
       hover(rect, `<b style="color:${r.p.color}">${r.p.label}</b><br>${r.tip || fmt(r.v)}`);
     });
-    if (note) $(note.sel).innerHTML = note.html;
   }
 
   function costPerTask() {
@@ -286,7 +256,7 @@ function client(D, SIZES) {
         return { p, v: hr == null ? null : hr * h, none: 'no such size', tip: hr == null ? '' : `${money(hr)} an hour × ${lenLabel(st.task)} = <b>${money(hr * h)}</b><br>billed ${p.billing}` };
       })
       .sort((a, b) => (a.v ?? Infinity) - (b.v ?? Infinity));
-    bars('#c-task', rows, { fmt: money, axis: 'USD for one pod of ' + sizeLabel(st.size) + ' running ' + lenLabel(st.task) });
+    hbars('#c-task', rows, { fmt: money, axis: 'USD for one pod of ' + sizeLabel(st.size) + ' running ' + lenLabel(st.task) + '. Cheapest on top.' });
   }
 
   function monthCost() {
@@ -300,7 +270,7 @@ function client(D, SIZES) {
         return { p, v, sub: p.minimum ? '$' + p.minimum + ' plan min' : 'no minimum', tip: `${st.month.toLocaleString('en-US')} pods × 30 min × ${money(hr)}/h = ${money(usage)}${v > usage ? '<br>plan minimum lifts it to ' + money(v) : ''}` };
       })
       .sort((a, b) => (a.v ?? Infinity) - (b.v ?? Infinity));
-    bars('#c-month', rows, { fmt: money, axis: 'USD a month for ' + st.month.toLocaleString('en-US') + ' pods × 30 min at ' + sizeLabel(st.size) });
+    hbars('#c-month', rows, { fmt: money, axis: 'USD a month for ' + st.month.toLocaleString('en-US') + ' pods × 30 min at ' + sizeLabel(st.size) + '. Cheapest on top.' });
   }
 
   function reliability() {
@@ -311,12 +281,12 @@ function client(D, SIZES) {
         return { p, v: (100 * s.ok) / s.n, sub: s.n + ' starts', tip: `${s.ok} of ${s.n} starts worked in the last 30 days` };
       })
       .sort((a, b) => (b.v ?? -1) - (a.v ?? -1));
-    bars('#c-ok', rows, { fmt: (v) => Math.round(v) + '%', axis: 'Share of pod starts that worked, last 30 days', cap: 100 });
+    hbars('#c-ok', rows, { fmt: (v) => Math.round(v) + '%', axis: 'Share of pod starts that worked, last 30 days. Most reliable on top.', cap: 100 });
   }
 
   function callTimes() {
     const box = $('#c-calls');
-    const ps = shown();
+    const ps = shown().sort((a, b) => (a.stats.start?.p50 ?? Infinity) - (b.stats.start?.p50 ?? Infinity));
     const kinds = ['start', 'run', 'stop'];
     const max = Object.fromEntries(kinds.map((k) => [k, Math.max(1, ...ps.map((p) => p.stats[k]?.p90 || p.stats[k]?.p50 || 0))]));
     box.innerHTML = '<div class="crow hd2"><span></span><span>Start</span><span>Run</span><span>Stop</span></div>' + ps
@@ -357,6 +327,7 @@ function client(D, SIZES) {
     );
     $('#pcount').textContent = shown().length;
     $$('#sizes button').forEach((b) => b.classList.toggle('on', Number(b.dataset.i) === st.size));
+    $$('#csize button').forEach((b) => b.classList.toggle('on', Number(b.dataset.v) === st.size));
     $('#pfacts').innerHTML = shown()
       .map(
         (p) =>
@@ -430,7 +401,7 @@ function client(D, SIZES) {
         cb();
       }),
     );
-  seg('#scale', 'log', costVsSize);
+  seg('#csize', 'size', all);
   seg('#tasklen', 'task', costPerTask);
   seg('#monthn', 'month', monthCost);
   addEventListener('keydown', (e) => {
@@ -600,7 +571,7 @@ ${FLISK_BAR}
 </header>
 <div class="app">
 <main>
-<section class="chart" id="size"><div class="ch"><div><h2>Cost vs size</h2><p>List price per hour for each pod size. Dashed line: provider not yet run for real through fleet.</p></div>${seg('scale', [['lin', 'Linear'], ['log', 'Log']], 'lin')}</div><div class="plot" id="c-size"></div></section>
+<section class="chart" id="size"><div class="ch"><div><h2>Cost vs size</h2><p>List price per hour at the size you pick, cheapest first. Dashed bar: provider not yet run for real through fleet.</p></div>${seg('csize', PL_SIZES.map((z, i) => [i, z.cpu + ' vCPU']), 1)}</div><div class="plot" id="c-size"></div></section>
 <section class="chart" id="speed"><div class="ch"><div><h2>Start time vs cost</h2><p>Median time from the start call to a running pod, measured on real starts through fleet. The faint line runs to p90.</p></div></div><div class="plot" id="c-speed"></div><p class="note" id="speed-missing"></p></section>
 <section class="chart" id="task"><div class="ch"><div><h2>Cost per task</h2><p>One agent task on one pod, billed by the second.</p></div>${seg('tasklen', [[300, '5 min'], [1800, '30 min'], [3600, '1 h'], [14400, '4 h']], 1800)}</div><div class="plot" id="c-task"></div></section>
 <section class="chart" id="month"><div class="ch"><div><h2>Month of pods</h2><p>Pods of 30 minutes each, with each provider's plan minimum. <a href="/pricing">Full calculator</a> for plan limits and peaks.</p></div>${seg('monthn', [[100, '100'], [1000, '1k'], [10000, '10k'], [100000, '100k']], 1000)}</div><div class="plot" id="c-month"></div></section>
