@@ -12,11 +12,14 @@ const PROVIDER = process.env.PROVIDER || 'demo';
 const REAL = PROVIDER !== 'demo';
 const HEADER = { demo: 'x-demo-key', boat: 'x-boat-key', isorun: 'x-isorun-key', e2b: 'x-e2b-key', daytona: 'x-daytona-key' }[PROVIDER];
 if (!HEADER) throw new Error(`unknown PROVIDER ${PROVIDER}`);
-if (REAL && !process.env.PROVIDER_KEY) throw new Error('set PROVIDER_KEY for a real provider');
+// A real provider with no PROVIDER_KEY uses the key connected in the cabinet for this fleet key's account.
+const VIA = REAL && !process.env.PROVIDER_KEY ? 'connected key' : REAL ? 'key from PROVIDER_KEY' : 'demo';
 const TTL = 20;
 // Real pods are small (1 vCPU, 1 GB) so ten of them fit a new account's limits (Daytona's first tier: 10 vCPU in all).
 const SIZE = REAL ? { cpu: 1, ram: 1 } : {};
-const H = { authorization: `Bearer ${KEY}`, [HEADER]: REAL ? process.env.PROVIDER_KEY : `ttl=${TTL}`, 'content-type': 'application/json' };
+const H = { authorization: `Bearer ${KEY}`, 'content-type': 'application/json' };
+if (!REAL) H[HEADER] = `ttl=${TTL}`;
+else if (process.env.PROVIDER_KEY) H[HEADER] = process.env.PROVIDER_KEY;
 const call = async (method, path, body) => {
   const t = performance.now();
   const r = await fetch(B + path, { method, headers: H, body: body && JSON.stringify(body) });
@@ -44,7 +47,7 @@ for (const n of [1, 3, 5, 10]) {
   rows.push({ n, wall: Math.round(wall), startP50: p50(res.map((r) => r.start?.ms ?? 0)), runP50: p50(res.flatMap((r) => r.runs?.map((x) => x.ms) ?? [])), ok: n - bad.length, errors: bad.map((b) => b.error || 'run/stop failed') });
   if (n === 10) globalThis.last = res;
 }
-console.log(`provider: ${PROVIDER}${REAL ? ' (real pods, all stopped after use)' : ' (demo, simulated)'}`);
+console.log(`provider: ${PROVIDER}${REAL ? ` (real pods, all stopped after use, ${VIA})` : ' (demo, simulated)'}`);
 console.log('n  | wall ms | start p50 ms | run p50 ms | ok');
 for (const r of rows) console.log(`${String(r.n).padEnd(2)} | ${r.wall} | ${r.startP50} | ${r.runP50} | ${r.ok}/${r.n}${r.errors.length ? ' ' + r.errors[0] : ''}`);
 
