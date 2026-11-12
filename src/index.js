@@ -5,6 +5,7 @@ import { bearer, githubAuthorizeUrl, githubLogin } from './auth.js';
 import { homePage, messagePage, shell } from './page.js';
 import { docsPage, skillMd, DOCS_CSS } from './docs.js';
 import { pricingPage, PRICING_CSS } from './pricing.js';
+import { measured, podlyticsData, podlyticsPage } from './podlytics.js';
 import { cabinetPage } from './console.js';
 import { connectedKeys, connectProvider, disconnectProvider, listConnections, checkLimits, createKey, getLimits, LIMIT_DEFAULTS, listCalls, listKeys, listPods, logCall, loginForKey, podListItem, podRef, podStatus, podsStartedToday, recordPod, revokeKey, setLimits } from './store.js';
 import { overMinuteLimit, PODS_PER_DAY } from './limit.js';
@@ -136,10 +137,13 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
     return html(homePage({ origin, prices: priceTable(providers), size: DEFAULT_SIZE }), 200, { 'cache-control': 'public, max-age=300' });
   }
   if (request.method === 'GET' && path === '/robots.txt') {
-    return new Response('User-agent: *\nAllow: /$\nAllow: /pricing\nAllow: /docs\nAllow: /SKILL.md\nDisallow: /\n', { headers: { 'content-type': 'text/plain' } });
+    return new Response('User-agent: *\nAllow: /$\nAllow: /pricing\nAllow: /podlytics\nAllow: /docs\nAllow: /SKILL.md\nDisallow: /\n', { headers: { 'content-type': 'text/plain' } });
   }
   if (request.method === 'GET' && path === '/docs') return html(docsPage(origin, (t, b) => shell(t, b, DOCS_CSS)), 200, { 'cache-control': 'public, max-age=300' });
   if (request.method === 'GET' && path === '/pricing') return html(pricingPage(origin, providers, (t, b) => shell(t, b, PRICING_CSS)), 200, { 'cache-control': 'public, max-age=300' });
+  if (request.method === 'GET' && path === '/podlytics') {
+    return html(podlyticsPage(podlyticsData(providers, await measured(env))), 200, { 'cache-control': 'public, max-age=300' });
+  }
   if (request.method === 'GET' && (path === '/SKILL.md' || path === '/skill.md')) {
     return new Response(skillMd(origin), { headers: { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'public, max-age=300', 'access-control-allow-origin': '*' } });
   }
