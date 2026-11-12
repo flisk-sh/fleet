@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { LOGO_IMAGES } from '../src/logo-images.js';
 import { initials, logoSvg } from '../src/logos.js';
 import { PROVIDERS } from '../src/providers/index.js';
 
@@ -10,14 +11,18 @@ describe('provider logos', () => {
     expect(initials('Demo (simulated)')).toBe('DE');
   });
 
-  test('every provider gets an svg logo with its initials and a unique gradient id', () => {
-    const ids = Object.keys(PROVIDERS);
-    const gradients = ids.map((id) => logoSvg(id, PROVIDERS[id].label).match(/id="(lg-[a-z0-9]+)"/)[1]);
-    expect(new Set(gradients).size).toBe(ids.length);
-    for (const id of ids) {
-      const svg = logoSvg(id, PROVIDERS[id].label, 34);
-      expect(svg.startsWith('<svg')).toBe(true);
-      expect(svg).toContain(`>${initials(PROVIDERS[id].label)}</text>`);
+  test('every provider with an official mark embeds it as a PNG or JPEG data URI', () => {
+    for (const id of Object.keys(LOGO_IMAGES)) {
+      expect(PROVIDERS[id]).toBeDefined();
+      expect(LOGO_IMAGES[id]).toMatch(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/);
+      expect(logoSvg(id, PROVIDERS[id].label)).toContain(`src="${LOGO_IMAGES[id]}"`);
+    }
+  });
+
+  test('providers without an official mark get a letter tile', () => {
+    for (const id of ['isorun', 'demo']) {
+      expect(LOGO_IMAGES[id]).toBeUndefined();
+      expect(logoSvg(id, PROVIDERS[id].label)).toContain(`>${initials(PROVIDERS[id].label)}</span>`);
     }
   });
 
