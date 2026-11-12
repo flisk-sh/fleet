@@ -407,10 +407,10 @@ describe('try a pod', () => {
 });
 
 describe('MCP', () => {
-  test('lists three tools and creates a pod', async () => {
+  test('lists the tools and creates a pod', async () => {
     const { req } = await setup();
     const list = await (await req('POST', '/mcp', { jsonrpc: '2.0', id: 1, method: 'tools/list' })).json();
-    expect(list.result.tools.map((t) => t.name)).toEqual(['pod_create', 'pod_run', 'pod_stop']);
+    expect(list.result.tools.map((t) => t.name)).toEqual(['pod_create', 'pod_run', 'pod_write_file', 'pod_read_file', 'pod_list', 'pod_stop']);
     const call = await (await req('POST', '/mcp', { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'pod_create', arguments: {} } })).json();
     expect(call.result.isError).toBe(false);
     expect(JSON.parse(call.result.content[0].text).provider).toBe('mid');

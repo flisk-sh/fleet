@@ -264,7 +264,7 @@ ${rows}
 <div>
 <p class="m label">MCP</p>
 <h2>Give it to your agent</h2>
-<p class="lede" style="font-size:16px">Add fleet to Claude Code or Cursor. Your agent gets three tools: pod_create, pod_run, pod_stop.</p>
+<p class="lede" style="font-size:16px">Add fleet to Claude Code or Cursor. Your agent gets six tools: pod_create, pod_run, pod_write_file, pod_read_file, pod_list, pod_stop.</p>
 </div>
 <pre>{ "mcpServers": { "fleet": {
     "type": "http",

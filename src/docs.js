@@ -2,7 +2,7 @@
 // code tabs (curl, TypeScript, Python), "Copy page", and an on-this-page list on wide screens.
 import { esc } from './page.js';
 
-const METHOD = { GET: 'GET', POST: 'POST', DELETE: 'DEL' };
+const METHOD = { GET: 'GET', POST: 'POST', PUT: 'PUT', DELETE: 'DEL' };
 
 // Each endpoint: what it does, its body, its answer, and the same call in three languages.
 export function endpoints(origin) {
@@ -31,11 +31,56 @@ export function endpoints(origin) {
       path: '/v1/pods/:id/run',
       title: 'Run a command',
       text: 'Runs one shell command in the pod and waits for it, up to 10 minutes. Send the same provider key you started the pod with.',
-      body: [['command', 'a shell command', 'required']],
-      answer: '200 {"stdout":"hello\\n","stderr":"","exitCode":0}. A pod the provider already stopped answers 410 "this pod is gone".',
+      body: [
+        ['command', 'a shell command', 'required'],
+        ['cwd', 'folder to run in', 'none'],
+        ['env', 'object of variable names to values, for this command only', 'none'],
+        ['timeout', 'seconds, 1 to 3600; the answer then has timedOut', 'none'],
+      ],
+      answer: '200 {"stdout":"hello\\n","stderr":"","exitCode":0}. With timeout it also has "timedOut" (exit code 124 when true). A pod the provider already stopped answers 410 "this pod is gone".',
       curl: `curl -X POST ${origin}/v1/pods/$POD_ID/run \\\n  ${auth} \\\n  -H "X-Daytona-Key: $DAYTONA_KEY" \\\n  -d '{"command":"echo hello"}'`,
       ts: `const out = await fetch(\`${origin}/v1/pods/\${pod.id}/run\`, {\n  method: "POST",\n  headers: { Authorization: \`Bearer \${process.env.FLEET_KEY}\`, "X-Daytona-Key": process.env.DAYTONA_KEY },\n  body: JSON.stringify({ command: "echo hello" }),\n}).then((r) => r.json());`,
       py: `out = requests.post(\n    f"${origin}/v1/pods/{pod['id']}/run",\n    headers={"Authorization": f"Bearer {os.environ['FLEET_KEY']}", "X-Daytona-Key": os.environ["DAYTONA_KEY"]},\n    json={"command": "echo hello"},\n).json()`,
+    },
+    {
+      id: 'write',
+      method: 'PUT',
+      path: '/v1/pods/:id/files',
+      title: 'Write a file',
+      text: 'Writes a file in the pod and makes its folders. Text by default; send binary as base64. At most 256 KB a call. Works on every provider, because fleet does it with one shell command.',
+      body: [
+        ['path', 'where in the pod, absolute or from the home folder', 'required'],
+        ['content', 'the file, as text or base64', 'required'],
+        ['encoding', 'utf8 or base64', 'utf8'],
+      ],
+      answer: '200 {"path":"app/main.py","bytes":9}',
+      curl: `curl -X PUT ${origin}/v1/pods/$POD_ID/files \\\n  ${auth} \\\n  -H "X-Daytona-Key: $DAYTONA_KEY" \\\n  -d '{"path":"app/main.py","content":"print(42)"}'`,
+      ts: `await fetch(\`${origin}/v1/pods/\${pod.id}/files\`, {\n  method: "PUT",\n  headers: { Authorization: \`Bearer \${process.env.FLEET_KEY}\`, "X-Daytona-Key": process.env.DAYTONA_KEY },\n  body: JSON.stringify({ path: "app/main.py", content: "print(42)" }),\n});`,
+      py: `requests.put(\n    f"${origin}/v1/pods/{pod['id']}/files",\n    headers={"Authorization": f"Bearer {os.environ['FLEET_KEY']}", "X-Daytona-Key": os.environ["DAYTONA_KEY"]},\n    json={"path": "app/main.py", "content": "print(42)"},\n)`,
+    },
+    {
+      id: 'read',
+      method: 'GET',
+      path: '/v1/pods/:id/files?path=',
+      title: 'Read a file',
+      text: 'Reads a file from the pod. Text comes back as text; a file that is not UTF-8 comes back as base64. At most 256 KB.',
+      body: [],
+      answer: '200 {"path":"app/main.py","bytes":9,"encoding":"utf8","content":"print(42)"}. 404 when the file is not there, 413 when it is too big.',
+      curl: `curl "${origin}/v1/pods/$POD_ID/files?path=app/main.py" \\\n  ${auth} \\\n  -H "X-Daytona-Key: $DAYTONA_KEY"`,
+      ts: `const file = await fetch(\`${origin}/v1/pods/\${pod.id}/files?path=app/main.py\`, {\n  headers: { Authorization: \`Bearer \${process.env.FLEET_KEY}\`, "X-Daytona-Key": process.env.DAYTONA_KEY },\n}).then((r) => r.json());`,
+      py: `file = requests.get(\n    f"${origin}/v1/pods/{pod['id']}/files",\n    params={"path": "app/main.py"},\n    headers={"Authorization": f"Bearer {os.environ['FLEET_KEY']}", "X-Daytona-Key": os.environ["DAYTONA_KEY"]},\n).json()`,
+    },
+    {
+      id: 'list',
+      method: 'GET',
+      path: '/v1/pods',
+      title: 'List pods',
+      text: 'Your pods, newest first, with provider, size, price and status: running, stopped, gone or likely-stopped. Add ?status=running to see only running ones. Needs only your fleet key.',
+      body: [],
+      answer: '200 {"pods":[{"id":"pod_daytona_…","provider":"daytona","cpu":2,"ram":4,"pricePerHour":0.166,"started":"2026-11-12T18:00:00Z","stopped":null,"status":"running"}]}',
+      curl: `curl "${origin}/v1/pods?status=running" \\\n  ${auth}`,
+      ts: `const { pods } = await fetch("${origin}/v1/pods?status=running", {\n  headers: { Authorization: \`Bearer \${process.env.FLEET_KEY}\` },\n}).then((r) => r.json());`,
+      py: `pods = requests.get(\n    "${origin}/v1/pods",\n    params={"status": "running"},\n    headers={"Authorization": f"Bearer {os.environ['FLEET_KEY']}"},\n).json()["pods"]`,
     },
     {
       id: 'stop',
@@ -98,7 +143,7 @@ One API for every agent pod. Fleet starts each pod on the cheapest provider you 
 
 1. Ask the user for a fleet key (they make one at ${origin}/console?section=keys). Keep it in FLEET_KEY.
 2. Ask the user to connect at least one provider (boat, Isorun, E2B or Daytona) on ${origin}/console?section=providers. Then only the fleet key is needed. Without a connection, send the provider key in its header. To try first without any, send \`X-Demo-Key: demo\`.
-3. Or add fleet as an MCP server: url ${origin}/mcp, the same headers. Tools: pod_create, pod_run, pod_stop.
+3. Or add fleet as an MCP server: url ${origin}/mcp, the same headers. Tools: pod_create, pod_run, pod_write_file, pod_read_file, pod_list, pod_stop.
 
 ## Headers
 
@@ -170,7 +215,7 @@ ${nav}
 </section>
 <section class="ep" id="headers"><h2>Keys and headers</h2><p>Connect each provider once on the cabinet's Providers page and fleet keeps the key encrypted, so calls need only the fleet key. Or send a provider key with each call in its header; header keys are never stored. A header key wins over a connected one.</p><div class="scroll"><table><tr><th>Header</th><th>What goes in it</th></tr>${HEADERS.map(([h, t]) => `<tr><td class="n">${esc(h)}</td><td>${esc(t)}</td></tr>`).join('')}</table></div></section>
 ${sections}
-<section class="ep" id="mcp"><h2>MCP</h2><p>The same calls as tools for Claude Code, Cursor or any MCP client: pod_create, pod_run, pod_stop.</p>
+<section class="ep" id="mcp"><h2>MCP</h2><p>The same calls as tools for Claude Code, Cursor or any MCP client: pod_create, pod_run, pod_write_file, pod_read_file, pod_list, pod_stop.</p>
 <div class="tabs" data-tabs><div class="tabbar"><button type="button" class="on" data-tab="cc">Claude Code</button><button type="button" data-tab="cu">Cursor</button><button type="button" class="cp" data-copy-tab>Copy</button></div>
 <pre data-pane="cc">claude mcp add --transport http fleet ${esc(origin)}/mcp \\
   --header "Authorization: Bearer $FLEET_KEY" \\

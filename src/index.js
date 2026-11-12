@@ -249,7 +249,7 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
   }
   if (path === '/v1/pods' && request.method === 'GET') {
     const want = url.searchParams.get('status');
-    const pods = (await listPods(env, login)).filter((p) => !p.failedStart).map((p) => ({ ...podListItem(p), status: podStatus(p) }));
+    const pods = await ctx.listPods();
     return json(200, { pods: want ? pods.filter((p) => p.status === want) : pods });
   }
   const m = /^\/v1\/pods\/([^/]+)(\/run|\/files)?$/.exec(path);

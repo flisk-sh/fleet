@@ -31,17 +31,22 @@ curl -X POST https://fleet.flisk.si/v1/pods \
 | Call | Body | Returns |
 |---|---|---|
 | `POST /v1/pods` | `cpu`, `ram`, `provider?`, `order?` | `id`, `provider`, `pricePerHour`, `failed` |
-| `POST /v1/pods/:id/run` | `command` | `stdout`, `stderr`, `exitCode` |
+| `POST /v1/pods/:id/run` | `command`, `cwd?`, `env?`, `timeout?` | `stdout`, `stderr`, `exitCode`, `timedOut` (with `timeout`) |
+| `PUT /v1/pods/:id/files` | `path`, `content`, `encoding?` (`utf8` or `base64`) | `path`, `bytes` |
+| `GET /v1/pods/:id/files?path=` | | `path`, `bytes`, `encoding`, `content` |
+| `GET /v1/pods?status=` | | `pods`: id, provider, size, price, times, status |
 | `DELETE /v1/pods/:id` | | `stopped` |
 | `GET /v1/prices` | | price table, no key needed |
 
 - Without `provider` or `order`, fleet sorts your providers by list price for the size you ask for.
 - `failed` lists the providers that were tried before the one that started the pod.
+- `cwd`, `env`, `timeout` and the file calls are shell commands fleet builds on top of run, so they work the same on every provider with no extra adapter code. Files move at most 256 KB a call. A timed-out command ends with exit code 124 and `timedOut: true`.
+- `GET /v1/pods` needs only the fleet key. E2B ids in the list lack the access token, so keep the id `POST /v1/pods` gave you to run commands there.
 - A pod id holds the provider name and the provider's own id. For E2B it also holds that pod's access token, so treat pod ids as private.
 
 ## MCP
 
-`POST /mcp` is an MCP server with three tools: `pod_create`, `pod_run`, `pod_stop`.
+`POST /mcp` is an MCP server with six tools: `pod_create`, `pod_run`, `pod_write_file`, `pod_read_file`, `pod_list`, `pod_stop`.
 
 ```json
 { "mcpServers": { "fleet": {
