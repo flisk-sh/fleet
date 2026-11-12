@@ -1,5 +1,5 @@
 // The cabinet: same layout as inference.flisk.si's console (sidebar, title with a beta tag, ruled tables), in black and white.
-import { CSS, esc } from './page.js';
+import { CSS, esc, FONTS, FLISK_BAR } from './page.js';
 import { MAX_KEYS, podStatus, summarize } from './store.js';
 
 const SECTIONS = [
@@ -26,42 +26,45 @@ export const KEY_PAGE = {
 };
 
 const CABINET_CSS = `
-.cab{display:grid;grid-template-columns:210px minmax(0,1fr);min-height:100vh}
-.side{border-right:1.5px solid var(--ink);padding:16px;display:flex;flex-direction:column;gap:4px}
-.side .logo{display:block;margin-bottom:18px}
-.side a.nav{display:block;padding:8px 10px;text-decoration:none;border:1.5px solid transparent}
+.cab{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:calc(100vh - 34px);max-width:1440px;margin:0 auto;border-left:1px solid var(--ink);border-right:1px solid var(--ink)}
+.side{border-right:1px solid var(--ink);padding:22px 18px;display:flex;flex-direction:column;gap:3px}
+.side .logo{margin:0 0 26px}
+.side a.nav{display:block;padding:9px 10px;text-decoration:none;font:12px/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;border:1px solid transparent}
 .side a.nav:hover{border-color:var(--ink)}
 .side a.on{background:var(--ink);color:var(--paper)}
-.side .me{margin-top:auto;padding-top:16px;border-top:1.5px solid var(--ink);display:flex;flex-direction:column;gap:8px}
+.side .me{margin-top:auto;padding-top:16px;border-top:1px solid var(--ink);display:flex;flex-direction:column;gap:10px;font:12px/1.2 var(--mono)}
 .side form{margin:0}
-.main{padding:0 24px 64px;min-width:0}
-.top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 0;border-bottom:1.5px solid var(--ink)}
-.top h1{font-size:28px;margin:0;max-width:none;display:flex;align-items:center;gap:12px}
-.tag{font:12px/1 ui-monospace,Menlo,monospace;border:1.5px solid var(--ink);padding:4px 7px;letter-spacing:.06em}
-.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1.5px solid var(--ink);margin-top:22px}
-.metrics>div{padding:16px}
-.metrics>div+div{border-left:1.5px solid var(--ink)}
-.metrics b{display:block;font-size:30px;font-weight:700;font-family:ui-sans-serif,system-ui,Helvetica,Arial,sans-serif}
-.metrics span{color:var(--dim)}
-.bar{display:inline-block;height:10px;background:var(--ink);vertical-align:middle}
+.main{padding:0 40px 72px;min-width:0}
+.ctop{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:26px 0 20px;border-bottom:1px solid var(--ink)}
+.ctop h1{font:800 clamp(32px,4vw,46px)/1 var(--serif);letter-spacing:-.035em;margin:0;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.main h2{font:12px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin:36px 0 12px}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--ink);background:var(--card);margin-top:22px}
+.metrics>div{padding:18px}
+.metrics>div+div{border-left:1px solid var(--ink)}
+.metrics b{display:block;font:800 40px/1 var(--serif);letter-spacing:-.03em;margin-bottom:8px}
+.metrics span{color:var(--dim);font-size:13px}
+.bar{display:inline-block;height:10px;background:var(--green);vertical-align:middle}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:22px}
-input[type=text]{font:inherit;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);padding:7px 10px;min-width:240px}
-.box{border:1.5px solid var(--ink);padding:14px;margin-top:22px}
-.box.inv{background:var(--ink);color:var(--paper)}
-.box.inv code{word-break:break-all;font-size:15px}
-.err{border:1.5px dashed var(--ink);padding:10px 14px;margin-top:22px}
-.start{border:1.5px solid var(--ink);margin-top:22px}
-.start>div{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px}
-.start>div+div{border-top:1.5px solid var(--ink)}
-.start i{font-style:normal;border:1.5px solid var(--ink);width:28px;height:28px;line-height:25px;text-align:center}
-.start .done i{background:var(--ink);color:var(--paper)}
-.start b{display:block}
+input[type=text],input[type=password],select{font:14px/1.2 var(--mono);border:1px solid var(--ink);background:var(--card);color:var(--ink);padding:10px 12px;min-width:240px}
+input:disabled{opacity:.55}
+.box{border:1px solid var(--ink);background:var(--card);padding:16px;margin-top:22px}
+.box.inv{background:var(--night);color:var(--glow);border-color:var(--night)}
+.box.inv code{word-break:break-all;font:15px/1.4 var(--mono)}
+.box.inv .b{color:var(--glow);border-color:var(--glow)}
+.err{border:1px dashed var(--ink);background:var(--card);padding:12px 14px;margin-top:22px}
+#err{border:1px dashed var(--ink);padding:10px 12px;background:var(--paper)}
+.start{border:1px solid var(--ink);background:var(--card);margin-top:22px}
+.start>div{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:14px;align-items:center;padding:16px}
+.start>div+div{border-top:1px solid var(--ink)}
+.start i{font:500 12px/26px var(--mono);font-style:normal;border:1px solid var(--ink);width:28px;height:28px;text-align:center}
+.start .done i{background:var(--green);border-color:var(--green);color:#fff}
+.start b{display:block;font-weight:600}
 .start span{color:var(--dim)}
-.sk{display:block;height:14px;background:var(--ink);opacity:.18;animation:pulse 1.2s ease-in-out infinite}
-.sk.big{height:30px;width:60%;margin-bottom:8px}
-@keyframes pulse{50%{opacity:.06}}
+.sk{display:block;height:14px;background:var(--ink);opacity:.16;animation:pulse 1.2s ease-in-out infinite}
+.sk.big{height:34px;width:60%;margin-bottom:8px}
+@keyframes pulse{50%{opacity:.05}}
 @media (prefers-reduced-motion:reduce){.sk{animation:none}}
-@media (max-width:760px){.cab{grid-template-columns:1fr}.side{border-right:0;border-bottom:1.5px solid var(--ink);flex-direction:row;flex-wrap:wrap}.side .logo{width:100%;margin-bottom:6px}.side .me{margin-top:0;border-top:0;padding-top:0;flex-direction:row;width:100%}.main{padding:0 16px 48px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics>div:nth-child(3){border-left:0}.metrics>div:nth-child(n+3){border-top:1.5px solid var(--ink)}}
+@media (max-width:820px){.cab{grid-template-columns:1fr}.side{border-right:0;border-bottom:1px solid var(--ink);flex-direction:row;flex-wrap:wrap;padding:14px}.side .logo{width:100%;margin-bottom:8px}.side .me{margin-top:0;border-top:0;padding-top:4px;flex-direction:row;align-items:center;width:100%}.main{padding:0 16px 48px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics>div:nth-child(3){border-left:0}.metrics>div:nth-child(n+3){border-top:1px solid var(--ink)}input[type=text],input[type=password],select{min-width:0;width:100%}}
 `;
 
 const when = (iso) => (iso ? iso.replace('T', ' ').slice(0, 16) + ' UTC' : 'never');
@@ -76,16 +79,18 @@ function shell({ login, section, title, body }) {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
 <title>${esc(title)} · fleet</title>
+<meta name="theme-color" content="#f7f5e4">
+${FONTS}
 <style>${CSS}${CABINET_CSS}</style>
 </head>
-<body><div class="cab">
+<body>${FLISK_BAR}<div class="cab">
 <aside class="side">
-<a class="logo" href="/">fleet.flisk.si</a>
+<a class="logo" href="/"><span class="mark">&gt;_</span>fleet</a>
 ${nav}
 <div class="me"><span>@${esc(login)}</span><form method="post" action="/auth/signout"><button class="b" type="submit">Sign out</button></form></div>
 </aside>
 <main class="main">
-<div class="top"><h1>${esc(title)} <span class="tag">BETA</span></h1><a class="b" href="/">Home</a></div>
+<div class="ctop"><h1>${esc(title)} <span class="pill"><i></i>Beta</span></h1><a class="b" href="/">Home</a></div>
 ${body}
 </main>
 </div></body></html>`;
@@ -192,8 +197,8 @@ function trySection(prices, providers) {
   const pages = JSON.stringify(Object.fromEntries(Object.entries(KEY_PAGE).map(([k, v]) => [k, v.url])));
   return `<p class="note">Pick Demo to see the whole flow with no account: a simulated pod that fleet runs itself. Pick a provider to start one real pod on your own account, run one command, and stop it. Fleet times each step. Your provider key goes to the provider for this one call and is not stored; tick the box to keep it in this browser only.</p>
 <form id="try" class="box" autocomplete="off">
-<div class="row" style="margin-top:0"><label>Provider <select id="prov" style="font:inherit;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);padding:6px 8px">${opts}</select></label><a id="getkey" class="note" style="margin:0" target="_blank" rel="noopener" href="#">Get a key</a></div>
-<div class="row"><input type="password" id="pkey" placeholder="Your provider API key" aria-label="Provider API key" style="font:inherit;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);padding:7px 10px;flex:1;min-width:240px"></div>
+<div class="row" style="margin-top:0"><label>Provider <select id="prov">${opts}</select></label><a id="getkey" class="note" style="margin:0" target="_blank" rel="noopener" href="#">Get a key</a></div>
+<div class="row"><input type="password" id="pkey" placeholder="Your provider API key" aria-label="Provider API key" style="flex:1"></div>
 <div class="row"><input type="text" id="cmd" value="uname -sr; nproc; free -m | head -2" aria-label="Command" style="flex:1"></div>
 <div class="row"><label><input type="checkbox" id="remember"> Remember this key in this browser</label><button class="b inv" type="submit" id="go">Start pod</button></div>
 <p id="err" class="note" style="display:none"></p>
