@@ -6,7 +6,9 @@ CREATE TABLE IF NOT EXISTS keys (
   name TEXT NOT NULL,
   hint TEXT NOT NULL DEFAULT '',
   created TEXT,
-  last_used TEXT
+  last_used TEXT,
+  scope TEXT NOT NULL DEFAULT 'full'   -- 'full' or 'read' (read-only: list pods, read files)
+  -- On a database made before scope existed, run once: ALTER TABLE keys ADD COLUMN scope TEXT NOT NULL DEFAULT 'full';
 );
 CREATE INDEX IF NOT EXISTS keys_login ON keys (login);
 

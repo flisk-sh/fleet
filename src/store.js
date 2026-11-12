@@ -17,7 +17,7 @@ const parse = (s, fallback) => {
     return fallback;
   }
 };
-const keyRow = (r) => ({ id: r.id, name: r.name, hash: r.hash, hint: r.hint, created: r.created, lastUsed: r.last_used });
+const keyRow = (r) => ({ id: r.id, name: r.name, hash: r.hash, hint: r.hint, created: r.created, lastUsed: r.last_used, scope: r.scope === 'read' ? 'read' : 'full' });
 const podRow = (r) => ({
   ref: r.ref,
   provider: r.provider,
@@ -36,7 +36,7 @@ export async function listKeys(env, login) {
   return results.map(keyRow);
 }
 
-export async function createKey(env, login, name) {
+export async function createKey(env, login, name, scope = 'full') {
   const list = await listKeys(env, login);
   if (list.length >= MAX_KEYS) return { error: `You have ${MAX_KEYS} keys. Revoke one first.`, list };
   const key = newFleetKey();
@@ -48,10 +48,18 @@ export async function createKey(env, login, name) {
     hint: `${key.slice(0, 10)}…${key.slice(-4)}`,
     created: nowIso(),
     lastUsed: null,
+    scope: scope === 'read' ? 'read' : 'full',
   };
-  await env.DB.prepare('INSERT INTO keys (hash, id, login, name, hint, created) VALUES (?, ?, ?, ?, ?, ?)')
-    .bind(entry.hash, entry.id, login, entry.name, entry.hint, entry.created)
-    .run();
+  // A full key is written without the scope column, so a database not yet migrated still works.
+  if (entry.scope === 'read') {
+    await env.DB.prepare('INSERT INTO keys (hash, id, login, name, hint, created, scope) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(entry.hash, entry.id, login, entry.name, entry.hint, entry.created, 'read')
+      .run();
+  } else {
+    await env.DB.prepare('INSERT INTO keys (hash, id, login, name, hint, created) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(entry.hash, entry.id, login, entry.name, entry.hint, entry.created)
+      .run();
+  }
   return { key, entry, list: [entry, ...list] };
 }
 
@@ -63,16 +71,21 @@ export async function revokeKey(env, login, id) {
 
 // API side: fleet key -> login. "Last used" is written at most once a day a key, to save writes.
 export async function loginForKey(env, key) {
+  return (await accessForKey(env, key))?.login ?? null;
+}
+
+// Same lookup, with the key's scope: { login, scope } where scope is 'full' or 'read'.
+export async function accessForKey(env, key) {
   if (!key || !key.startsWith('fleet_') || !env.DB) return null;
   const hash = await sha256(key);
-  const row = await env.DB.prepare('SELECT login, last_used FROM keys WHERE hash = ?').bind(hash).first();
+  const row = await env.DB.prepare('SELECT * FROM keys WHERE hash = ?').bind(hash).first();
   if (!row) return null;
   if (Date.now() - Date.parse(row.last_used || 0) > DAY) {
     try {
       await env.DB.prepare('UPDATE keys SET last_used = ? WHERE hash = ?').bind(nowIso(), hash).run();
     } catch {}
   }
-  return row.login;
+  return { login: row.login, scope: row.scope === 'read' ? 'read' : 'full' };
 }
 
 // The pod id may hold a provider token (E2B), so only the part before "~" is kept.

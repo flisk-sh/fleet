@@ -417,6 +417,46 @@ describe('MCP', () => {
     const bad = await (await req('POST', '/mcp', { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'pod_run', arguments: { id: 'x', command: 'ls' } } })).json();
     expect(bad.result.isError).toBe(true);
   });
+  test('tools/list marks read-only and destructive tools', async () => {
+    const { req } = await setup();
+    const list = await (await req('POST', '/mcp', { jsonrpc: '2.0', id: 1, method: 'tools/list' })).json();
+    const by = Object.fromEntries(list.result.tools.map((t) => [t.name, t.annotations]));
+    expect(by.pod_list.readOnlyHint).toBe(true);
+    expect(by.pod_read_file.readOnlyHint).toBe(true);
+    expect(by.pod_stop.destructiveHint).toBe(true);
+    expect(by.pod_create.openWorldHint).toBe(true);
+    expect(by.pod_run.openWorldHint).toBe(true);
+    for (const n of ['pod_create', 'pod_run', 'pod_write_file', 'pod_stop']) expect(by[n].readOnlyHint).toBe(false);
+  });
+  test('a read-only key sees only the read tools and gets an error from pod_run', async () => {
+    const { env, req } = await setup();
+    const ro = (await createKey(env, 'octo', 'monitor', 'read')).key;
+    const as = { authorization: `Bearer ${ro}` };
+    const list = await (await req('POST', '/mcp', { jsonrpc: '2.0', id: 1, method: 'tools/list' }, as)).json();
+    expect(list.result.tools.map((t) => t.name)).toEqual(['pod_read_file', 'pod_list']);
+    for (const name of ['pod_run', 'pod_create', 'pod_write_file', 'pod_stop']) {
+      const r = await (await req('POST', '/mcp', { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name, arguments: { id: 'pod_mid_x', command: 'ls', path: '/a', content: 'x' } } }, as)).json();
+      expect(r.error.message).toContain('read-only');
+    }
+    const ok = await (await req('POST', '/mcp', { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'pod_list', arguments: {} } }, as)).json();
+    expect(ok.result.isError).toBe(false);
+  });
+  test('a read-only key is refused on the write routes of the HTTP API but can list pods', async () => {
+    const { env, req } = await setup();
+    const ro = (await createKey(env, 'octo', 'monitor', 'read')).key;
+    const as = { authorization: `Bearer ${ro}` };
+    expect((await req('GET', '/v1/pods', undefined, as)).status).toBe(200);
+    expect((await req('POST', '/v1/pods', {}, as)).status).toBe(403);
+    expect((await req('POST', '/v1/pods/pod_mid_x/run', { command: 'ls' }, as)).status).toBe(403);
+    expect((await req('PUT', '/v1/pods/pod_mid_x/files', { path: '/a', content: 'x' }, as)).status).toBe(403);
+    expect((await req('DELETE', '/v1/pods/pod_mid_x', undefined, as)).status).toBe(403);
+    expect((await req('POST', '/v1/pods', {})).status).toBe(201);
+  });
+  test('the cabinet makes a read-only key', async () => {
+    const { env, page } = await setup();
+    await page('POST', '/console/keys', { name: 'monitor', scope: 'read' });
+    expect(env.DB.raw.query("SELECT scope FROM keys WHERE name = 'monitor'").get().scope).toBe('read');
+  });
   test('initialize and notification', async () => {
     const { req } = await setup();
     const init = await (await req('POST', '/mcp', { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} })).json();
