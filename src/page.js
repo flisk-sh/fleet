@@ -53,6 +53,7 @@ h1 em{font-style:normal;color:var(--green)}
 .lede{font-size:17px;line-height:1.5;max-width:44ch;margin:0 0 6px}
 .cmd{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--ink);background:var(--card);padding:8px 8px 8px 14px;font:13px/1.3 var(--mono);max-width:440px;margin-bottom:14px}
 .cmd code::before{content:'$ ';color:var(--dim)}
+.cmd code{min-width:0;overflow-wrap:anywhere}.cmd button{flex-shrink:0}
 .cmd button{font:11px/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;border:1px solid var(--ink);background:transparent;padding:6px 9px;cursor:pointer}
 .cta-row{display:flex;gap:10px;flex-wrap:wrap}
 .art{border-left:1px solid var(--ink);display:block;width:100%;height:100%;min-height:420px}
