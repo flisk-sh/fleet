@@ -1,9 +1,8 @@
 // Blaxel (blaxel.ai) sandboxes. API: https://docs.blaxel.ai/api-reference/introduction · prices: https://blaxel.ai/pricing
 // Control plane on api.blaxel.ai/v0; commands go to the sandbox's own host (metadata.url).
 // Blaxel bills memory only: a sandbox gets 1 vCPU for every 2 GB, so fleet asks for enough memory for the cores.
-// Coming soon: written from the docs on 2026-11-12, never run on a real account.
-// Guesses: the plain API key is accepted on the sandbox host (the docs say "Bearer (JWT)"), and a waited command
-// answers within 60 s (Blaxel's limit for waitForCompletion).
+// Working: run on a real account on 2026-11-12. The plain API key is accepted on the sandbox host, and a waited
+// command answers within 60 s (Blaxel's limit for waitForCompletion). Blaxel's image has busybox timeout: see wrapCommand.
 // A key may be sent as "<workspace>:<key>" for accounts with several workspaces.
 import { call } from './http.js';
 
@@ -32,7 +31,7 @@ const unpack = (s) => {
 export default {
   label: 'Blaxel',
   keyHeader: 'X-Blaxel-Key',
-  help: 'https://github.com/flisk-sh/fleet/issues/4',
+  working: '2026-11-12', // real account run: start, run with env/cwd/timeout, files, timeout (exit 124), stop, stop again
   priceSource: 'https://blaxel.ai/pricing',
   note: 'Billed on memory only (1 vCPU per 2 GB); standby is free. Commands answer within 60 s.',
   price: (size) => {
@@ -53,6 +52,13 @@ export default {
     startsPerDay: null,
     badges: ['$200 credit', 'No card', 'Free standby'],
     source: 'https://blaxel.ai/pricing',
+    signup: 'https://app.blaxel.ai',
+    keyPage: 'https://app.blaxel.ai/profile/security',
+    // Blaxel gives two values for one key: BL_WORKSPACE and BL_API_KEY. Joined as "workspace:key".
+    fields: [
+      { id: 'workspace', label: 'Workspace', placeholder: 'BL_WORKSPACE, e.g. my-workspace-123456' },
+      { id: 'key', label: 'API key', placeholder: 'BL_API_KEY, starts with bl_', secret: true },
+    ],
   },
 
   async create(key, size, { fetchImpl = fetch } = {}) {

@@ -1,5 +1,6 @@
 // The cabinet: same layout as inference.flisk.si's console (sidebar, title with a beta tag, ruled tables), in black and white.
 import { CSS, esc, FONTS, FLISK_BAR, statusTag } from './page.js';
+import { fieldsOf } from './providers/fields.js';
 import { LIMIT_RANGES, MAX_KEYS, podStatus, summarize } from './store.js';
 
 const SECTIONS = [
@@ -99,6 +100,7 @@ input:disabled{opacity:.55}
 .b.on{background:var(--ink);color:var(--paper)}
 .conn{display:flex;gap:8px;align-items:center;border-top:1px solid var(--ink);padding-top:10px}
 .conn input{flex:1;min-width:0;font-size:13px;padding:9px 10px}
+.conn{flex-wrap:wrap}.conn input{flex:1 1 100%}.conn button{margin-left:auto}
 .conn.on{justify-content:space-between;color:var(--green);font:13px var(--mono)}
 .conn.on i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:8px}
 td.nw{white-space:nowrap}
@@ -253,7 +255,10 @@ function connectBox(p, conn, canConnect) {
   if (conn) {
     return `<form class="conn on" method="post" action="/console/providers/${esc(p.provider)}/disconnect" onsubmit="return confirm('Disconnect ${esc(p.label)}? Fleet deletes the saved key; your agent must send it again.')"><span><i></i>Connected · key ending ${esc(conn.hint)}</span><button class="b" type="submit">Disconnect</button></form>`;
   }
-  return `<form class="conn" method="post" action="/console/providers/${esc(p.provider)}/connect" autocomplete="off"><input type="password" name="key" placeholder="Paste your ${esc(p.label)} API key" aria-label="${esc(p.label)} API key" required><button class="b inv" type="submit">Connect</button></form>`;
+  const inputs = fieldsOf(p.meta)
+    .map((f) => `<input type="${f.secret ? 'password' : 'text'}" name="f_${esc(f.id)}" placeholder="${esc(f.placeholder || (f.label === 'API key' ? `Paste your ${p.label} API key` : f.label))}" aria-label="${esc(p.label)} ${esc(f.label)}"${f.optional ? '' : ' required'}>`)
+    .join('');
+  return `<form class="conn" method="post" action="/console/providers/${esc(p.provider)}/connect" autocomplete="off">${inputs}<button class="b inv" type="submit">Connect</button></form>`;
 }
 
 // Provider catalog, after Monid's tools page: search, filters with counts, one card per provider with badges.

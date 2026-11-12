@@ -147,8 +147,12 @@ export function wrapCommand(command, { env, cwd, timeout } = {}) {
   }
   if (!parts.length && secs === null) return { command };
   const inner = parts.length ? `${parts.join(' && ')} && ${command}` : command;
-  // timeout(1) exits 124 when the command ran out of time; -k 5 kills it 5 s later if it ignores TERM.
-  return { command: secs === null ? `sh -c ${shq(inner)}` : `timeout -k 5 ${secs} sh -c ${shq(inner)}`, timeout: secs };
+  if (secs === null) return { command: `sh -c ${shq(inner)}`, timeout: null };
+  // GNU timeout exits 124 when the command ran out of time; busybox timeout (Blaxel's image) dies from the signal, which a
+  // provider reports as -1 (seen live 2026-11-12). So an outer shell turns "killed (exit above 123) after at least
+  // `secs` seconds" into 124 for every image. -k 5 kills a command that ignores TERM 5 s later.
+  const guarded = `t0=$(date +%s); timeout -k 5 ${secs} sh -c ${shq(inner)}; rc=$?; if [ "$rc" -gt 123 ] && [ $(( $(date +%s) - t0 )) -ge ${secs} ]; then exit 124; fi; exit $rc`;
+  return { command: `sh -c ${shq(guarded)}`, timeout: secs };
 }
 
 export const MAX_FILE_BYTES = 256 * 1024;

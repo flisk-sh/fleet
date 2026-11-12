@@ -1,6 +1,8 @@
 // /docs (people) and /SKILL.md (agents), from one source. Layout after boat's docs: endpoint list on the left,
 // code tabs (curl, TypeScript, Python), "Copy page", and an on-this-page list on wide screens.
 import { esc } from './page.js';
+import { PROVIDERS } from './providers/index.js';
+import { fieldsOf } from './providers/fields.js';
 
 const METHOD = { GET: 'GET', POST: 'POST', PUT: 'PUT', DELETE: 'DEL' };
 
@@ -118,21 +120,32 @@ const ERRORS = [
   ['502', 'Every provider you sent a key for failed. "failed" lists each one and what it said.'],
 ];
 
-const HEADERS = [
+// One row per provider, from the provider files. A credential with several parts goes in one header, the parts
+// joined with ":" in this order (the cabinet's Providers page has one input per part and does the joining).
+const headerRows = () => [
   ['Authorization', 'Bearer fleet_…, your fleet key from the cabinet. With connected providers this is the only header you need.'],
-  ['X-Boat-Key', 'your boat API key'],
-  ['X-Isorun-Key', 'your Isorun API key'],
-  ['X-E2B-Key', 'your E2B API key'],
-  ['X-Daytona-Key', 'your Daytona API key'],
+  ...Object.values(PROVIDERS)
+    .filter((p) => !p.demo)
+    .map((p) => {
+      const f = fieldsOf(p);
+      if (f.length === 1) return [p.keyHeader, `your ${p.label} API key`];
+      const shape = f.map((x) => (x.optional ? `[${x.label}]` : x.label)).join(' : ');
+      return [p.keyHeader, `your ${p.label} credentials in one value, the parts joined with colons: ${shape}${f.some((x) => x.optional) ? ' (square brackets are optional)' : ''}`];
+    }),
   ['X-Demo-Key', 'any value: a simulated pod, no provider account'],
 ];
+const HEADERS = headerRows();
+const labels = (list) => list.map((p) => p.label).join(', ').replace(/, ([^,]*)$/, ' and $1');
+const real = Object.values(PROVIDERS).filter((p) => !p.demo);
+const WORKING = labels(real.filter((p) => p.working));
+const SOON = labels(real.filter((p) => !p.working));
 
 // The same content as Markdown, for agents ("set up https://fleet.flisk.si/SKILL.md") and for "Copy page".
 export function skillMd(origin) {
   const eps = endpoints(origin);
   return `---
 name: fleet
-description: Start Linux pods for an agent on the cheapest sandbox provider the user has a key for (Daytona works today; boat, Isorun, E2B, Hopx, Runloop, Blaxel, Vercel, Fly Sprites, Morph and Upstash Box are coming soon), run commands in them, and stop them. Use when a task needs an isolated machine to run code.
+description: Start Linux pods for an agent on the cheapest sandbox provider the user has a key for (${WORKING} work today; ${SOON} are coming soon), run commands in them, and stop them. Use when a task needs an isolated machine to run code.
 ---
 
 # fleet
@@ -142,7 +155,7 @@ One API for every agent pod. Fleet starts each pod on the cheapest provider you 
 ## Set up
 
 1. Ask the user for a fleet key (they make one at ${origin}/console?section=keys). Keep it in FLEET_KEY.
-2. Ask the user to connect at least one provider (Daytona is the one that works today; the others are marked coming soon) on ${origin}/console?section=providers. Then only the fleet key is needed. Without a connection, send the provider key in its header. To try first without any, send \`X-Demo-Key: demo\`.
+2. Ask the user to connect at least one provider (${WORKING} work today; the others are marked coming soon) on ${origin}/console?section=providers. Then only the fleet key is needed. Without a connection, send the provider key in its header. To try first without any, send \`X-Demo-Key: demo\`.
 3. Or add fleet as an MCP server: url ${origin}/mcp, the same headers. Tools: pod_create, pod_run, pod_write_file, pod_read_file, pod_list, pod_stop.
 
 ## Headers

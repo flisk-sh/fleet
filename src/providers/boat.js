@@ -10,7 +10,11 @@ const TYPES = [
   { type: 'xlarge', cpu: 16, ram: 32, price: 0.2 },
 ];
 const fit = (size) => TYPES.find((t) => t.cpu >= size.cpu && t.ram >= size.ram) || null;
-const auth = (key) => ({ authorization: `Bearer ${key}` });
+// "key" or "key:organization". An account key bills the active wallet unless X-Boat-Org names an organization (boat docs).
+const auth = (key) => {
+  const [token, org] = String(key).split(':');
+  return { authorization: `Bearer ${token}`, ...(org ? { 'x-boat-org': org } : {}) };
+};
 
 export default {
   label: 'boat',
@@ -33,6 +37,11 @@ export default {
     startsPerDay: 200,
     badges: ['Cheapest per hour', 'EU only', '$20 plan'],
     source: 'https://docs.boat.dev/pricing',
+    // Joined as "key[:organization]". The organization is optional: only an account key used for an organization needs it.
+    fields: [
+      { id: 'key', label: 'API key', secret: true },
+      { id: 'org', label: 'Organization', placeholder: 'organization (optional)', optional: true },
+    ],
   },
 
   async create(key, size, { fetchImpl = fetch } = {}) {

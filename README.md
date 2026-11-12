@@ -4,23 +4,25 @@ One API for every agent pod. A pod is a Linux machine your agent can run command
 
 Fleet starts each pod on the cheapest sandbox provider you have a key for, and moves to the next one when a provider fails. You bring your own provider accounts: connect each one once in the cabinet (fleet keeps the key encrypted), or send its key with each call.
 
-Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the cabinet: up to 10 named fleet keys, your pods, an overview, providers and docs. Daytona has been run end to end on a real account. The other ten adapters are written from the providers' public API docs and tested against fake replies only.
+Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the cabinet: up to 10 named fleet keys, your pods, an overview, providers and docs. Daytona and Blaxel have been run end to end on a real account. The other nine adapters are written from the providers' public API docs and tested against fake replies only.
 
 ## Providers
 
 | Provider | Status | Header for your key | List price, 2 vCPU / 4 GB, per hour | Source |
 |---|---|---|---|---|
 | Daytona | **Working**: run end to end on a real account on 2026-11-12 | `X-Daytona-Key` | $0.166 | https://www.daytona.io/pricing |
-| boat | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/1) | `X-Boat-Key` | $0.018 | https://docs.boat.dev/pricing |
+| Blaxel | **Working**: run end to end on a real account on 2026-11-12 | `X-Blaxel-Key`: `<workspace>:<API key>` | $0.166 | https://blaxel.ai/pricing |
+| boat | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/1) | `X-Boat-Key`: `<key>[:<organization>]` | $0.018 | https://docs.boat.dev/pricing |
 | Isorun | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/2) | `X-Isorun-Key` | $0.110 | https://docs.isorun.ai/getting-started/pricing |
 | E2B | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/3) | `X-E2B-Key` | $0.166 | https://e2b.dev/pricing |
 | Hopx | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Hopx-Key` | $0.166 | https://hopx.ai/pricing |
-| Blaxel | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Blaxel-Key` (`<workspace>:<key>` for several workspaces) | $0.166 | https://blaxel.ai/pricing |
 | Runloop | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Runloop-Key` | $0.317 | https://www.runloop.ai/pricing |
 | Vercel Sandbox | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Vercel-Key` (`<token>:<project id>[:<team id>]`) | $0.341 at most (CPU billed only while busy) | https://vercel.com/docs/sandbox/pricing |
 | Fly Sprites | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Sprites-Key` | $0.164 at most (billed on use) | https://fly.io/pricing |
 | Morph | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Morph-Key` | $0.100 | https://cloud.morph.so/web/subscribe |
 | Upstash Box | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Upstash-Key` | $0.100 (active CPU) | https://upstash.com/docs/box/overall/pricing |
+
+Most providers need one API key. Three need more, joined with colons in one header value (the cabinet's Providers page has one input per part): Blaxel `workspace:key`, Vercel `token:projectId[:teamId]`, boat `key[:organization]`.
 
 Working means fleet has started, run commands and files in, and stopped pods on a real account of that provider. Coming soon providers are written from public docs and tested against fake replies only. Have an account at one of them, or want another provider ([#4](https://github.com/flisk-sh/fleet/issues/4))? Help is welcome.
 

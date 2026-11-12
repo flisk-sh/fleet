@@ -52,6 +52,8 @@ export default {
     startsPerDay: null,
     badges: ['$50 credit', 'No card', 'Up to 48 h'],
     source: 'https://www.runloop.ai/pricing',
+    signup: 'https://platform.runloop.ai',
+    keyPage: 'https://platform.runloop.ai/settings#api-keys',
   },
 
   async create(key, size, { fetchImpl = fetch, wait = sleep } = {}) {

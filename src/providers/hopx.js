@@ -39,6 +39,8 @@ export default {
     startsPerDay: null,
     badges: ['$200 credit', 'No card', 'No time limit'],
     source: 'https://hopx.ai/pricing',
+    signup: 'https://console.hopx.dev',
+    keyPage: 'https://console.hopx.dev',
   },
 
   async create(key, size, { fetchImpl = fetch, wait = sleep } = {}) {

@@ -10,6 +10,7 @@ import { cabinetPage } from './console.js';
 import { connectedKeys, connectProvider, disconnectProvider, listConnections, checkLimits, createKey, getLimits, LIMIT_DEFAULTS, listCalls, listKeys, listPods, logCall, loginForKey, podListItem, podRef, podStatus, podsStartedToday, recordPod, revokeKey, setLimits } from './store.js';
 import { overMinuteLimit, PODS_PER_DAY } from './limit.js';
 import { vaultReady } from './vault.js';
+import { fieldsOf, joinFields } from './providers/fields.js';
 import { clearSession, makeSession, readSession, sameOrigin } from './session.js';
 
 const SECURITY = {
@@ -208,7 +209,9 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
           return cabinet(env, origin, login, 'providers', providers, { notice: `${providers[provider].label} disconnected. Fleet no longer has that key.` });
         }
         const form = await request.formData().catch(() => null);
-        const done = await connectProvider(env, login, provider, form?.get('key'));
+        const parts = Object.fromEntries(fieldsOf(providers[provider]).map((f) => [f.id, form?.get(`f_${f.id}`) ?? (f.id === 'key' ? form?.get('key') : '')]));
+        const joined = joinFields(providers[provider], parts);
+        const done = joined.error ? joined : await connectProvider(env, login, provider, joined.value);
         return cabinet(env, origin, login, 'providers', providers, done.error ? { error: done.error } : { notice: `${providers[provider].label} connected. Your agent no longer needs to send ${providers[provider].keyHeader}.` });
       }
       if (path === '/console/limits') {

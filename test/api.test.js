@@ -434,25 +434,49 @@ test('every inline page script parses', async () => {
 });
 
 describe('provider status', () => {
-  test('Daytona is working, the rest are coming soon with a help link, on the home page, the API and the cabinet', async () => {
+  // Providers that have run end to end on a real account. Add one here only after scripts/real-check.mjs passed for it.
+  const WORKING = { daytona: '2026-11-12', blaxel: '2026-11-12' };
+  test('working providers are labelled, every other one is coming soon with a help link, on the home page, the API and the cabinet', async () => {
     const { PROVIDERS } = await import('../src/providers/index.js');
     const { priceTable } = await import('../src/route.js');
     const table = priceTable(PROVIDERS);
-    expect(table.find((p) => p.provider === 'daytona')).toMatchObject({ status: 'working', tested: '2026-11-12' });
-    for (const p of table.filter((x) => x.provider !== 'daytona')) {
-      expect(p.status).toBe('soon');
-      expect(p.help).toMatch(/^https:\/\/github\.com\/flisk-sh\/fleet\/issues\/\d+$/);
+    for (const p of table) {
+      if (WORKING[p.provider]) expect(p).toMatchObject({ status: 'working', tested: WORKING[p.provider] });
+      else {
+        expect(p.status).toBe('soon');
+        expect(p.help).toMatch(/^https:\/\/github\.com\/flisk-sh\/fleet\/issues\/\d+$/);
+      }
     }
+    const working = Object.keys(WORKING).length;
+    const soon = table.length - working;
     const home = await (await handle(new Request(`${ORIGIN}/`), {}, { providers: PROVIDERS })).text();
-    const soon = table.length - 1;
-    expect(home).toContain(`1 working · ${soon} coming soon`);
-    expect(home.match(/class="st ok"/g)).toHaveLength(1);
+    expect(home).toContain(`${working} working · ${soon} coming soon`);
+    expect(home.match(/class="st ok"/g)).toHaveLength(working);
     expect(home.match(/class="st soon"/g)).toHaveLength(soon);
     // the example route only ever shows a working provider starting the pod
-    expect(home).toMatch(/<li class="win"[^>]*><span>●<\/span><span>Daytona<\/span>/);
-    const cab = await (await handle(new Request(`${ORIGIN}/console?section=providers`, { headers: { cookie: (await makeSession({ SESSION_SECRET: 's3cret' }, 'octo')).split(';')[0] } }), { DB: db(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' }, { providers: PROVIDERS })).text();
-    expect(cab.indexOf('<b>Daytona</b>')).toBeLessThan(cab.indexOf('<b>boat</b>'));
+    const winner = home.match(/<li class="win"[^>]*><span>●<\/span><span>([^<]*)<\/span>/)[1];
+    expect(Object.keys(WORKING).map((k) => PROVIDERS[k].label)).toContain(winner);
+    const cab = await (await handle(new Request(`${ORIGIN}/console?section=providers`, { headers: { cookie: (await makeSession({ SESSION_SECRET: 's3cret' }, 'octo')).split(';')[0] } }), { DB: db(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret', PROVIDER_KEYS_SECRET: 'x'.repeat(40) }, { providers: PROVIDERS })).text();
+    expect(cab.indexOf('<b>boat</b>')).toBeGreaterThan(cab.lastIndexOf('class="st ok"'));
     expect(cab).toContain('Help us finish it');
     expect(cab).toContain('Working now');
+    // Blaxel asks for its two parts, Vercel for three, a plain provider for one key
+    const card = (label) => cab.slice(cab.indexOf(`<b>${label}</b>`), cab.indexOf('</article>', cab.indexOf(`<b>${label}</b>`)));
+    expect(card('Blaxel').match(/name="f_/g)).toHaveLength(2);
+    expect(card('Blaxel')).toContain('name="f_workspace"');
+    expect(card('Vercel').match(/name="f_/g)).toHaveLength(3);
+    expect(card('Hopx').match(/name="f_/g)).toHaveLength(1);
+  });
+  test('connecting Blaxel in the cabinet joins workspace and key into one saved credential', async () => {
+    const { PROVIDERS } = await import('../src/providers/index.js');
+    const env = { DB: db(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret', PROVIDER_KEYS_SECRET: 'x'.repeat(40) };
+    const cookie = (await makeSession(env, 'octo')).split(';')[0];
+    const post = (path, form) => handle(new Request(`${ORIGIN}${path}`, { method: 'POST', headers: { cookie, origin: ORIGIN, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(form).toString() }), env, { providers: PROVIDERS });
+    expect(await (await post('/console/providers/blaxel/connect', { f_workspace: '', f_key: 'bl_abcdefgh' })).text()).toContain('Workspace is required');
+    expect(await (await post('/console/providers/blaxel/connect', { f_workspace: 'my-ws', f_key: 'bl_abcdefgh' })).text()).toContain('Blaxel connected');
+    const { connectedKeys } = await import('../src/store.js');
+    expect((await connectedKeys(env, 'octo')).blaxel).toBe('my-ws:bl_abcdefgh');
+    // the old single-input form field still works for providers with one key
+    expect(await (await post('/console/providers/hopx/connect', { key: 'hopx_abcdefgh' })).text()).toContain('Hopx connected');
   });
 });

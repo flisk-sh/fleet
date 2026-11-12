@@ -79,6 +79,12 @@ export default {
     source: 'https://vercel.com/docs/sandbox/pricing',
     signup: 'https://vercel.com/signup',
     keyPage: 'https://vercel.com/account/settings/tokens',
+    // Joined as "token:projectId[:teamId]".
+    fields: [
+      { id: 'token', label: 'Access token', placeholder: 'Vercel access token', secret: true },
+      { id: 'projectId', label: 'Project ID', placeholder: 'prj_...' },
+      { id: 'teamId', label: 'Team ID', placeholder: 'team_... (teams only)', optional: true },
+    ],
   },
 
   async create(key, size, { fetchImpl = fetch, wait = sleep } = {}) {

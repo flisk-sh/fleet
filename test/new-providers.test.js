@@ -199,3 +199,37 @@ describe('upstash box', () => {
     expect(f.calls[3]).toMatchObject({ url: 'https://us-east-1.box.upstash.com/v2/box/box_1', method: 'DELETE' });
   });
 });
+
+describe('credentials with more than one part', async () => {
+  const { joinFields, fieldsOf, splitFields } = await import('../src/providers/fields.js');
+  test('most providers need one key; blaxel, vercel and boat need more', () => {
+    for (const [name, p] of Object.entries(PROVIDERS)) {
+      if (p.demo) continue;
+      const n = fieldsOf(p).length;
+      expect(n).toBe({ blaxel: 2, vercel: 3, boat: 2 }[name] ?? 1);
+    }
+  });
+  test('parts join with a colon in order, optional trailing parts are dropped', () => {
+    expect(joinFields(blaxel, { workspace: ' my-ws ', key: 'bl_abc' })).toEqual({ value: 'my-ws:bl_abc' });
+    expect(joinFields(vercel, { token: 't', projectId: 'prj_1', teamId: '' })).toEqual({ value: 't:prj_1' });
+    expect(joinFields(vercel, { token: 't', projectId: 'prj_1', teamId: 'team_2' })).toEqual({ value: 't:prj_1:team_2' });
+    expect(joinFields(hopx, { key: 'k' })).toEqual({ value: 'k' });
+  });
+  test('a missing required part or a colon inside a part is refused', () => {
+    expect(joinFields(blaxel, { workspace: '', key: 'bl_abc' }).error).toContain('Workspace');
+    expect(joinFields(vercel, { token: 't', projectId: '', teamId: '' }).error).toContain('Project ID');
+    expect(joinFields(blaxel, { workspace: 'a:b', key: 'k' }).error).toContain('colon');
+  });
+  test('what joinFields makes, the adapters read: blaxel header and vercel key', () => {
+    expect(splitFields(blaxel, 'my-ws:bl_abc')).toEqual({ workspace: 'my-ws', key: 'bl_abc' });
+    expect(parseVercelKey(joinFields(vercel, { token: 't', projectId: 'prj_1', teamId: 'team_2' }).value)).toEqual({ token: 't', projectId: 'prj_1', teamId: 'team_2' });
+  });
+  test('boat sends the optional organization as X-Boat-Org', async () => {
+    const boat = (await import('../src/providers/boat.js')).default;
+    const f = fakeFetch([{ status: 202, body: { sandbox: { id: 'bx_1' } } }, { status: 202, body: { sandbox: { id: 'bx_2' } } }]);
+    await boat.create('boat_k:acme', size, f);
+    expect(f.calls[0].headers).toMatchObject({ authorization: 'Bearer boat_k', 'x-boat-org': 'acme' });
+    await boat.create('boat_k', size, f);
+    expect(f.calls[1].headers['x-boat-org']).toBeUndefined();
+  });
+});

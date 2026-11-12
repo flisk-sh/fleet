@@ -146,3 +146,24 @@ describe('HTTP and MCP', () => {
     expect(list.pods.map((p) => p.id)).toEqual([pod.id]);
   });
 });
+
+describe('timeout on an image whose timeout(1) dies from the signal (busybox, as on Blaxel)', () => {
+  test('a stub timeout that sleeps then kills itself still ends as 124 and timedOut', async () => {
+    const bin = mkdtempSync(join(tmpdir(), 'fleet-bin-'));
+    writeFileSync(join(bin, 'timeout'), '#!/bin/sh\nsleep "$3"\nkill -TERM $$\n', { mode: 0o755 });
+    const stubbed = {
+      ...shell,
+      async run(key, id, command) {
+        const p = Bun.spawnSync(['sh', '-c', command], { cwd: dir, env: { PATH: `${bin}:${process.env.PATH}` } });
+        return { stdout: p.stdout.toString(), stderr: p.stderr.toString(), exitCode: p.exitCode ?? -1 };
+      },
+    };
+    const r = await runPod({ shell: stubbed }, keys, ID, { command: 'sleep 9', timeout: 1 });
+    rmSync(bin, { recursive: true, force: true });
+    expect(r.result).toMatchObject({ exitCode: 124, timedOut: true });
+  });
+  test('a command that fails fast with a high exit code is not called a timeout', async () => {
+    const r = await runPod(providers, keys, ID, { command: 'exit 200', timeout: 5 });
+    expect(r.result).toMatchObject({ exitCode: 200, timedOut: false });
+  });
+});
