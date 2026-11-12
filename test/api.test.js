@@ -570,3 +570,18 @@ describe('price table order', () => {
     expect(usable).toEqual([...usable].sort((a, b) => a - b));
   });
 });
+
+describe('public price list and browsers', () => {
+  test('GET /v1/prices allows any origin, and the preflight answers 204 without a key', async () => {
+    const get = await handle(new Request('https://fleet.test/v1/prices'), {});
+    expect(get.status).toBe(200);
+    expect(get.headers.get('access-control-allow-origin')).toBe('*');
+    const pre = await handle(new Request('https://fleet.test/v1/prices', { method: 'OPTIONS', headers: { origin: 'https://example.com', 'access-control-request-method': 'GET' } }), {});
+    expect(pre.status).toBe(204);
+    expect(pre.headers.get('access-control-allow-methods')).toContain('GET');
+  });
+  test('the keyed API still has no CORS header', async () => {
+    const res = await handle(new Request('https://fleet.test/v1/pods'), {});
+    expect(res.headers.get('access-control-allow-origin')).toBeNull();
+  });
+});

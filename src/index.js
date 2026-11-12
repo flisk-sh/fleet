@@ -153,7 +153,15 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
   if (request.method === 'GET' && (path === '/SKILL.md' || path === '/skill.md')) {
     return new Response(skillMd(origin), { headers: { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'public, max-age=300', 'access-control-allow-origin': '*' } });
   }
-  if (request.method === 'GET' && path === '/v1/prices') return json(200, { size: DEFAULT_SIZE, prices: priceTable(providers) });
+  // The price list is public and needs no key, so web pages on other sites may read it.
+  if (request.method === 'OPTIONS' && path === '/v1/prices') {
+    return new Response(null, { status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, OPTIONS', 'access-control-max-age': '86400' } });
+  }
+  if (request.method === 'GET' && path === '/v1/prices') {
+    const res = json(200, { size: DEFAULT_SIZE, prices: priceTable(providers) });
+    res.headers.set('access-control-allow-origin', '*');
+    return res;
+  }
 
   // ---- sign-in
   if (request.method === 'GET' && path === '/auth/start') {
