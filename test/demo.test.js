@@ -92,7 +92,7 @@ describe('agent race', () => {
     expect(html).toContain("fetch('/console/demo'");
     expect(html).toContain('id="board"');
     expect(html).toContain('noindex');
-    expect(html.split('<main')[1].split('</main>')[0].toLowerCase()).not.toContain('sandbox');
+    expect(html.split('<main')[1].split('</main>')[0].replace(/<script>[^]*?<\/script>/g, '').toLowerCase()).not.toContain('sandbox'); // provider product names live in the logo data only
   });
   test('the recorded run is consistent: real providers, the fix, and the totals add up', () => {
     expect(RECORDED.jobs.map((j) => j.id)).toEqual(JOBS.map((j) => j.id));

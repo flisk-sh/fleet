@@ -14,6 +14,12 @@ export function initials(label = '') {
   return s.toUpperCase();
 }
 
+// A provider's logo with its name, for anywhere a provider is named: tables, lists, the race, the docs.
+export function providerTag(id, label = id, px = 18) {
+  if (!id) return '—';
+  return `<span class="ptag">${logoSvg(id, label, px)}${esc(label)}</span>`;
+}
+
 export function logoSvg(id, label = id, px = 34) {
   const alt = `${esc(label)} logo`;
   const src = LOGO_IMAGES[id];
