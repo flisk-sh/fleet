@@ -19,7 +19,8 @@ const auth = (key) => {
 export default {
   label: 'boat',
   keyHeader: 'X-Boat-Key',
-  help: 'https://github.com/flisk-sh/fleet/issues/1', // coming soon: never run against a real account
+  help: 'https://github.com/flisk-sh/fleet/issues/1', // never run against a real account
+  blocked: { kind: 'card', note: 'boat asks for a card to start its 7-day trial (then $20 a month), so we cannot test it for free.' },
   priceSource: 'https://docs.boat.dev/pricing',
   note: 'Needs a boat plan ($20 a month after a 7-day trial). Machines in Europe only.',
   price: (size) => fit(size)?.price ?? null,

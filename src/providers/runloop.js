@@ -1,6 +1,6 @@
 // Runloop (runloop.ai) devboxes. API: https://docs.runloop.ai/api-reference · prices: https://www.runloop.ai/pricing
 // Everything is plain JSON on api.runloop.ai. Waits are long-polls that answer within about 25-30 s, so fleet loops them.
-// Coming soon: written from the OpenAPI spec on 2026-11-12, never run on a real account.
+// Not tested yet: written from the OpenAPI spec on 2026-11-12, never run on a real account.
 import { call, sleep } from './http.js';
 
 const API = 'https://api.runloop.ai';
@@ -32,6 +32,7 @@ export default {
   label: 'Runloop',
   keyHeader: 'X-Runloop-Key',
   help: 'https://github.com/flisk-sh/fleet/issues/4',
+  blocked: { kind: 'invite', note: 'Runloop sign-up is by invitation only (waitlist: support@runloop.ai), so we cannot test it yet.' },
   priceSource: 'https://www.runloop.ai/pricing',
   note: 'Devboxes for coding agents. Sign-up is by invitation only (waitlist).',
   price: (size) => {

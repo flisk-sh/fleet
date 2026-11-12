@@ -1,6 +1,6 @@
 // Upstash Box. Docs: https://upstash.com/docs/box · prices: https://upstash.com/docs/box/overall/pricing
 // Sizes small (2 vCPU / 4 GB), medium (4 / 8) and large (8 / 16), billed per active CPU hour.
-// Coming soon: the REST paths come from the @upstash/box 0.8.0 SDK source, not from public API docs (2026-11-12),
+// Not tested yet: the REST paths come from the @upstash/box 0.8.0 SDK source, not from public API docs (2026-11-12),
 // and have never been run on a real account.
 import { call, sleep } from './http.js';
 

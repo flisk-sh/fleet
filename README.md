@@ -12,19 +12,19 @@ Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the c
 |---|---|---|---|---|
 | Daytona | **Working**: run end to end on a real account on 2026-11-12 | `X-Daytona-Key` | $0.166 | https://www.daytona.io/pricing |
 | Blaxel | **Working**: run end to end on a real account on 2026-11-12 | `X-Blaxel-Key`: `<workspace>:<API key>` | $0.166 | https://blaxel.ai/pricing |
-| boat | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/1) | `X-Boat-Key`: `<key>[:<organization>]` | $0.018 | https://docs.boat.dev/pricing |
-| Isorun | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/2) | `X-Isorun-Key` | $0.110 | https://docs.isorun.ai/getting-started/pricing |
-| E2B | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/3) | `X-E2B-Key` | $0.166 | https://e2b.dev/pricing |
-| Hopx | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Hopx-Key` | $0.166 | https://hopx.ai/pricing |
-| Runloop | Coming soon (sign-up is invitation only, join their waitlist), [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Runloop-Key` | $0.317 | https://www.runloop.ai/pricing |
-| Vercel Sandbox | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Vercel-Key` (`<token>:<project id>[:<team id>]`) | $0.341 at most (CPU billed only while busy) | https://vercel.com/docs/sandbox/pricing |
-| Fly Sprites | Coming soon (needs a card on accounts whose Fly trial ended), [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Sprites-Key` | $0.164 at most (billed on use) | https://fly.io/pricing |
-| Morph | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Morph-Key` | $0.100 | https://cloud.morph.so/web/subscribe |
-| Upstash Box | Coming soon, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Upstash-Key` | $0.100 (active CPU) | https://upstash.com/docs/box/overall/pricing |
+| boat | **Blocked**: needs a card (7-day trial, then $20 a month), [help wanted](https://github.com/flisk-sh/fleet/issues/1) | `X-Boat-Key`: `<key>[:<organization>]` | $0.018 | https://docs.boat.dev/pricing |
+| Isorun | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/2) | `X-Isorun-Key` | $0.110 | https://docs.isorun.ai/getting-started/pricing |
+| E2B | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/3) | `X-E2B-Key` | $0.166 | https://e2b.dev/pricing |
+| Hopx | **Blocked**: provider down (API error 526 since 2026-11-12), [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Hopx-Key` | $0.166 | https://hopx.ai/pricing |
+| Runloop | **Blocked**: invitation only (waitlist: support@runloop.ai), [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Runloop-Key` | $0.317 | https://www.runloop.ai/pricing |
+| Vercel Sandbox | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Vercel-Key` (`<token>:<project id>[:<team id>]`) | $0.341 at most (CPU billed only while busy) | https://vercel.com/docs/sandbox/pricing |
+| Fly Sprites | **Blocked**: needs a card on accounts whose Fly trial ended, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Sprites-Key` | $0.164 at most (billed on use) | https://fly.io/pricing |
+| Morph | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Morph-Key` | $0.100 | https://cloud.morph.so/web/subscribe |
+| Upstash Box | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Upstash-Key` | $0.100 (active CPU) | https://upstash.com/docs/box/overall/pricing |
 
 Most providers need one API key. Three need more, joined with colons in one header value (the cabinet's Providers page has one input per part): Blaxel `workspace:key`, Vercel `token:projectId[:teamId]`, boat `key[:organization]`.
 
-Working means fleet has started, run commands and files in, and stopped pods on a real account of that provider. Coming soon providers are written from public docs and tested against fake replies only. Have an account at one of them, or want another provider ([#4](https://github.com/flisk-sh/fleet/issues/4))? Help is welcome.
+Working means fleet has started, run commands and files in, and stopped pods on a real account of that provider. **Untested** providers are built from public docs and pass tests against fake replies, so they should work; they wait for a test on a real account (`bun scripts/real-check.mjs`). **Blocked** providers cannot be tested yet: the provider is down, asks for a card, or is invitation only. Have an account at one of them, or want another provider ([#4](https://github.com/flisk-sh/fleet/issues/4))? Help is welcome.
 
 Prices were read on 2026-11-12. You pay each provider directly on your own account; fleet adds nothing.
 

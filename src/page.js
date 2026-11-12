@@ -41,7 +41,8 @@ a{color:inherit}
 .pill i{width:7px;height:7px;border-radius:50%;background:var(--green)}
 .st{display:inline-flex;align-items:center;gap:6px;font:10.5px/1 var(--mono);text-transform:uppercase;letter-spacing:.05em;padding:4px 7px;border:1px solid var(--ink);white-space:nowrap;vertical-align:middle}
 .st.ok{background:var(--ink);color:var(--paper)}.st.ok i{width:6px;height:6px;border-radius:50%;background:var(--glow)}
-.st.soon{color:var(--dim);border-color:var(--dim);border-style:dashed}
+.st.untested{color:var(--dim);border-color:var(--dim);border-style:dashed}
+.st.blocked{color:var(--ink);border-style:dashed;background:repeating-linear-gradient(135deg,transparent 0 5px,rgba(23,23,21,.09) 5px 8px)}
 .hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);border-bottom:1px solid var(--ink);min-height:560px}
 .hero .l{padding:36px 48px 44px;display:flex;flex-direction:column;justify-content:space-between;gap:36px}
 h1{font:800 clamp(46px,7.2vw,96px)/.95 var(--serif);letter-spacing:-.045em;margin:20px 0 18px}
@@ -201,15 +202,28 @@ function routeExample(prices) {
 </div>`;
 }
 
-// Working: run end to end on a real account. Coming soon: written from the docs, never run for real; links to the help issue.
-export const statusTag = (p) =>
-  p.status === 'working'
-    ? `<span class="st ok" title="Tested on a real ${esc(p.label)} account on ${esc(p.tested || '')}"><i></i>Working</span>`
-    : `<span class="st soon">Coming soon</span>`;
+// Three states, see providerState() in route.js. The tooltip says what is missing.
+export const statusTag = (p) => {
+  const tip =
+    p.status === 'working'
+      ? `Run end to end on a real ${p.label} account on ${p.tested || ''}`
+      : p.status === 'blocked'
+        ? p.blocker || ''
+        : 'Built from the provider\'s docs and tested against fake replies. Should work; waiting for a test on a real account.';
+  return `<span class="st ${p.status === 'working' ? 'ok' : p.status}" title="${esc(tip)}">${p.status === 'working' ? '<i></i>' : ''}${esc(p.stateLabel || (p.status === 'working' ? 'Working' : 'Untested'))}</span>`;
+};
+
+// "2 working · 5 untested · 4 blocked", leaving out a state nobody is in.
+export const stateCounts = (prices) =>
+  ['working', 'untested', 'blocked']
+    .map((k) => [k, prices.filter((p) => p.status === k).length])
+    .filter(([, n]) => n)
+    .map(([k, n]) => `${n} ${k}`)
+    .join(' · ');
 
 export function homePage({ origin, prices, size }) {
   const working = prices.filter((p) => p.status === 'working').length;
-  const soon = prices.length - working;
+  const more = prices.length - working;
   const rows = prices
     .map(
       (p, i) => `<tr><td>${esc(p.label)}</td><td>${statusTag(p)}</td><td class="n">${money(p.pricePerHour)}</td><td>${p.pricePerHour !== null && i === 0 ? '<span class="first">first</span>' : p.pricePerHour === null ? '' : i + 1}</td><td>${esc(p.note)}</td></tr>`,
@@ -221,7 +235,7 @@ export function homePage({ origin, prices, size }) {
 <div class="l">
 <div>
 <a class="logo" href="/"><span class="mark">&gt;_</span>fleet</a>
-<div style="margin-top:28px"><span class="pill"><i></i>Beta · ${working} working · ${soon} coming soon</span></div>
+<div style="margin-top:28px"><span class="pill"><i></i>Beta · ${stateCounts(prices)}</span></div>
 <h1>One key.<br>Every <em>agent<br>pod.</em></h1>
 <p class="lede">Your agent asks for a Linux machine. Fleet starts it on the cheapest sandbox provider you have an account at, and moves to the next one when a provider fails. Over HTTP or MCP.</p>
 </div>
@@ -236,7 +250,7 @@ ${laneArt(prices)}
 
 <div class="steps">
 <div><span class="m">01 / Sign in</span><b>Get a fleet key</b><span>With GitHub, in the cabinet.</span></div>
-<div><span class="m">02 / Connect</span><b>Your own provider</b><span>Paste a ${esc(prices.filter((p) => p.status === 'working').map((p) => p.label).join(' or '))} key once. ${soon} more are coming soon.</span></div>
+<div><span class="m">02 / Connect</span><b>Your own provider</b><span>Paste a ${esc(prices.filter((p) => p.status === 'working').map((p) => p.label).join(' or '))} key once. ${more} more are built and waiting for tests.</span></div>
 <div><span class="m">03 / Start a pod</span><b>One call</b><span>POST /v1/pods, or pod_create over MCP.</span></div>
 <div><span class="m">04 / Run, then stop</span><b>Stdout and exit code</b><span>A pod that's gone answers 410.</span></div>
 </div>
@@ -272,7 +286,7 @@ ${routeExample(prices)}
 <tr><th>Provider</th><th>Status</th><th>List price</th><th>Route</th><th>Note</th></tr>
 ${rows}
 </table></div>
-<p class="note">List prices from each provider's own page. You pay the provider directly on your own account; fleet adds nothing. <b>Working</b> means fleet has run pods end to end on a real account of that provider. <b>Coming soon</b> providers are written from their public docs but not yet run for real. Have an account there? <a href="https://github.com/flisk-sh/fleet/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22">Help us finish them</a>.</p>
+<p class="note">List prices from each provider's own page. You pay the provider directly on your own account; fleet adds nothing. <b>Working</b> means fleet has run pods end to end on a real account of that provider. <b>Untested</b> providers are built from their public docs and pass tests against fake replies, so they should work; they wait for a test on a real account. <b>Blocked</b> ones cannot be tested yet, and the tag says why (provider down, needs a card, invitation only). Have an account at one? <a href="https://github.com/flisk-sh/fleet/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22">Help us test them</a>.</p>
 </section>
 
 <section class="sec" id="api">

@@ -436,32 +436,41 @@ test('every inline page script parses', async () => {
 describe('provider status', () => {
   // Providers that have run end to end on a real account. Add one here only after scripts/real-check.mjs passed for it.
   const WORKING = { daytona: '2026-11-12', blaxel: '2026-11-12' };
-  test('working providers are labelled, every other one is coming soon with a help link, on the home page, the API and the cabinet', async () => {
+  // Providers nobody can test yet, and why.
+  const BLOCKED = { boat: 'card', hopx: 'down', runloop: 'invite', sprites: 'card' };
+  const LABEL = { down: 'Provider down', card: 'Needs a card', invite: 'Invite only' };
+  test('every provider is working, blocked (with the reason) or untested, on the home page, the API and the cabinet', async () => {
     const { PROVIDERS } = await import('../src/providers/index.js');
     const { priceTable } = await import('../src/route.js');
     const table = priceTable(PROVIDERS);
     for (const p of table) {
-      if (WORKING[p.provider]) expect(p).toMatchObject({ status: 'working', tested: WORKING[p.provider] });
-      else {
-        expect(p.status).toBe('soon');
-        expect(p.help).toMatch(/^https:\/\/github\.com\/flisk-sh\/fleet\/issues\/\d+$/);
-      }
+      if (WORKING[p.provider]) expect(p).toMatchObject({ status: 'working', stateLabel: 'Working', tested: WORKING[p.provider] });
+      else if (BLOCKED[p.provider]) {
+        expect(p).toMatchObject({ status: 'blocked', stateLabel: LABEL[BLOCKED[p.provider]] });
+        expect(p.blocker.length).toBeGreaterThan(20);
+      } else expect(p).toMatchObject({ status: 'untested', stateLabel: 'Untested' });
+      if (!WORKING[p.provider]) expect(p.help).toMatch(/^https:\/\/github\.com\/flisk-sh\/fleet\/issues\/\d+$/);
     }
-    const working = Object.keys(WORKING).length;
-    const soon = table.length - working;
+    const n = { working: Object.keys(WORKING).length, blocked: Object.keys(BLOCKED).length };
+    n.untested = table.length - n.working - n.blocked;
     const home = await (await handle(new Request(`${ORIGIN}/`), {}, { providers: PROVIDERS })).text();
-    expect(home).toContain(`${working} working · ${soon} coming soon`);
-    expect(home.match(/class="st ok"/g)).toHaveLength(working);
-    expect(home.match(/class="st soon"/g)).toHaveLength(soon);
+    expect(home).toContain(`${n.working} working · ${n.untested} untested · ${n.blocked} blocked`);
+    expect(home).not.toMatch(/coming soon/i);
+    expect(home.match(/class="st ok"/g)).toHaveLength(n.working);
+    expect(home.match(/class="st untested"/g)).toHaveLength(n.untested);
+    expect(home.match(/class="st blocked"/g)).toHaveLength(n.blocked);
     // the example route only ever shows a working provider starting the pod
     const winner = home.match(/<li class="win"[^>]*><span>●<\/span><span>([^<]*)<\/span>/)[1];
     expect(Object.keys(WORKING).map((k) => PROVIDERS[k].label)).toContain(winner);
     const cab = await (await handle(new Request(`${ORIGIN}/console?section=providers`, { headers: { cookie: (await makeSession({ SESSION_SECRET: 's3cret' }, 'octo')).split(';')[0] } }), { DB: db(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret', PROVIDER_KEYS_SECRET: 'x'.repeat(40) }, { providers: PROVIDERS })).text();
-    expect(cab.indexOf('<b>boat</b>')).toBeGreaterThan(cab.lastIndexOf('class="st ok"'));
-    expect(cab).toContain('Help us finish it');
+    expect(cab).not.toMatch(/coming soon/i);
     expect(cab).toContain('Working now');
-    // Blaxel asks for its two parts, Vercel for three, a plain provider for one key
     const card = (label) => cab.slice(cab.indexOf(`<b>${label}</b>`), cab.indexOf('</article>', cab.indexOf(`<b>${label}</b>`)));
+    expect(card('Hopx')).toContain('error 526');
+    expect(card('Hopx')).toContain('Provider down');
+    expect(card('Runloop')).toContain('Invite only');
+    expect(card('Morph')).toContain('waits for a test on a real account');
+    // Blaxel asks for its two parts, Vercel for three, a plain provider for one key
     expect(card('Blaxel').match(/name="f_/g)).toHaveLength(2);
     expect(card('Blaxel')).toContain('name="f_workspace"');
     expect(card('Vercel').match(/name="f_/g)).toHaveLength(3);

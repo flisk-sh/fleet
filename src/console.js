@@ -269,6 +269,8 @@ function providersSection(prices, providers, { connections = {}, canConnect = fa
   const FILTERS = [
     ['all', 'All', () => true],
     ['working', 'Working now', (p) => p.status === 'working'],
+    ['untested', 'Untested', (p) => p.status === 'untested'],
+    ['blocked', 'Blocked', (p) => p.status === 'blocked'],
     ['nocard', 'No card needed', (p) => p.facts.card === false],
     ['credit', 'Free credit', (p) => /credit/i.test(p.facts.credit || '')],
     ['nomin', 'No monthly minimum', (p) => !p.facts.minimum],
@@ -284,7 +286,7 @@ function providersSection(prices, providers, { connections = {}, canConnect = fa
 <div class="ph"><span class="pmark">${esc(p.label.slice(0, 1).toUpperCase())}</span><b>${esc(p.label)}</b><span class="pp">${money(p.pricePerHour)}<small>/h</small></span></div>
 <div>${statusTag(p)}</div>
 <p>${esc(p.facts.blurb || p.note)}</p>
-${p.status === 'working' ? '' : `<p class="soon">Written from ${esc(p.label)}'s public docs, not yet run on a real account. Fleet may still route to it if you connect a key. Have an account? <a href="${esc(p.help)}" target="_blank" rel="noopener">Help us finish it</a>.</p>`}
+${p.status === 'working' ? '' : `<p class="soon">${p.status === 'blocked' ? `${esc(p.blocker)} It is built from ${esc(p.label)}'s docs and passes tests against fake replies.` : `Built from ${esc(p.label)}'s public docs and passes tests against fake replies, so it should work. It waits for a test on a real account.`} Fleet still routes to it if you connect a key. <a href="${esc(p.help)}" target="_blank" rel="noopener">${p.status === 'blocked' ? 'Follow it' : 'Help test it'}</a>.</p>`}
 <dl><div><dt>Credit</dt><dd>${esc(p.facts.credit || '—')}</dd></div><div><dt>Biggest pod</dt><dd>${biggest}</dd></div><div><dt>Regions</dt><dd>${esc((p.facts.regions || []).join(', ') || '—')}</dd></div><div><dt>Header</dt><dd class="n">${esc(p.meta.keyHeader)}</dd></div></dl>
 <div class="pf"><span class="badges">${(p.facts.badges || []).map((b) => `<span class="badge">${esc(b)}</span>`).join('')}</span><span class="links"><a href="${SIGNUP[p.provider] || p.facts.signup || p.source}" target="_blank" rel="noopener">Sign up</a>${kp ? `<a href="${kp.url}" target="_blank" rel="noopener">Get a key</a>` : ''}</span></div>
 ${connectBox(p, connections[p.provider], canConnect)}
@@ -310,7 +312,7 @@ function trySection(prices, providers, connections = {}) {
     (demo ? `<option value="${esc(demo[0])}">Demo · simulated, no account needed</option>` : '') +
     prices
       .filter((p) => p.pricePerHour !== null)
-      .map((p) => `<option value="${esc(p.provider)}">${esc(p.label)} · ${money(p.pricePerHour)} an hour${p.status === 'working' ? '' : ' · coming soon'}</option>`)
+      .map((p) => `<option value="${esc(p.provider)}">${esc(p.label)} · ${money(p.pricePerHour)} an hour${p.status === 'working' ? '' : ` · ${esc(String(p.stateLabel || 'untested').toLowerCase())}`}</option>`)
       .join('');
   const pages = JSON.stringify(Object.fromEntries(Object.entries(KEY_PAGE).map(([k, v]) => [k, v.url])));
   const conn = JSON.stringify(Object.keys(connections));

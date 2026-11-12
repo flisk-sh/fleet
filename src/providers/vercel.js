@@ -1,7 +1,7 @@
 // Vercel Sandbox. API: https://openapi.vercel.sh (POST /v4/sandboxes, /v2/sandboxes/sessions/...) · prices: https://vercel.com/docs/sandbox/pricing
 // Firecracker microVMs. Sizes are 1 or an even number of vCPU, with 2 GB per vCPU.
 // The key is "<access token>:<project id>" or "<access token>:<project id>:<team id>": Vercel's API needs the project, and the team for team accounts.
-// Coming soon: written from the OpenAPI spec on 2026-11-12, never run on a real account.
+// Not tested yet: written from the OpenAPI spec on 2026-11-12, never run on a real account.
 import { call, sleep, UA } from './http.js';
 
 const API = 'https://api.vercel.com';

@@ -2,7 +2,7 @@
 // MicroVMs started from snapshots. Fleet makes a sized snapshot of the minimal image, boots an instance from it,
 // polls until it is ready, and runs commands with the synchronous exec call.
 // 1 MCU = 1 vCPU-hour + 4 GB RAM-hours, $0.05 an MCU.
-// Coming soon: written from the OpenAPI spec on 2026-11-12, never run on a real account.
+// Not tested yet: written from the OpenAPI spec on 2026-11-12, never run on a real account.
 // Guess: Morph reuses a snapshot with the same image and size; if not, each start leaves one small snapshot behind.
 import { call, sleep } from './http.js';
 

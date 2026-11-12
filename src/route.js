@@ -233,13 +233,21 @@ export const stopPod = timed('stop', stopPodInner, (r, [providers, , id]) => fro
 export const writeFile = timed('write', writeFileInner, (r, [providers, , id]) => fromId(providers, id));
 export const readFile = timed('read', readFileInner, (r, [providers, , id]) => fromId(providers, id));
 
-// Working = run end to end on a real account. Every other provider is coming soon, with an issue asking for help.
+// A provider is in one of three states:
+//   working   run end to end on a real account (`working: '<date>'` in its file)
+//   blocked   built, but nobody can test it yet; `blocked: { kind, note }`, kind is down, card or invite
+//   untested  built from the provider's docs and tested against fake replies: should work, waits for a real-account test
 export const HELP_NEW = 'https://github.com/flisk-sh/fleet/issues/4';
-export const statusLabel = (p) => (p.status === 'working' ? 'Working' : 'Coming soon');
+export const BLOCKED_LABEL = { down: 'Provider down', card: 'Needs a card', invite: 'Invite only' };
+export function providerState(p) {
+  if (p.working) return { status: 'working', stateLabel: 'Working', tested: p.working };
+  if (p.blocked) return { status: 'blocked', stateLabel: BLOCKED_LABEL[p.blocked.kind] || 'Blocked', blocker: p.blocked.note, help: p.help || HELP_NEW };
+  return { status: 'untested', stateLabel: 'Untested', help: p.help || HELP_NEW };
+}
 
 export function priceTable(providers, size = DEFAULT_SIZE) {
   return Object.entries(providers)
     .filter(([, p]) => !p.demo)
-    .map(([name, p]) => ({ provider: name, label: p.label, pricePerHour: p.price(size), note: p.note || '', source: p.priceSource, keyHeader: p.keyHeader, status: p.working ? 'working' : 'soon', ...(p.working ? { tested: p.working } : { help: p.help || HELP_NEW }) }))
+    .map(([name, p]) => ({ provider: name, label: p.label, pricePerHour: p.price(size), note: p.note || '', source: p.priceSource, keyHeader: p.keyHeader, ...providerState(p) }))
     .sort((a, b) => (a.pricePerHour ?? Infinity) - (b.pricePerHour ?? Infinity));
 }

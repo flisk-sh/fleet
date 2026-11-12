@@ -1,6 +1,6 @@
 // Hopx (hopx.ai). API: https://docs.hopx.ai/api-reference/openapi.json · prices: https://hopx.ai/pricing
 // Control plane on api.hopx.dev; commands go to the sandbox's own host with the sandbox's own token.
-// Coming soon: written from the docs on 2026-11-12, never run on a real account.
+// Not tested yet: written from the docs on 2026-11-12, never run on a real account.
 // Guesses: the docs page says resources come from the template while the OpenAPI schema requires vcpu and memory_mb;
 // fleet sends both a template name and the size.
 import { call, sleep } from './http.js';
@@ -22,6 +22,7 @@ export default {
   label: 'Hopx',
   keyHeader: 'X-Hopx-Key',
   help: 'https://github.com/flisk-sh/fleet/issues/4',
+  blocked: { kind: 'down', note: 'Hopx\'s API has answered every request with error 526 (invalid certificate) since 2026-11-12, so nobody can sign in or test it right now.' },
   priceSource: 'https://hopx.ai/pricing',
   note: 'Firecracker microVMs, billed per second.',
   price: (size) => (size.cpu > 64 ? null : Math.round((size.cpu * CPU_HOUR + size.ram * GIB_HOUR) * 1000) / 1000),

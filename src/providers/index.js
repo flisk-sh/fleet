@@ -12,5 +12,5 @@ import morph from './morph.js';
 import upstash from './upstash.js';
 import demo from './demo.js';
 
-// Working: daytona. Coming soon (written from docs, never run on a real account): all the others.
+// Working: daytona, blaxel. Blocked (cannot be tested yet): see `blocked` in the file. Untested: all the others.
 export const PROVIDERS = { boat, isorun, e2b, daytona, hopx, runloop, blaxel, vercel, sprites, morph, upstash, demo };

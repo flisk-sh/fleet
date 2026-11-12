@@ -1,7 +1,7 @@
 // Fly.io Sprites (sprites.dev). API: https://api.sprites.dev/openapi.json · prices: https://fly.io/pricing
 // Persistent microVMs that pause when idle (no compute charge then). Size is fixed by Fly: up to 8 vCPU, memory autoscaled.
 // Exec answers a binary framed stream, as in Fly's JS SDK: each chunk starts with a stream id, 1 stdout, 2 stderr, 3 exit.
-// Coming soon: written from the OpenAPI spec and SDK on 2026-11-12, never run on a real account.
+// Not tested yet: written from the OpenAPI spec and SDK on 2026-11-12, never run on a real account.
 import { call, UA } from './http.js';
 
 const API = 'https://api.sprites.dev';
@@ -41,6 +41,7 @@ export default {
   label: 'Fly Sprites',
   keyHeader: 'X-Sprites-Key',
   help: 'https://github.com/flisk-sh/fleet/issues/4',
+  blocked: { kind: 'card', note: 'Fly asks for a card before it creates a Sprite on an account whose trial ended, so we cannot test it for free.' },
   priceSource: 'https://fly.io/pricing',
   note: 'Fixed size set by Fly (up to 8 vCPU, memory autoscaled); billed on use, nothing while idle.',
   price: (size) => (size.cpu > 8 ? null : Math.round((size.cpu * CPU_HOUR + size.ram * GB_HOUR) * 1000) / 1000),

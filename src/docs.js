@@ -138,14 +138,15 @@ const HEADERS = headerRows();
 const labels = (list) => list.map((p) => p.label).join(', ').replace(/, ([^,]*)$/, ' and $1');
 const real = Object.values(PROVIDERS).filter((p) => !p.demo);
 const WORKING = labels(real.filter((p) => p.working));
-const SOON = labels(real.filter((p) => !p.working));
+const UNTESTED = labels(real.filter((p) => !p.working && !p.blocked));
+const BLOCKED = labels(real.filter((p) => !p.working && p.blocked));
 
 // The same content as Markdown, for agents ("set up https://fleet.flisk.si/SKILL.md") and for "Copy page".
 export function skillMd(origin) {
   const eps = endpoints(origin);
   return `---
 name: fleet
-description: Start Linux pods for an agent on the cheapest sandbox provider the user has a key for (${WORKING} work today; ${SOON} are coming soon), run commands in them, and stop them. Use when a task needs an isolated machine to run code.
+description: Start Linux pods for an agent on the cheapest sandbox provider the user has a key for (${WORKING} work today; ${UNTESTED} are built and untested on a real account; ${BLOCKED} cannot be tested yet), run commands in them, and stop them. Use when a task needs an isolated machine to run code.
 ---
 
 # fleet
@@ -155,7 +156,7 @@ One API for every agent pod. Fleet starts each pod on the cheapest provider you 
 ## Set up
 
 1. Ask the user for a fleet key (they make one at ${origin}/console?section=keys). Keep it in FLEET_KEY.
-2. Ask the user to connect at least one provider (${WORKING} work today; the others are marked coming soon) on ${origin}/console?section=providers. Then only the fleet key is needed. Without a connection, send the provider key in its header. To try first without any, send \`X-Demo-Key: demo\`.
+2. Ask the user to connect at least one provider (${WORKING} work today; the others are marked untested or blocked) on ${origin}/console?section=providers. Then only the fleet key is needed. Without a connection, send the provider key in its header. To try first without any, send \`X-Demo-Key: demo\`.
 3. Or add fleet as an MCP server: url ${origin}/mcp, the same headers. Tools: pod_create, pod_run, pod_write_file, pod_read_file, pod_list, pod_stop.
 
 ## Headers

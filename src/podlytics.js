@@ -194,7 +194,7 @@ function client(D, SIZES) {
       el('line', { x1: it.x + 6, y1: it.y0, x2: lx - 6, y2: it.y, class: 'leader' }, svg);
       const t = el('text', { x: lx, y: it.y + 4, class: 'lbl', fill: it.p.color }, svg);
       t.textContent = it.p.label + (it.p.working ? '' : ' ·');
-      hover(t, `<b>${it.p.label}</b><br>${it.p.working ? 'Working: run for real on ' + it.p.working : 'Coming soon: written from its docs, not yet run for real'}`);
+      hover(t, `<b>${it.p.label}</b><br>${it.p.working ? 'Working: run for real on ' + it.p.working : 'Not run on a real account yet: built from its docs'}`);
     }
   }
 
@@ -339,7 +339,7 @@ function client(D, SIZES) {
     $('#plist').innerHTML = D.filter((p) => !q || p.label.toLowerCase().includes(q))
       .map((p) => {
         const on = !st.off.has(p.id) && (!st.workingOnly || p.working);
-        return `<button type="button" class="prow${on ? '' : ' off'}" data-id="${p.id}" aria-pressed="${on}"><span class="pn">${p.label}</span><span class="pt">${p.working ? 'working' : 'soon'}</span><i style="${on ? 'background:' + p.color + ';border-color:' + p.color : 'border-color:' + p.color}"></i></button>`;
+        return `<button type="button" class="prow${on ? '' : ' off'}" data-id="${p.id}" aria-pressed="${on}"><span class="pn">${p.label}</span><span class="pt">${p.working ? 'working' : 'untested'}</span><i style="${on ? 'background:' + p.color + ';border-color:' + p.color : 'border-color:' + p.color}"></i></button>`;
       })
       .join('');
     $$('#plist .prow').forEach((b) =>
@@ -415,7 +415,7 @@ function client(D, SIZES) {
   $('#csv').addEventListener('click', () => {
     const head = ['provider', 'status', ...SIZES.map((s) => `usd_per_hour_${s.cpu}cpu_${s.ram}gb`), 'start_p50_ms', 'start_p90_ms', 'starts_30d', 'starts_ok_30d'];
     const lines = [head.join(',')].concat(
-      D.map((p) => [p.label, p.working ? 'working' : 'coming soon', ...p.hourly.map((v) => (v == null ? '' : v)), p.stats.start?.p50 ?? '', p.stats.start?.p90 ?? '', p.stats.start?.n ?? 0, p.stats.start?.ok ?? 0].join(',')),
+      D.map((p) => [p.label, p.working ? 'working' : 'not run yet', ...p.hourly.map((v) => (v == null ? '' : v)), p.stats.start?.p50 ?? '', p.stats.start?.p90 ?? '', p.stats.start?.n ?? 0, p.stats.start?.ok ?? 0].join(',')),
     );
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([lines.join('\n') + '\n'], { type: 'text/csv' }));
