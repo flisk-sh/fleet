@@ -50,6 +50,17 @@ input[type=text]{font:inherit;border:1.5px solid var(--ink);background:var(--pap
 .box.inv{background:var(--ink);color:var(--paper)}
 .box.inv code{word-break:break-all;font-size:15px}
 .err{border:1.5px dashed var(--ink);padding:10px 14px;margin-top:22px}
+.start{border:1.5px solid var(--ink);margin-top:22px}
+.start>div{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px}
+.start>div+div{border-top:1.5px solid var(--ink)}
+.start i{font-style:normal;border:1.5px solid var(--ink);width:28px;height:28px;line-height:25px;text-align:center}
+.start .done i{background:var(--ink);color:var(--paper)}
+.start b{display:block}
+.start span{color:var(--dim)}
+.sk{display:block;height:14px;background:var(--ink);opacity:.18;animation:pulse 1.2s ease-in-out infinite}
+.sk.big{height:30px;width:60%;margin-bottom:8px}
+@keyframes pulse{50%{opacity:.06}}
+@media (prefers-reduced-motion:reduce){.sk{animation:none}}
 @media (max-width:760px){.cab{grid-template-columns:1fr}.side{border-right:0;border-bottom:1.5px solid var(--ink);flex-direction:row;flex-wrap:wrap}.side .logo{width:100%;margin-bottom:6px}.side .me{margin-top:0;border-top:0;padding-top:0;flex-direction:row;width:100%}.main{padding:0 16px 48px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics>div:nth-child(3){border-left:0}.metrics>div:nth-child(n+3){border-top:1.5px solid var(--ink)}}
 `;
 
@@ -80,7 +91,26 @@ ${body}
 </div></body></html>`;
 }
 
-function overview(pods) {
+// Like a provider's "Get started" page: four steps, each ticked off when fleet can see it's done.
+function getStarted(keys, pods) {
+  const real = pods.some((p) => !p.failedStart && p.provider !== 'demo');
+  const any = pods.some((p) => !p.failedStart);
+  const steps = [
+    [keys.length > 0, 'Create a fleet key', 'It goes in the Authorization header of every call.', '/console?section=keys', 'Create key'],
+    [any, 'Try the demo pod', 'No provider account needed: see start, run and stop end to end.', '/console?section=try', 'Try a pod'],
+    [real, 'Bring a provider key', 'Make a key at boat, Isorun, E2B or Daytona and start a real pod.', '/console?section=providers', 'Get a key'],
+    [false, 'Give it to your agent', 'Add fleet as an MCP server: pod_create, pod_run, pod_stop.', '/console?section=docs', 'Set up MCP'],
+  ];
+  if (steps.slice(0, 3).every(([done]) => done)) return '';
+  return `<h2>Get started</h2><div class="start">${steps
+    .map(
+      ([done, title, text, href, cta], i) =>
+        `<div class="${done ? 'done' : ''}"><i>${done ? '✓' : i + 1}</i><div><b>${esc(title)}</b><span>${esc(text)}</span></div>${done ? '<span>Done</span>' : `<a class="b${i === steps.findIndex(([d]) => !d) ? ' inv' : ''}" href="${href}">${esc(cta)}</a>`}</div>`,
+    )
+    .join('')}</div>`;
+}
+
+function overview(pods, keys = []) {
   const s = summarize(pods);
   const max = Math.max(1, ...s.days.map((d) => d.started + d.failed));
   const rows = s.days
@@ -89,7 +119,7 @@ function overview(pods) {
         `<tr><td>${d.day}</td><td class="n">${d.started}</td><td class="n">${d.failed}</td><td>${d.started ? `<span class="bar" style="width:${Math.round((d.started / max) * 220)}px"></span>` : ''}${d.failed ? `<span class="bar" style="width:${Math.max(4, Math.round((d.failed / max) * 220))}px;background:transparent;border:1.5px solid var(--ink);box-sizing:border-box"></span>` : ''}</td></tr>`,
     )
     .join('');
-  return `<div class="metrics">
+  return `${getStarted(keys, pods)}<div class="metrics">
 <div><b>${s.running}</b><span>Running, under 1 hour</span></div>
 <div><b>${s.startedToday}</b><span>Started today</span></div>
 <div><b>${s.movedToday}</b><span>Moved to next provider today</span></div>
@@ -99,7 +129,7 @@ function overview(pods) {
 <h2>Pods, last 7 days</h2>
 <div class="scroll"><table><tr><th>Day</th><th>Started</th><th>Failed</th><th></th></tr>${rows}</table></div>
 <p class="note">Black bar: started. Outlined bar: failed starts.</p>
-${pods.length ? '' : '<div class="row"><a class="b inv" href="/console?section=keys">Create a key</a><a class="b" href="/console?section=docs">Start your first pod</a></div>'}`;
+`;
 }
 
 function podsSection(pods) {
@@ -168,6 +198,12 @@ function trySection(prices, providers) {
 <div class="row"><label><input type="checkbox" id="remember"> Remember this key in this browser</label><button class="b inv" type="submit" id="go">Start pod</button></div>
 <p id="err" class="note" style="display:none"></p>
 </form>
+<div id="wait" style="display:none" aria-live="polite">
+<h2 id="waitt">Starting a pod</h2>
+<div class="metrics"><div><span class="sk big"></span><span>Start</span></div><div><span class="sk big"></span><span>Run</span></div><div><span class="sk big"></span><span>Stop</span></div><div><span class="sk big"></span><span>Total</span></div></div>
+<div class="box"><span class="sk" style="width:70%"></span><span class="sk" style="width:45%;margin-top:10px"></span><span class="sk" style="width:58%;margin-top:10px"></span></div>
+<p class="note">Real providers can take up to a minute to start a pod. Fleet stops it right after the command.</p>
+</div>
 <div id="out" style="display:none">
 <h2>Result</h2>
 <div class="metrics"><div><b id="tc">—</b><span>Start</span></div><div><b id="tr">—</b><span>Run</span></div><div><b id="ts">—</b><span>Stop</span></div><div><b id="tt">—</b><span>Total</span></div></div>
@@ -184,7 +220,7 @@ $('try').addEventListener('submit',async(e)=>{e.preventDefault();const key=$('pk
 const isDemo=$('prov').value==='demo';$('pkey').disabled=isDemo;
 if(!key&&!isDemo){err.textContent='Paste your provider API key first.';err.style.display='block';$('pkey').focus();return}
 try{if(store){if($('remember').checked)store.setItem('fleet_try_'+$('prov').value,key);else store.removeItem('fleet_try_'+$('prov').value)}}catch{}
-$('go').textContent='Starting…';$('go').disabled=true;$('out').style.display='none';
+$('go').textContent='Starting…';$('go').disabled=true;$('out').style.display='none';$('waitt').textContent='Starting a pod on '+$('prov').selectedOptions[0].textContent.split(' · ')[0];$('wait').style.display='block';
 try{const r=await fetch('/console/try',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({provider:$('prov').value,key,command:$('cmd').value})});
 const d=await r.json();
 if(!r.ok){err.textContent=d.error+(d.failed?' — '+d.failed.map(f=>f.provider+': '+f.error).join('; '):'')+(d.createMs!=null?' (after '+s(d.createMs)+')':'');err.style.display='block'}
@@ -192,7 +228,7 @@ else{$('tc').textContent=s(d.createMs);$('tr').textContent=s(d.runMs);$('ts').te
 const NL=String.fromCharCode(10);$('so').textContent=(d.stdout||'')+(d.stderr?NL+'[stderr]'+NL+d.stderr:'')+(d.exitCode==null?'':NL+'[exit '+d.exitCode+']');
 $('meta').textContent='Pod '+d.pod+' on '+d.provider+(d.stopError?'. Stop failed: '+d.stopError+'. Stop it on the provider’s site.':', stopped.');$('out').style.display='block'}}
 catch(x){err.textContent='Fleet did not answer: '+x.message;err.style.display='block'}
-finally{$('go').textContent='Start pod';$('go').disabled=false}});})();
+finally{$('wait').style.display='none';$('go').textContent='Start pod';$('go').disabled=false}});})();
 </script>`;
 }
 
@@ -223,7 +259,7 @@ export function cabinetPage({ origin, login, section, keys, pods, prices, provid
   const title = SECTIONS.find(([s]) => s === id)[1];
   const body =
     id === 'overview'
-      ? overview(pods)
+      ? overview(pods, keys)
       : id === 'pods'
         ? podsSection(pods)
         : id === 'keys'
