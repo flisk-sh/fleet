@@ -51,4 +51,12 @@ describe('podlytics', () => {
     const home = await (await handle(new Request(`${ORIGIN}/`), {}, { providers: PROVIDERS })).text();
     expect(home).toContain('href="/podlytics"');
   });
+
+  test('the page script defines __name before its code, as wrangler bundles it with __name(...) calls', async () => {
+    const html = await (await handle(new Request(`${ORIGIN}/podlytics`), seeded(), { providers: PROVIDERS })).text();
+    const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).find((t) => t.includes('function client'));
+    const shim = script.slice(0, script.indexOf('(function client'));
+    expect(shim).toContain('__name');
+    expect(new Function(`${shim}; return __name(function x() { return 7; }, "x")();`)()).toBe(7);
+  });
 });
