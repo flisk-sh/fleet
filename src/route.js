@@ -73,6 +73,7 @@ export async function createPod(providers, keys, body, ctx = {}) {
       failed.push({ provider: name, error: short(e) });
     }
   }
+  await record(ctx, 'failed', { cpu: size.cpu, ram: size.ram, failed });
   return { status: 502, error: 'no provider could start a pod', failed };
 }
 

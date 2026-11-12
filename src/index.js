@@ -40,6 +40,12 @@ const readJson = async (request) => {
   }
 };
 
+// Only our own cabinet pages: never another site, never a protocol-relative "//host".
+export function safeNext(next) {
+  const n = String(next || '');
+  return /^\/console(\?[\w=&%.-]*)?$/.test(n) ? n : '/console';
+}
+
 const out = (r) => json(r.status, r.status < 400 ? r.pod || r.result : { error: r.error, failed: r.failed });
 
 async function cabinet(env, origin, login, section, providers, extra = {}) {
@@ -97,14 +103,15 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
   // ---- sign-in
   if (request.method === 'GET' && path === '/auth/start') {
     if (!env.KV || !env.SESSION_SECRET) return html(messagePage('Sign-in is not set up', 'This copy of fleet has no key store or session secret yet.'), 503);
-    if (await readSession(env, request)) return redirect('/console');
-    if (env.DEV_LOGIN) return redirect('/console', { 'set-cookie': await makeSession(env, env.DEV_LOGIN) });
+    const next = safeNext(url.searchParams.get('next'));
+    if (await readSession(env, request)) return redirect(next);
+    if (env.DEV_LOGIN) return redirect(next, { 'set-cookie': await makeSession(env, env.DEV_LOGIN) });
     if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) return html(messagePage('Sign-in is not set up', 'GitHub sign-in has not been connected yet.'), 503);
     const state = crypto.randomUUID();
-    return new Response(null, {
-      status: 302,
-      headers: { location: githubAuthorizeUrl({ ...env, PUBLIC_ORIGIN: origin }, state), 'set-cookie': `fleet_state=${state}; Path=/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=600` },
-    });
+    const headers = new Headers({ location: githubAuthorizeUrl({ ...env, PUBLIC_ORIGIN: origin }, state) });
+    headers.append('set-cookie', `fleet_state=${state}; Path=/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=600`);
+    headers.append('set-cookie', `fleet_next=${encodeURIComponent(next)}; Path=/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=600`);
+    return new Response(null, { status: 302, headers });
   }
   if (request.method === 'GET' && path === '/auth/callback') {
     const state = url.searchParams.get('state') || '';
@@ -113,9 +120,11 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
     if (!env.KV || !env.SESSION_SECRET || !code || !state || state !== cookie) return html(messagePage('Sign-in failed', 'The sign-in link expired. Start again.'), 400);
     const login = await githubLogin(env, code, fetchImpl);
     if (!login) return html(messagePage('Sign-in failed', "GitHub didn't confirm the sign-in. Start again."), 400);
-    const headers = new Headers({ location: '/console' });
+    const nextCookie = /(?:^|;\s*)fleet_next=([^;]+)/.exec(request.headers.get('cookie') || '')?.[1];
+    const headers = new Headers({ location: safeNext(nextCookie ? decodeURIComponent(nextCookie) : '') });
     headers.append('set-cookie', await makeSession(env, login));
     headers.append('set-cookie', 'fleet_state=; Path=/auth; Max-Age=0');
+    headers.append('set-cookie', 'fleet_next=; Path=/auth; Max-Age=0');
     return new Response(null, { status: 303, headers });
   }
   if (request.method === 'POST' && path === '/auth/signout') {
@@ -127,7 +136,7 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
   if (path === '/console' || path.startsWith('/console/')) {
     if (!env.KV) return html(messagePage('Sign-in is not set up', 'This copy of fleet has no key store yet.'), 503);
     const session = await readSession(env, request);
-    if (!session) return request.method === 'GET' ? redirect('/auth/start') : html(messagePage('Signed out', 'Sign in again.'), 401);
+    if (!session) return request.method === 'GET' ? redirect(`/auth/start?next=${encodeURIComponent(path + url.search)}`) : html(messagePage('Signed out', 'Sign in again.'), 401);
     const { login } = session;
     if (request.method === 'GET' && path === '/console') return cabinet(env, origin, login, url.searchParams.get('section') || 'overview', providers);
     if (request.method === 'POST') {

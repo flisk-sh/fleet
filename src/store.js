@@ -93,8 +93,22 @@ export async function recordPod(env, login, type, data) {
       gone: null,
       movedFrom: (data.failed || []).map((f) => f.provider),
     });
+  } else if (type === 'failed') {
+    // A start that failed on every provider: kept so the cabinet can say why. Provider error text only, never a key.
+    list.unshift({
+      ref: null,
+      provider: null,
+      cpu: data.cpu,
+      ram: data.ram,
+      price: null,
+      started: now,
+      stopped: null,
+      gone: null,
+      movedFrom: [],
+      failedStart: (data.failed || []).map((f) => ({ provider: f.provider, error: String(f.error || '').slice(0, 160) })),
+    });
   } else {
-    const pod = list.find((p) => p.ref === podRef(data.id));
+    const pod = list.find((p) => p.ref && p.ref === podRef(data.id));
     if (!pod) return;
     if (type === 'stopped' && !pod.stopped) pod.stopped = now;
     if (type === 'gone' && !pod.gone && !pod.stopped) pod.gone = now;
@@ -103,18 +117,33 @@ export async function recordPod(env, login, type, data) {
 }
 
 // Overview numbers, all from the pod list.
+const HOUR = 3600_000;
+// A pod fleet never saw stop: under an hour old it is probably running; older, the provider has likely stopped it.
+export function podStatus(p, now = new Date()) {
+  if (p.failedStart) return 'failed';
+  if (p.stopped) return 'stopped';
+  if (p.gone) return 'gone';
+  return now - Date.parse(p.started) < HOUR ? 'running' : 'likely-stopped';
+}
+
 export function summarize(pods, now = new Date()) {
   const today = now.toISOString().slice(0, 10);
   const days = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 86400_000).toISOString().slice(0, 10);
-    days.push({ day: d, started: pods.filter((p) => p.started?.startsWith(d)).length });
+    days.push({
+      day: d,
+      started: pods.filter((p) => !p.failedStart && p.started?.startsWith(d)).length,
+      failed: pods.filter((p) => p.failedStart && p.started?.startsWith(d)).length,
+    });
   }
+  const real = pods.filter((p) => !p.failedStart);
   return {
-    notStopped: pods.filter((p) => !p.stopped && !p.gone).length,
-    startedToday: pods.filter((p) => p.started?.startsWith(today)).length,
-    movedToday: pods.filter((p) => p.started?.startsWith(today) && p.movedFrom?.length).length,
-    gone: pods.filter((p) => p.gone).length,
+    running: real.filter((p) => podStatus(p, now) === 'running').length,
+    startedToday: real.filter((p) => p.started?.startsWith(today)).length,
+    movedToday: real.filter((p) => p.started?.startsWith(today) && p.movedFrom?.length).length,
+    failedToday: pods.filter((p) => p.failedStart && p.started?.startsWith(today)).length,
+    gone: real.filter((p) => p.gone).length,
     days,
   };
 }

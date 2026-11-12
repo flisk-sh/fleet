@@ -89,7 +89,7 @@ describe('cabinet', () => {
     const env = { KV: kv(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' };
     const r = await handle(new Request(`${ORIGIN}/console`, { redirect: 'manual' }), env, { providers });
     expect(r.status).toBe(303);
-    expect(r.headers.get('location')).toBe('/auth/start');
+    expect(r.headers.get('location')).toBe('/auth/start?next=%2Fconsole');
   });
   test('a forged or expired cookie is not a session', async () => {
     const env = { KV: kv(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' };
@@ -149,6 +149,35 @@ describe('cabinet', () => {
     const cookie = (await makeSession(env, 'octo')).split(';')[0];
     const r = await handle(new Request(`${ORIGIN}/console?section=keys`, { headers: { cookie } }), env, { providers });
     expect(await r.text()).toContain('default');
+  });
+});
+
+describe('dogfood run 3 fixes', () => {
+  test('a start that fails on every provider shows up, with each provider\'s answer', async () => {
+    const { env, req, page } = await setup();
+    const r = await req('POST', '/v1/pods', {}, { 'X-mid-Key': '' });
+    expect(r.status).toBe(502);
+    const stored = JSON.parse(env.KV.m.get('pods:octo'));
+    expect(stored[0].failedStart).toEqual([{ provider: 'cheap', error: 'down' }]);
+    expect(await (await page('GET', '/console?section=pods')).text()).toContain('start failed: cheap: down');
+    expect(await (await page('GET', '/console')).text()).toMatch(/<b>1<\/b><span>Failed starts today/);
+  });
+  test('sign-in comes back to the page you asked for, and only to our own pages', async () => {
+    const { safeNext } = await import('../src/index.js');
+    expect(safeNext('/console?section=try')).toBe('/console?section=try');
+    for (const bad of ['//evil.test', 'https://evil.test', '/console/../x', '/consolex', '', null]) expect(safeNext(bad)).toBe('/console');
+    const env = { KV: kv(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret', DEV_LOGIN: 'octo' };
+    const r = await handle(new Request(`${ORIGIN}/auth/start?next=%2Fconsole%3Fsection%3Dtry`, { redirect: 'manual' }), env, { providers });
+    expect(r.headers.get('location')).toBe('/console?section=try');
+  });
+  test('a pod older than an hour that fleet never saw stop counts as likely stopped', async () => {
+    const { podStatus, summarize } = await import('../src/store.js');
+    const now = new Date('2026-11-12T12:00:00Z');
+    const young = { started: '2026-11-12T11:30:00Z' };
+    const old = { started: '2026-11-12T10:00:00Z' };
+    expect(podStatus(young, now)).toBe('running');
+    expect(podStatus(old, now)).toBe('likely-stopped');
+    expect(summarize([young, old], now).running).toBe(1);
   });
 });
 

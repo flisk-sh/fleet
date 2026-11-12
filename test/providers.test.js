@@ -79,6 +79,13 @@ describe('isorun', () => {
   });
 });
 
+test('isorun: a region runner that does not answer gets a plain message', async () => {
+  const f = fakeFetch([{ status: 521, body: 'error code: 521' }]);
+  await expect(isorun.create('isorun_live_eu_k', size, f)).rejects.toThrow("Isorun's runner at run-eu.isorun.ai did not answer");
+  const bad = fakeFetch([{ status: 401, body: { error: 'invalid API key' } }]);
+  await expect(isorun.create('isorun_live_us_k', size, bad)).rejects.toThrow('HTTP 401');
+});
+
 describe('e2b', () => {
   const b64 = (s) => btoa(s);
   const join = (...parts) => {

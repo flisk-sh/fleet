@@ -1,6 +1,22 @@
 // Isorun (isorun.ai). API: https://docs.isorun.ai/api-reference · prices: https://docs.isorun.ai/getting-started/pricing
 // The region is part of the key (isorun_live_us_...), and the API host is per region.
-import { call } from './http.js';
+import { call as rawCall } from './http.js';
+
+// Isorun's SDK builds the same host (run-<region>.isorun.ai). Its docs list only the US region; on 2026-11-12 the EU host
+// answered Cloudflare 521. Say that plainly instead of passing on a bare 5xx.
+async function call(fetchImpl, url, init) {
+  try {
+    return await rawCall(fetchImpl, url, init);
+  } catch (e) {
+    const host = new URL(url).host;
+    if (!e.status || e.status >= 500) {
+      const err = new Error(`Isorun's runner at ${host} did not answer (${e.message}). Isorun's docs list only the US region; a key for another region may not work yet`);
+      err.status = e.status;
+      throw err;
+    }
+    throw e;
+  }
+}
 
 const CPU_HOUR = 0.025;
 const GIB_HOUR = 0.015;

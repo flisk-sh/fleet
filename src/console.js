@@ -1,6 +1,6 @@
 // The cabinet: same layout as inference.flisk.si's console (sidebar, title with a beta tag, ruled tables), in black and white.
 import { CSS, esc } from './page.js';
-import { MAX_KEYS, summarize } from './store.js';
+import { MAX_KEYS, podStatus, summarize } from './store.js';
 
 const SECTIONS = [
   ['overview', 'Overview'],
@@ -82,17 +82,23 @@ ${body}
 
 function overview(pods) {
   const s = summarize(pods);
-  const max = Math.max(1, ...s.days.map((d) => d.started));
-  const rows = s.days.map((d) => `<tr><td>${d.day}</td><td class="n">${d.started}</td><td><span class="bar" style="width:${Math.round((d.started / max) * 220)}px"></span></td></tr>`).join('');
+  const max = Math.max(1, ...s.days.map((d) => d.started + d.failed));
+  const rows = s.days
+    .map(
+      (d) =>
+        `<tr><td>${d.day}</td><td class="n">${d.started}</td><td class="n">${d.failed}</td><td><span class="bar" style="width:${Math.round((d.started / max) * 220)}px"></span><span class="bar" style="width:${Math.round((d.failed / max) * 220)}px;background:transparent;border:1.5px solid var(--ink);box-sizing:border-box"></span></td></tr>`,
+    )
+    .join('');
   return `<div class="metrics">
-<div><b>${s.notStopped}</b><span>Not stopped yet</span></div>
+<div><b>${s.running}</b><span>Running, under 1 hour</span></div>
 <div><b>${s.startedToday}</b><span>Started today</span></div>
 <div><b>${s.movedToday}</b><span>Moved to next provider today</span></div>
-<div><b>${s.gone}</b><span>Found gone</span></div>
+<div><b>${s.failedToday}</b><span>Failed starts today</span></div>
 </div>
-<p class="note">"Not stopped yet" counts pods you did not stop through fleet. A provider may have stopped some of them already: pods stop by themselves after about an hour.</p>
-<h2>Pods started, last 7 days</h2>
-<div class="scroll"><table><tr><th>Day</th><th>Pods</th><th></th></tr>${rows}</table></div>
+<p class="note">Fleet sees a pod stop only when you stop it through fleet. A pod older than an hour that you didn't stop counts as likely stopped: providers stop pods by themselves after about an hour.${s.failedToday ? ' <a href="/console?section=pods">See why starts failed</a>.' : ''}</p>
+<h2>Pods, last 7 days</h2>
+<div class="scroll"><table><tr><th>Day</th><th>Started</th><th>Failed</th><th></th></tr>${rows}</table></div>
+<p class="note">Black bar: started. Outlined bar: failed starts.</p>
 ${pods.length ? '' : '<div class="row"><a class="b inv" href="/console?section=keys">Create a key</a><a class="b" href="/console?section=docs">Start your first pod</a></div>'}`;
 }
 
@@ -100,14 +106,21 @@ function podsSection(pods) {
   if (!pods.length) {
     return `<div class="box"><b>Start your first pod</b><p class="note">Pods you start with your fleet keys show up here: provider, size, price and when they stopped.</p><div class="row"><a class="b inv" href="/console?section=docs">See how</a></div></div>`;
   }
-  const status = (p) => (p.stopped ? `stopped ${when(p.stopped)}` : p.gone ? `gone, seen ${when(p.gone)}` : 'not stopped yet');
+  const status = (p) => {
+    const st = podStatus(p);
+    if (st === 'failed') return `start failed: ${p.failedStart.map((f) => `${f.provider}: ${f.error}`).join('; ')}`;
+    if (st === 'stopped') return `stopped ${when(p.stopped)}`;
+    if (st === 'gone') return `gone, seen ${when(p.gone)}`;
+    if (st === 'running') return 'running';
+    return 'likely stopped by the provider (over 1 hour)';
+  };
   const rows = pods
     .map(
-      (p) => `<tr><td>${esc(p.ref)}</td><td>${esc(p.provider)}</td><td>${p.cpu} vCPU · ${p.ram} GB</td><td class="n">${money(p.price)}</td><td>${when(p.started)}</td><td>${status(p)}</td><td>${esc((p.movedFrom || []).join(', ') || '—')}</td></tr>`,
+      (p) => `<tr><td>${esc(p.ref || '—')}</td><td>${esc(p.provider || '—')}</td><td>${p.cpu} vCPU · ${p.ram} GB</td><td class="n">${money(p.price)}</td><td>${when(p.started)}</td><td>${status(p)}</td><td>${esc((p.movedFrom || []).join(', ') || '—')}</td></tr>`,
     )
     .join('');
   return `<div class="scroll" style="margin-top:22px"><table><tr><th>Pod</th><th>Provider</th><th>Size</th><th>Per hour</th><th>Started</th><th>Status</th><th>Moved from</th></tr>${rows}</table></div>
-<p class="note">Fleet keeps no provider keys, so it can't stop pods for you. Stop one with DELETE /v1/pods/:id and your provider key. Pod ids here are cut short on purpose.</p>`;
+<p class="note">A failed start lists each provider fleet tried and what it answered; a 401 means that provider's key is wrong. Fleet keeps no provider keys, so it can't stop pods for you. Stop one with DELETE /v1/pods/:id and your provider key. Pod ids here are cut short on purpose.</p>`;
 }
 
 function keysSection({ keys, newKey, error }) {
@@ -170,7 +183,7 @@ try{if(store){if($('remember').checked)store.setItem('fleet_try_'+$('prov').valu
 $('go').textContent='Starting…';$('go').disabled=true;$('out').style.display='none';
 try{const r=await fetch('/console/try',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({provider:$('prov').value,key,command:$('cmd').value})});
 const d=await r.json();
-if(!r.ok){err.textContent=d.error+(d.failed?' — '+d.failed.map(f=>f.provider+': '+f.error).join('; '):'');err.style.display='block'}
+if(!r.ok){err.textContent=d.error+(d.failed?' — '+d.failed.map(f=>f.provider+': '+f.error).join('; '):'')+(d.createMs!=null?' (after '+s(d.createMs)+')':'');err.style.display='block'}
 else{$('tc').textContent=s(d.createMs);$('tr').textContent=s(d.runMs);$('ts').textContent=s(d.stopMs);$('tt').textContent=s(d.totalMs);
 const NL=String.fromCharCode(10);$('so').textContent=(d.stdout||'')+(d.stderr?NL+'[stderr]'+NL+d.stderr:'')+(d.exitCode==null?'':NL+'[exit '+d.exitCode+']');
 $('meta').textContent='Pod '+d.pod+' on '+d.provider+(d.stopError?'. Stop failed: '+d.stopError+'. Stop it on the provider’s site.':', stopped.');$('out').style.display='block'}}
