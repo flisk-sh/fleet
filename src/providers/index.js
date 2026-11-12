@@ -10,7 +10,10 @@ import vercel from './vercel.js';
 import sprites from './sprites.js';
 import morph from './morph.js';
 import upstash from './upstash.js';
+import tensorlake from './tensorlake.js';
+import freestyle from './freestyle.js';
+import langsmith from './langsmith.js';
 import demo from './demo.js';
 
 // Working: daytona, blaxel. Blocked (cannot be tested yet): see `blocked` in the file. Untested: all the others.
-export const PROVIDERS = { boat, isorun, e2b, daytona, hopx, runloop, blaxel, vercel, sprites, morph, upstash, demo };
+export const PROVIDERS = { boat, isorun, e2b, daytona, hopx, runloop, blaxel, vercel, sprites, morph, upstash, tensorlake, freestyle, langsmith, demo };

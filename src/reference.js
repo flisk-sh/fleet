@@ -1,5 +1,5 @@
 // Third-party facts for the podlytics "Isolation & state" tab. Not measured by fleet.
-// Sources: LogRocket, "Comparing AI agent sandbox platforms" (2026-08-04) and Upstash, "AI agent sandbox providers compared 2026".
+// Sources: LogRocket, "Comparing AI agent sandbox platforms" (2026-08-04) and Upstash, "AI agent sandbox providers compared 2026" (checked Nov 2026). Tensorlake and Freestyle rows: Upstash comparison plus each vendor's docs.
 // tier: 1 microVM, 2 gVisor, 3 container. cold: vendor claim or the article's own measurement, never fleet's.
 export const REFERENCE = {
   daytona: { tier: 3, gpu: true, byoc: 'BYOC', rate: { cpu: 0.0504, mem: 0.0162, mode: 'wall' }, isolation: 'Docker container by default; VM classes opt-in', persistence: 'Disk snapshots, fork, pause/resume', billing: 'Wall-clock vCPU + RAM', cold: 'LogRocket measured 742 ms create, 1254 ms resume; vendor says under 90 ms' },
@@ -9,6 +9,9 @@ export const REFERENCE = {
   sprites: { tier: 1, gpu: false, byoc: null, rate: { cpu: 0.07, mem: 0.04375, mode: 'active' }, isolation: 'Firecracker microVM', persistence: 'Persistent disk, checkpoints', billing: 'CPU and RAM actually used, nothing idle', cold: 'Vendor: about 300 ms checkpoint; Upstash: 1-2 s create, 100-500 ms warm wake' },
   runloop: { tier: 1, gpu: false, byoc: 'VPC (Enterprise)', rate: { cpu: 0.108, mem: 0.0252, mode: 'wall' }, isolation: 'microVM on a custom hypervisor', persistence: 'Disk snapshots; suspend/resume on Pro', billing: 'Wall-clock CPU + RAM', cold: 'Vendor: a few seconds (docs)' },
   upstash: { tier: 3, gpu: false, byoc: null, rate: { cpu: 0.1, mem: 0, mode: 'active' }, isolation: 'Container (own filesystem, processes, network namespace)', persistence: 'Auto-pause, keep-alive or 3-day TTL', billing: 'Active CPU only, memory free', cold: 'Upstash measured about 2.5 s create, 0.4 s resume (own runs, Europe)' },
+  tensorlake: { tier: 1, gpu: true, byoc: 'BYOC (AWS)', rate: { cpu: 0.07, mem: 0.015, mode: 'active' }, isolation: 'Firecracker / Cloud Hypervisor microVM; gVisor for GPU sandboxes', persistence: 'Suspend/resume with memory, filesystem snapshots, clone', billing: 'Active CPU (20% floor) + allocated RAM + disk', cold: 'Vendor: a few hundred ms' },
+  freestyle: { tier: 1, gpu: false, byoc: null, rate: { cpu: 0.04032, mem: 0.0129, mode: 'wall' }, isolation: 'Full Linux VM (KVM) with its own kernel', persistence: 'Pause with memory, snapshots, branching; runs for weeks', billing: 'Wall-clock vCPU + RAM; paused VMs pay storage only', cold: 'Vendor: about 65 ms provision, p99 under 400 ms' },
+  langsmith: { tier: 1, gpu: false, byoc: 'BYOC and self-hosted', rate: { cpu: 0.0576, mem: 0.01845, mode: 'wall' }, isolation: 'microVM', persistence: 'Snapshots (memory snapshots over REST only); disposable or persistent filesystem', billing: 'Allocated vCPU + memory per hour, in LSU ($1 each)', cold: 'Vendor does not publish a figure' },
 };
 export const REFERENCE_TIERS = { 1: 'microVM', 2: 'gVisor', 3: 'container' };
 

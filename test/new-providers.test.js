@@ -9,6 +9,9 @@ import vercel, { parseVercelKey, readNdjson, vercelVcpus } from '../src/provider
 import sprites, { readSpriteFrames } from '../src/providers/sprites.js';
 import morph, { morphMcu } from '../src/providers/morph.js';
 import upstash, { upstashSize } from '../src/providers/upstash.js';
+import tensorlake, { tensorlakeRam } from '../src/providers/tensorlake.js';
+import freestyle from '../src/providers/freestyle.js';
+import langsmith, { langsmithRam } from '../src/providers/langsmith.js';
 import { PROVIDERS } from '../src/providers/index.js';
 
 function fakeFetch(answers) {
@@ -258,5 +261,106 @@ describe('vercel lifetime on the Hobby plan', () => {
     const f = fakeFetch([{ body: { sandbox: { name: 'n' }, session: { id: 's', status: 'running' } } }]);
     await vercel.create('tok:prj_1', { cpu: 1, ram: 1, ttl: 3600 }, f);
     expect(json(f.calls[0]).timeout).toBe(2700000);
+  });
+});
+
+describe('tensorlake (written from docs.tensorlake.ai, 2026-11-12)', () => {
+  const id = 'sbx_123';
+  test('create asks for resources inside the 1-8 GB per vCPU rule and waits for running', async () => {
+    const f = fakeFetch([{ body: { sandbox_id: id, status: 'pending' } }, { body: { sandbox_id: id, status: 'running' } }]);
+    const r = await tensorlake.create('tl_apiKey_x', size, f);
+    expect(r).toEqual({ id });
+    expect(f.calls[0].url).toBe('https://api.tensorlake.ai/sandboxes');
+    expect(f.calls[0].headers.authorization).toBe('Bearer tl_apiKey_x');
+    expect(json(f.calls[0])).toEqual({ resources: { cpus: 2, memory_mb: 4096 }, timeout_secs: 1800 });
+    expect(tensorlakeRam({ cpu: 1, ram: 64 })).toBe(8);
+    expect(tensorlakeRam({ cpu: 4, ram: 1 })).toBe(4);
+  });
+  test('create fails plainly when the sandbox never runs', async () => {
+    const f = fakeFetch([{ body: { sandbox_id: id, status: 'terminated' } }]);
+    await expect(tensorlake.create('k', size, f)).rejects.toThrow('terminated');
+  });
+  test('run starts sh -c, polls the process, then reads stdout and stderr lines', async () => {
+    const f = fakeFetch([
+      { body: { pid: 7, status: 'running' } },
+      { body: { pid: 7, status: 'exited', exit_code: 3 } },
+      { body: { lines: ['a', 'b'] } },
+      { body: { lines: ['oops'] } },
+    ]);
+    const r = await tensorlake.run('k', id, 'echo a; echo b', f);
+    expect(r).toEqual({ stdout: 'a\nb', stderr: 'oops', exitCode: 3 });
+    expect(f.calls[0].url).toBe('https://sbx_123.sandbox.tensorlake.ai/api/v1/processes');
+    expect(json(f.calls[0])).toEqual({ command: 'sh', args: ['-c', 'echo a; echo b'] });
+    expect(f.calls[2].url).toEndWith('/api/v1/processes/7/stdout');
+  });
+  test('stop deletes the sandbox; price and size', async () => {
+    const f = fakeFetch([{ body: null }]);
+    await tensorlake.stop('k', id, f);
+    expect(f.calls[0]).toMatchObject({ method: 'DELETE', url: 'https://api.tensorlake.ai/sandboxes/sbx_123' });
+    expect(tensorlake.price(size)).toBe(0.2);
+    expect(tensorlake.price({ cpu: 32, ram: 64 })).toBeNull();
+  });
+});
+
+describe('freestyle (REST paths read from the freestyle npm package, 2026-11-12)', () => {
+  const id = 'vm-abc';
+  test('create lets the VM out to the Internet, then grows it to the asked size', async () => {
+    const f = fakeFetch([{ body: { id, state: 'starting' } }, { body: { id, state: 'running' } }, { body: {} }]);
+    expect(await freestyle.create('fk', size, f)).toEqual({ id });
+    expect(f.calls[0].url).toBe('https://api.freestyle.sh/v5/vms');
+    expect(f.calls[0].headers.authorization).toBe('Bearer fk');
+    expect(json(f.calls[0]).firewall.rules[0]).toEqual({ action: 'allow', source: {}, destination: { public: true } });
+    expect(json(f.calls[0]).ttlSeconds).toBe(1800);
+    expect(f.calls[2].url).toBe('https://api.freestyle.sh/v5/vms/vm-abc/resize');
+    expect(json(f.calls[2])).toEqual({ cpu: 2, memory: 4096 });
+  });
+  test('a refused grow-only resize keeps the default VM, a server error does not', async () => {
+    const ok = fakeFetch([{ body: { id, state: 'running' } }, { status: 400, body: { message: 'grow-only' } }]);
+    expect(await freestyle.create('fk', size, ok)).toEqual({ id });
+    const bad = fakeFetch([{ body: { id, state: 'running' } }, { status: 500, body: { message: 'boom' } }]);
+    await expect(freestyle.create('fk', size, bad)).rejects.toThrow('HTTP 500');
+  });
+  test('run uses exec-await and reads statusCode; a killed command is 124', async () => {
+    const f = fakeFetch([{ body: { stdout: 'hi\n', stderr: '', statusCode: 0 } }, { body: { stdout: '', stderr: '', statusCode: null } }]);
+    expect(await freestyle.run('fk', id, 'echo hi', f)).toEqual({ stdout: 'hi\n', stderr: '', exitCode: 0 });
+    expect(f.calls[0].url).toBe('https://api.freestyle.sh/v5/vms/vm-abc/exec-await');
+    expect(json(f.calls[0])).toEqual({ command: 'echo hi', timeoutMs: 300000 });
+    expect((await freestyle.run('fk', id, 'sleep 99', f)).exitCode).toBe(124);
+  });
+  test('stop deletes the VM; price', async () => {
+    const f = fakeFetch([{ body: null }]);
+    await freestyle.stop('fk', id, f);
+    expect(f.calls[0]).toMatchObject({ method: 'DELETE', url: 'https://api.freestyle.sh/v5/vms/vm-abc' });
+    expect(freestyle.price(size)).toBe(0.132);
+  });
+});
+
+describe('langsmith sandboxes (written from the LangSmith REST docs, 2026-11-12)', () => {
+  const id = 'f1e2-uuid';
+  test('create makes a disposable sandbox with memory inside the 2-6 GiB per vCPU band', async () => {
+    const f = fakeFetch([{ status: 201, body: { id, name: 'sbx', status: 'provisioning' } }, { body: { status: 'ready' } }]);
+    expect(await langsmith.create('lsv2_x', size, f)).toEqual({ id });
+    expect(f.calls[0].url).toBe('https://api.smith.langchain.com/api/v2/sandboxes/boxes');
+    expect(f.calls[0].headers['x-api-key']).toBe('lsv2_x');
+    expect(json(f.calls[0])).toEqual({ vcpus: 2, mem_bytes: 4 * 1024 ** 3, persistent: false, idle_ttl_seconds: 1800 });
+    expect(f.calls[1].url).toBe('https://api.smith.langchain.com/api/v2/sandboxes/boxes/f1e2-uuid/status');
+    expect(langsmithRam({ cpu: 1, ram: 1 })).toBe(2);
+    expect(langsmithRam({ cpu: 1, ram: 32 })).toBe(6);
+  });
+  test('create names a failed sandbox', async () => {
+    const f = fakeFetch([{ status: 201, body: { id, status: 'failed', status_message: 'no capacity' } }]);
+    await expect(langsmith.create('k', size, f)).rejects.toThrow('no capacity');
+  });
+  test('run posts an sh -c argv to execute and reads exit_code', async () => {
+    const f = fakeFetch([{ body: { stdout: 'x\n', stderr: 'e', exit_code: 2 } }]);
+    expect(await langsmith.run('k', id, 'echo x', f)).toEqual({ stdout: 'x\n', stderr: 'e', exitCode: 2 });
+    expect(f.calls[0].url).toBe('https://api.smith.langchain.com/api/v2/sandboxes/f1e2-uuid/execute');
+    expect(json(f.calls[0]).command).toEqual(['sh', '-c', 'echo x']);
+  });
+  test('stop deletes the box; price', async () => {
+    const f = fakeFetch([{ status: 204, bytes: '' }]);
+    await langsmith.stop('k', id, f);
+    expect(f.calls[0]).toMatchObject({ method: 'DELETE', url: 'https://api.smith.langchain.com/api/v2/sandboxes/boxes/f1e2-uuid' });
+    expect(langsmith.price(size)).toBe(0.189);
   });
 });
