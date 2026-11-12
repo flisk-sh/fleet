@@ -1,5 +1,6 @@
 // The cabinet: same layout as inference.flisk.si's console (sidebar, title with a beta tag, ruled tables), in black and white.
 import { CSS, esc, FONTS, FLISK_BAR, statusTag } from './page.js';
+import { logoSvg } from './logos.js';
 import { fieldsOf } from './providers/fields.js';
 import { ICON_TAGS } from './seo.js';
 import { LIMIT_RANGES, MAX_KEYS, podStatus, summarize } from './store.js';
@@ -285,7 +286,7 @@ function providersSection(prices, providers, { connections = {}, canConnect = fa
       const kp = KEY_PAGE[p.provider] || (p.facts.keyPage ? { url: p.facts.keyPage, kind: 'dashboard' } : null);
       const biggest = [p.facts.maxCpu ? `${p.facts.maxCpu} vCPU` : '', p.facts.maxRam ? `${p.facts.maxRam} GB` : ''].filter(Boolean).join(' · ') || '—';
       return `<article class="pcard" data-tags="all ${tags(p)}" data-text="${esc(`${p.label} ${p.facts.blurb || ''} ${(p.facts.badges || []).join(' ')}`.toLowerCase())}">
-<div class="ph"><span class="pmark">${esc(p.label.slice(0, 1).toUpperCase())}</span><b>${esc(p.label)}</b><span class="pp">${money(p.pricePerHour)}<small>/h</small></span></div>
+<div class="ph">${logoSvg(p.provider, p.label, 34)}<b>${esc(p.label)}</b><span class="pp">${money(p.pricePerHour)}<small>/h</small></span></div>
 <div>${statusTag(p)}</div>
 <p>${esc(p.facts.blurb || p.note)}</p>
 ${p.status === 'working' ? '' : `<p class="soon">${p.status === 'blocked' ? `${esc(p.blocker)} It is built from ${esc(p.label)}'s docs and passes tests against fake replies.` : `Built from ${esc(p.label)}'s public docs and passes tests against fake replies, so it should work. It waits for a test on a real account.`} Fleet still routes to it if you connect a key. <a href="${esc(p.help)}" target="_blank" rel="noopener">${p.status === 'blocked' ? 'Follow it' : 'Help test it'}</a>.</p>`}

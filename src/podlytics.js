@@ -1,6 +1,7 @@
 // /podlytics: charts that compare the pod providers, after slopalytics.com's tabs of model charts.
 // Prices come from the provider adapters (each provider's own price page). Speed and success come from fleet's own
 // usage log (the calls table), summed over every account for the last 30 days. No login or pod id leaves the server.
+import { logoSvg } from './logos.js';
 import { esc, FLISK_BAR } from './page.js';
 import { headTags, PAGES } from './seo.js';
 import { REFERENCE, REFERENCE_TIERS, scenarios } from './reference.js';
@@ -58,6 +59,7 @@ export function podlyticsData(providers, stats = {}) {
       id,
       label: p.label,
       color: COLORS[id] || SPARE[spare++ % SPARE.length],
+      logo: logoSvg(id, p.label, 22),
       working: p.working || null,
       help: p.help || null,
       source: p.priceSource || null,
@@ -342,7 +344,7 @@ function client(D, SIZES) {
     $('#plist').innerHTML = D.filter((p) => !q || p.label.toLowerCase().includes(q))
       .map((p) => {
         const on = !st.off.has(p.id) && (!st.workingOnly || p.working);
-        return `<button type="button" class="prow${on ? '' : ' off'}" data-id="${p.id}" aria-pressed="${on}"><span class="pn">${p.label}</span><span class="pt">${p.working ? 'working' : 'untested'}</span><i style="${on ? 'background:' + p.color + ';border-color:' + p.color : 'border-color:' + p.color}"></i></button>`;
+        return `<button type="button" class="prow${on ? '' : ' off'}" data-id="${p.id}" aria-pressed="${on}"><span class="pn">${p.logo}${p.label}</span><span class="pt">${p.working ? 'working' : 'untested'}</span><i style="${on ? 'background:' + p.color + ';border-color:' + p.color : 'border-color:' + p.color}"></i></button>`;
       })
       .join('');
     $$('#plist .prow').forEach((b) =>
@@ -358,7 +360,7 @@ function client(D, SIZES) {
     $('#pfacts').innerHTML = shown()
       .map(
         (p) =>
-          `<div class="fact"><b style="color:${p.color}">${p.label}</b> <span>${p.regions.join(' · ')} · ${p.billing}${p.credit ? ' · ' + p.credit : ''}</span>${p.source ? ` <a href="${p.source}" rel="noopener" target="_blank">prices</a>` : ''}${!p.working && p.help ? ` <a href="${p.help}" rel="noopener" target="_blank">help test it</a>` : ''}</div>`,
+          `<div class="fact">${p.logo} <b style="color:${p.color}">${p.label}</b> <span>${p.regions.join(' · ')} · ${p.billing}${p.credit ? ' · ' + p.credit : ''}</span>${p.source ? ` <a href="${p.source}" rel="noopener" target="_blank">prices</a>` : ''}${!p.working && p.help ? ` <a href="${p.help}" rel="noopener" target="_blank">help test it</a>` : ''}</div>`,
       )
       .join('');
   }
@@ -542,6 +544,7 @@ aside{position:sticky;top:56px;align-self:start;max-height:calc(100vh - 56px);ov
 #sizes{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px}
 #sizes button{background:none;border:0;padding:2px 0;color:var(--dim);cursor:pointer;font:inherit}
 #sizes button.on{color:var(--green)}#sizes button:hover{color:var(--ink)}
+.pn{display:flex;align-items:center;gap:8px;min-width:0}.plogo{flex-shrink:0;display:inline-block;vertical-align:middle}.fact .plogo{margin-right:4px;vertical-align:-5px}
 .prow{display:grid;grid-template-columns:minmax(0,1fr) auto 10px;gap:10px;align-items:center;width:100%;background:none;border:0;color:var(--ink);font:14px var(--sans);padding:7px 2px;cursor:pointer;text-align:left}
 .prow:hover{background:var(--panel)}
 .prow .pt{font:10.5px var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
