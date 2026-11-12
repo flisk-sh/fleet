@@ -152,6 +152,40 @@ describe('cabinet', () => {
   });
 });
 
+describe('try a pod', () => {
+  test('starts, runs, stops, times each step, and keeps no key', async () => {
+    const { env, page } = await setup();
+    const r = await handle(
+      new Request(`${ORIGIN}/console/try`, {
+        method: 'POST',
+        headers: { cookie: (await makeSession(env, 'octo')).split(';')[0], origin: ORIGIN, 'content-type': 'application/json' },
+        body: JSON.stringify({ provider: 'mid', key: 'my-provider-key', command: 'echo hi' }),
+      }),
+      env,
+      { providers },
+    );
+    expect(r.status).toBe(200);
+    const d = await r.json();
+    expect(d).toMatchObject({ pod: 'pod_mid_one', provider: 'mid', stdout: 'echo hi\n', exitCode: 0, stopError: null });
+    for (const k of ['createMs', 'runMs', 'stopMs', 'totalMs']) expect(typeof d[k]).toBe('number');
+    expect([...env.KV.m.values()].join(' ')).not.toContain('my-provider-key');
+    expect(JSON.parse(env.KV.m.get('pods:octo'))[0].stopped).toBeTruthy();
+    expect(await (await page('GET', '/console?section=try')).text()).toContain('Start pod');
+  });
+  test('needs a key, a known provider and our own origin', async () => {
+    const { env } = await setup();
+    const cookie = (await makeSession(env, 'octo')).split(';')[0];
+    const post = (body, origin = ORIGIN) =>
+      handle(new Request(`${ORIGIN}/console/try`, { method: 'POST', headers: { cookie, origin, 'content-type': 'application/json' }, body: JSON.stringify(body) }), env, { providers });
+    expect((await post({ provider: 'mid' })).status).toBe(400);
+    expect((await post({ provider: 'zzz', key: 'k' })).status).toBe(400);
+    expect((await post({ provider: 'mid', key: 'k' }, 'https://evil.test')).status).toBe(403);
+    const down = await post({ provider: 'cheap', key: 'k' });
+    expect(down.status).toBe(502);
+    expect((await down.json()).failed[0].provider).toBe('cheap');
+  });
+});
+
 describe('MCP', () => {
   test('lists three tools and creates a pod', async () => {
     const { req } = await setup();
@@ -169,4 +203,12 @@ describe('MCP', () => {
     expect(init.result.serverInfo.name).toBe('fleet');
     expect((await req('POST', '/mcp', { jsonrpc: '2.0', method: 'notifications/initialized' })).status).toBe(202);
   });
+});
+
+test('every inline page script parses', async () => {
+  const { page } = await setup();
+  for (const section of ['overview', 'pods', 'keys', 'try', 'providers', 'docs']) {
+    const html = await (await page('GET', `/console?section=${section}`)).text();
+    for (const m of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) expect(() => new Function(m[1])).not.toThrow();
+  }
 });

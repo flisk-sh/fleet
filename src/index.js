@@ -4,7 +4,7 @@ import { handleMcp } from './mcp.js';
 import { bearer, githubAuthorizeUrl, githubLogin } from './auth.js';
 import { homePage, messagePage } from './page.js';
 import { cabinetPage } from './console.js';
-import { createKey, listKeys, listPods, loginForKey, recordPod, revokeKey } from './store.js';
+import { createKey, listKeys, listPods, loginForKey, podRef, recordPod, revokeKey } from './store.js';
 import { clearSession, makeSession, readSession, sameOrigin } from './session.js';
 
 const SECURITY = {
@@ -12,7 +12,7 @@ const SECURITY = {
   'x-frame-options': 'DENY',
   'referrer-policy': 'same-origin',
   'strict-transport-security': 'max-age=31536000',
-  'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; form-action 'self' https://github.com; frame-ancestors 'none'; base-uri 'none'",
+  'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; form-action 'self' https://github.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
 };
 const json = (status, body) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });
@@ -45,6 +45,42 @@ const out = (r) => json(r.status, r.status < 400 ? r.pod || r.result : { error: 
 async function cabinet(env, origin, login, section, providers, extra = {}) {
   const [keys, pods] = await Promise.all([extra.keys ? extra.keys : listKeys(env, login), listPods(env, login)]);
   return html(cabinetPage({ origin, login, section, keys, pods, prices: priceTable(providers), providers, ...extra }), 200, { 'cache-control': 'no-store' });
+}
+
+// "Try a pod" in the cabinet: start, run one command, always stop, and time each step. The provider key is used for this call only.
+async function tryPod(request, env, login, providers, fetchImpl) {
+  const body = await readJson(request);
+  const provider = String(body?.provider || '');
+  const key = String(body?.key || '').trim();
+  const command = String(body?.command || '').trim() || 'uname -sr; nproc; free -m | head -2';
+  if (!providers[provider]) return json(400, { error: 'pick a provider' });
+  if (!key) return json(400, { error: 'paste your provider API key first' });
+  if (command.length > 500) return json(400, { error: 'keep the command under 500 characters' });
+  const keys = { [provider]: key };
+  const ctx = { fetchImpl, record: (type, data) => recordPod(env, login, type, data) };
+  const t0 = Date.now();
+  const made = await createPod(providers, keys, { provider, cpu: 2, ram: 4 }, ctx);
+  const createMs = Date.now() - t0;
+  if (made.status !== 201) return json(made.status, { error: made.error, failed: made.failed, createMs });
+  const t1 = Date.now();
+  const ran = await runPod(providers, keys, made.pod.id, { command }, ctx);
+  const runMs = Date.now() - t1;
+  const t2 = Date.now();
+  const stopped = await stopPod(providers, keys, made.pod.id, ctx);
+  const stopMs = Date.now() - t2;
+  const result = ran.result || {};
+  return json(200, {
+    pod: podRef(made.pod.id),
+    provider,
+    createMs,
+    runMs,
+    stopMs,
+    totalMs: Date.now() - t0,
+    stdout: result.stdout ?? '',
+    stderr: ran.status === 200 ? result.stderr ?? '' : ran.error,
+    exitCode: result.exitCode ?? null,
+    stopError: stopped.status === 200 ? null : stopped.error,
+  });
 }
 
 export async function handle(request, env = {}, { providers = PROVIDERS, fetchImpl = fetch } = {}) {
@@ -101,6 +137,7 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
         const made = await createKey(env, login, form?.get('name'));
         return cabinet(env, origin, login, 'keys', providers, { keys: made.list, newKey: made.key, error: made.error });
       }
+      if (path === '/console/try') return tryPod(request, env, login, providers, fetchImpl);
       const m = /^\/console\/keys\/([a-f0-9]{12})\/revoke$/.exec(path);
       if (m) {
         const done = await revokeKey(env, login, m[1]);

@@ -6,6 +6,7 @@ const SECTIONS = [
   ['overview', 'Overview'],
   ['pods', 'Pods'],
   ['keys', 'API keys'],
+  ['try', 'Try a pod'],
   ['providers', 'Providers'],
   ['docs', 'Docs'],
 ];
@@ -15,6 +16,13 @@ const SIGNUP = {
   isorun: 'https://isorun.ai',
   e2b: 'https://e2b.dev',
   daytona: 'https://app.daytona.io',
+};
+// Where to make an API key. Dashboard pages where the provider's docs name one, else the provider's own API-key docs.
+export const KEY_PAGE = {
+  boat: { url: 'https://docs.boat.dev/api-keys', kind: 'docs' },
+  isorun: { url: 'https://app.isorun.ai', kind: 'dashboard' },
+  e2b: { url: 'https://e2b.dev/docs/api-key', kind: 'docs' },
+  daytona: { url: 'https://app.daytona.io/dashboard/keys', kind: 'dashboard' },
 };
 
 const CABINET_CSS = `
@@ -121,11 +129,54 @@ function providersSection(prices, providers) {
   const rows = prices
     .map((p) => {
       const meta = providers[p.provider];
-      return `<tr><td>${esc(p.label)}</td><td>${esc(meta.keyHeader)}</td><td class="n">${money(p.pricePerHour)}</td><td><a href="${SIGNUP[p.provider] || p.source}">Sign up</a></td><td>${esc(p.note)}</td></tr>`;
+      const kp = KEY_PAGE[p.provider];
+      return `<tr><td>${esc(p.label)}</td><td>${esc(meta.keyHeader)}</td><td class="n">${money(p.pricePerHour)}</td><td><a href="${SIGNUP[p.provider] || p.source}" target="_blank" rel="noopener">Sign up</a></td><td>${kp ? `<a href="${kp.url}" target="_blank" rel="noopener">Get a key</a> <span class="note" style="margin:0">(${kp.kind})</span>` : ''}</td><td>${esc(p.note)}</td></tr>`;
     })
     .join('');
   return `<p class="note">Bring your own account at each provider. Send its key in the header below with every call; fleet never stores it. List prices are for 2 vCPU and 4 GB, per hour.</p>
-<div class="scroll" style="margin-top:22px"><table><tr><th>Provider</th><th>Header</th><th>Per hour</th><th>Account</th><th>Note</th></tr>${rows}</table></div>`;
+<div class="scroll" style="margin-top:22px"><table><tr><th>Provider</th><th>Header</th><th>Per hour</th><th>Account</th><th>API key</th><th>Note</th></tr>${rows}</table></div>
+<p class="note">No callback comes back from a provider: they hand out API keys, not sign-in. Make a key there, then paste it in <a href="/console?section=try">Try a pod</a> or send it in the header.</p>`;
+}
+
+function trySection(prices, providers) {
+  const opts = prices
+    .filter((p) => p.pricePerHour !== null)
+    .map((p) => `<option value="${esc(p.provider)}">${esc(p.label)} · ${money(p.pricePerHour)} an hour</option>`)
+    .join('');
+  const pages = JSON.stringify(Object.fromEntries(Object.entries(KEY_PAGE).map(([k, v]) => [k, v.url])));
+  return `<p class="note">Start one real pod on your own provider account, run one command, and stop it. Fleet times each step. Your provider key goes to the provider for this one call and is not stored; tick the box to keep it in this browser only.</p>
+<form id="try" class="box" autocomplete="off">
+<div class="row" style="margin-top:0"><label>Provider <select id="prov" style="font:inherit;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);padding:6px 8px">${opts}</select></label><a id="getkey" class="note" style="margin:0" target="_blank" rel="noopener" href="#">Get a key</a></div>
+<div class="row"><input type="password" id="pkey" placeholder="Your provider API key" aria-label="Provider API key" style="font:inherit;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);padding:7px 10px;flex:1;min-width:240px"></div>
+<div class="row"><input type="text" id="cmd" value="uname -sr; nproc; free -m | head -2" aria-label="Command" style="flex:1"></div>
+<div class="row"><label><input type="checkbox" id="remember"> Remember this key in this browser</label><button class="b inv" type="submit" id="go">Start pod</button></div>
+<p id="err" class="note" style="display:none"></p>
+</form>
+<div id="out" style="display:none">
+<h2>Result</h2>
+<div class="metrics"><div><b id="tc">—</b><span>Start</span></div><div><b id="tr">—</b><span>Run</span></div><div><b id="ts">—</b><span>Stop</span></div><div><b id="tt">—</b><span>Total</span></div></div>
+<pre id="so" style="margin-top:14px;white-space:pre-wrap"></pre>
+<p class="note" id="meta"></p>
+</div>
+<script>
+(()=>{const P=${pages};const $=(i)=>document.getElementById(i);
+const store=(()=>{try{return window.localStorage}catch{return null}})();
+const load=()=>{const k=store&&store.getItem('fleet_try_'+$('prov').value);$('pkey').value=k||'';$('remember').checked=!!k;$('getkey').href=P[$('prov').value]||'#'};
+$('prov').addEventListener('change',load);load();
+const s=(ms)=>ms==null?'—':(ms/1000).toFixed(1)+' s';
+$('try').addEventListener('submit',async(e)=>{e.preventDefault();const key=$('pkey').value.trim();const err=$('err');err.style.display='none';
+if(!key){err.textContent='Paste your provider API key first.';err.style.display='block';$('pkey').focus();return}
+try{if(store){if($('remember').checked)store.setItem('fleet_try_'+$('prov').value,key);else store.removeItem('fleet_try_'+$('prov').value)}}catch{}
+$('go').textContent='Starting…';$('go').disabled=true;$('out').style.display='none';
+try{const r=await fetch('/console/try',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({provider:$('prov').value,key,command:$('cmd').value})});
+const d=await r.json();
+if(!r.ok){err.textContent=d.error+(d.failed?' — '+d.failed.map(f=>f.provider+': '+f.error).join('; '):'');err.style.display='block'}
+else{$('tc').textContent=s(d.createMs);$('tr').textContent=s(d.runMs);$('ts').textContent=s(d.stopMs);$('tt').textContent=s(d.totalMs);
+const NL=String.fromCharCode(10);$('so').textContent=(d.stdout||'')+(d.stderr?NL+'[stderr]'+NL+d.stderr:'')+(d.exitCode==null?'':NL+'[exit '+d.exitCode+']');
+$('meta').textContent='Pod '+d.pod+' on '+d.provider+(d.stopError?'. Stop failed: '+d.stopError+'. Stop it on the provider’s site.':', stopped.');$('out').style.display='block'}}
+catch(x){err.textContent='Fleet did not answer: '+x.message;err.style.display='block'}
+finally{$('go').textContent='Start pod';$('go').disabled=false}});})();
+</script>`;
 }
 
 function docsSection(origin) {
@@ -160,7 +211,9 @@ export function cabinetPage({ origin, login, section, keys, pods, prices, provid
         ? podsSection(pods)
         : id === 'keys'
           ? keysSection({ keys, newKey, error })
-          : id === 'providers'
+          : id === 'try'
+            ? trySection(prices, providers)
+            : id === 'providers'
             ? providersSection(prices, providers)
             : docsSection(origin);
   return shell({ login, section: id, title, body });
