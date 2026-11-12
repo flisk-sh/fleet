@@ -38,7 +38,14 @@ export function plainText(text) {
     .replace(/\s+/g, ' ')
     .trim();
   const shown = (title || visible).slice(0, 120);
-  return `an HTML error page${shown ? ` ("${shown}")` : ''}`;
+  return `an HTML error page${/[a-z0-9]/i.test(shown) ? ` ("${shown}")` : ''}`;
+}
+
+// Errors saved before plainText existed hold a clipped HTML page in the middle of the message. Cleans one for display.
+export function tidyError(text) {
+  const s = String(text || '');
+  const at = s.search(/<\s*(!doctype|html)/i);
+  return at < 0 ? s : s.slice(0, at) + plainText(s.slice(at));
 }
 
 export const sleep =(ms) => new Promise((r) => setTimeout(r, ms));

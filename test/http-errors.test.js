@@ -27,3 +27,14 @@ describe('provider error text', () => {
     await expect(call(fetchImpl, 'https://x.test')).rejects.toThrow('HTTP 403: an HTML error page ("ERROR: The request could not be satisfied")');
   });
 });
+
+describe('old saved errors', () => {
+  const OLD = 'no provider could start a pod: blaxel HTTP 403: <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"> <HTML><HEAD><META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">…';
+
+  test('a clipped HTML page inside a saved message is replaced by a plain note', async () => {
+    const { tidyError } = await import('../src/providers/http.js');
+    expect(tidyError(OLD)).toBe('no provider could start a pod: blaxel HTTP 403: an HTML error page');
+    expect(tidyError('morph HTTP 402: {"detail":"payment required"}')).toBe('morph HTTP 402: {"detail":"payment required"}');
+    expect(tidyError(null)).toBe('');
+  });
+});

@@ -1,6 +1,7 @@
 // The cabinet: same layout as inference.flisk.si's console (sidebar, title with a beta tag, ruled tables), in black and white.
 import { CSS, esc, FLEET_MARK, FONTS, FLISK_BAR, statusTag } from './page.js';
 import { logoSvg, providerTag } from './logos.js';
+import { tidyError } from './providers/http.js';
 import { PROVIDERS } from './providers/index.js';
 
 // Logo and name of a provider id; an id fleet does not know is shown as plain text.
@@ -226,7 +227,7 @@ function podsSection(pods) {
   }
   const status = (p) => {
     const st = podStatus(p);
-    if (st === 'failed') return `start failed: ${p.failedStart.map((f) => `${f.provider}: ${f.error}`).join('; ')}`;
+    if (st === 'failed') return `start failed: ${p.failedStart.map((f) => `${f.provider}: ${tidyError(f.error)}`).join('; ')}`;
     if (st === 'stopped') return `stopped ${when(p.stopped)}`;
     if (st === 'gone') return `gone, seen ${when(p.gone)}`;
     if (st === 'running') return 'running';
@@ -379,7 +380,7 @@ function usageSection(calls, errorsOnly) {
   const badge = (st) => `<span class="st ${st >= 400 ? 'bad' : 'ok'}">${st}</span>`;
   const rows = calls
     .map(
-      (c) => `<tr><td class="nw">${when(c.at)}</td><td class="n">${esc(c.kind)}</td><td>${c.provider ? ptag(c.provider) : c.kind === 'start' && c.status >= 400 ? 'none started' : '—'}</td><td class="n">${esc(c.ref || '—')}</td><td>${badge(c.status)}</td><td class="n nw">${(c.ms / 1000).toFixed(1)} s</td><td>${esc(c.error || '')}</td></tr>`,
+      (c) => `<tr><td class="nw">${when(c.at)}</td><td class="n">${esc(c.kind)}</td><td>${c.provider ? ptag(c.provider) : c.kind === 'start' && c.status >= 400 ? 'none started' : '—'}</td><td class="n">${esc(c.ref || '—')}</td><td>${badge(c.status)}</td><td class="n nw">${(c.ms / 1000).toFixed(1)} s</td><td>${esc(tidyError(c.error))}</td></tr>`,
     )
     .join('');
   return `<div class="row"><a class="b${errorsOnly ? '' : ' on'}" href="/console?section=usage">All</a><a class="b${errorsOnly ? ' on' : ''}" href="/console?section=usage&only=errors">Errors</a><a class="b" style="margin-left:auto" href="/console?section=usage${errorsOnly ? '&only=errors' : ''}">Refresh</a></div>
