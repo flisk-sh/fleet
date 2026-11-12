@@ -4,7 +4,7 @@
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 import { logoSvg } from './logos.js';
-import { headTags, ICON_TAGS, jsonLd, PAGES } from './seo.js';
+import { headTags, ICON_TAGS, jsonLd, PAGES, SKIP_CSS, SKIP_LINK } from './seo.js';
 
 export const FONTS =
   '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
@@ -100,13 +100,16 @@ p.note{color:var(--dim);margin:14px 0 0;max-width:72ch}
 .foot-grid>div:first-child{display:flex;flex-direction:column;justify-content:space-between;gap:24px;padding-left:48px}
 .foot-grid .m.h{color:var(--dim);display:block;margin-bottom:14px}
 .foot-grid a{display:block;text-decoration:none;margin-bottom:9px;font:12px/1.3 var(--mono);text-transform:uppercase;letter-spacing:.05em}
+.foot-grid a:not(.b):not(.logo){padding:6px 0;margin-bottom:0}
 .foot-grid a:hover{text-decoration:underline}
 .foot-grid a.logo{display:inline-flex;font:800 26px/1 var(--serif);text-transform:none;letter-spacing:-.03em;margin:0}
 .foot-grid a.b{display:inline-block;margin:0}
 .word{font:800 clamp(120px,34vw,470px)/.84 var(--serif);letter-spacing:-.06em;padding:18px 40px 10px;text-align:center;background:repeating-linear-gradient(180deg,var(--ink) 0 4px,transparent 4px 9px);-webkit-background-clip:text;background-clip:text;color:transparent;user-select:none}
 .legal{background:var(--night);color:#c9c9d1;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:10px 48px;font:11px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.06em}
-.legal a{text-decoration:none;margin-right:18px}.legal a:hover{color:#fff}
+.legal a{display:inline-block;padding:7px 0;text-decoration:none;margin-right:18px}.legal a:hover{color:#fff}
+.top nav>a:not(.spons){padding:9px 0}
 .msg{padding:80px 48px;border-bottom:1px solid var(--ink)}
+${SKIP_CSS}
 @media (prefers-reduced-motion:reduce){.route li,.route .foot{animation:none;opacity:1}}
 @media (max-width:900px){.hero,.sec.two{grid-template-columns:minmax(0,1fr)}.hero{min-height:0}.art{border-left:0;border-top:1px solid var(--ink);min-height:300px;height:300px}.steps{grid-template-columns:1fr 1fr}.steps>div:nth-child(3){border-left:0}.steps>div:nth-child(n+3){border-top:1px solid var(--ink)}.feat{grid-template-columns:1fr}.feat>div+div{border-left:0;border-top:1px solid var(--ink)}.foot-grid{grid-template-columns:1fr 1fr}.foot-grid>div:first-child{grid-column:1/-1;padding-left:24px}.foot-grid>div:nth-child(2){border-left:0}.foot-grid>div{border-top:1px solid var(--ink);min-height:0}}
 @media (max-width:600px){.hero .l,.sec,.msg{padding-left:16px;padding-right:16px}.top nav{gap:14px;padding:0 12px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}.top nav a{white-space:nowrap}.top nav a.spons{display:none}.top .cta{padding:0 14px;flex-shrink:0}.top nav a.hide{display:none}.steps{grid-template-columns:1fr}.steps>div{border-left:0!important;border-top:1px solid var(--ink)}.steps>div:first-child{border-top:0}.route li{grid-template-columns:18px minmax(0,1fr) 64px}.route li .st{grid-column:2/4;text-align:left}.word{padding:14px 12px 6px}.legal{padding:10px 16px}.foot-grid{grid-template-columns:1fr}.foot-grid>div{border-left:0!important}}
@@ -134,6 +137,7 @@ ${FONTS}
 <style>${CSS}${extraCss}</style>
 </head>
 <body>
+${SKIP_LINK}
 ${FLISK_BAR}
 <div class="frame">
 <div class="top m"><nav><span class="swp" aria-label="Fleet products"><a class="on" href="/" aria-current="page">fleet</a><a href="/podlytics">podlytics</a></span><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/docs#mcp">MCP</a><a class="hide" href="https://github.com/flisk-sh/fleet">Source</a><a class="spons" href="https://github.com/sponsors/flisk-sh">Sponsor fleet</a></nav><a class="cta" href="/console">Console</a></div>
@@ -339,5 +343,5 @@ ${rows}
 }
 
 export function messagePage(title, text) {
-  return shell(title, `<section class="msg"><p class="m label">fleet</p><h1 style="font-size:clamp(40px,6vw,72px)">${esc(title)}</h1><p class="lede">${esc(text)}</p><div class="cta-row" style="margin-top:24px"><a class="b" href="/">Back home</a></div></section>`);
+  return shell(`${title} · fleet`,`<section class="msg"><p class="m label">fleet</p><h1 style="font-size:clamp(40px,6vw,72px)">${esc(title)}</h1><p class="lede">${esc(text)}</p><div class="cta-row" style="margin-top:24px"><a class="b" href="/">Back home</a></div></section>`);
 }

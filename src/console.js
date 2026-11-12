@@ -7,7 +7,7 @@ import { PROVIDERS } from './providers/index.js';
 // Logo and name of a provider id; an id fleet does not know is shown as plain text.
 const ptag = (id) => (id && PROVIDERS[id] ? providerTag(id, PROVIDERS[id].label) : esc(id || '—'));
 import { fieldsOf } from './providers/fields.js';
-import { ICON_TAGS } from './seo.js';
+import { ICON_TAGS, SKIP_LINK } from './seo.js';
 import { LIMIT_RANGES, MAX_KEYS, podStatus, summarize } from './store.js';
 
 const SECTIONS = [
@@ -134,13 +134,13 @@ ${ICON_TAGS}
 ${FONTS}
 <style>${CSS}${CABINET_CSS}</style>
 </head>
-<body>${FLISK_BAR}<div class="cab">
+<body>${SKIP_LINK}${FLISK_BAR}<div class="cab">
 <aside class="side">
 <a class="logo" href="/">${FLEET_MARK}fleet</a>
 ${nav}
 <div class="me"><span>@${esc(login)}</span><form method="post" action="/auth/signout"><button class="b" type="submit">Sign out</button></form></div>
 </aside>
-<main class="main">
+<main class="main" id="main">
 <div class="ctop"><h1>${esc(title)} <span class="pill"><i></i>Beta</span></h1><a class="b" href="/">Home</a></div>
 ${body}
 </main>
