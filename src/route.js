@@ -47,6 +47,8 @@ export function parsePodId(id, providers) {
 }
 
 const short = (e) => String(e?.message || e).slice(0, 300);
+// A provider answering 404 or 410 for a pod id means the pod is gone: stopped, expired or deleted. Say so plainly.
+const isGone = (e) => e?.status === 404 || e?.status === 410;
 
 export async function createPod(providers, keys, body, ctx = {}) {
   const size = parseSize(body);
@@ -78,6 +80,7 @@ export async function runPod(providers, keys, id, body, ctx = {}) {
     const out = await providers[ref.provider].run(keys[ref.provider], ref.providerId, command, ctx);
     return { status: 200, result: { stdout: out.stdout ?? '', stderr: out.stderr ?? '', exitCode: out.exitCode ?? null } };
   } catch (e) {
+    if (isGone(e)) return { status: 410, error: `this pod is gone: ${ref.provider} no longer has it (stopped, expired or deleted). Create a new pod` };
     return { status: 502, error: `${ref.provider}: ${short(e)}` };
   }
 }
@@ -90,6 +93,7 @@ export async function stopPod(providers, keys, id, ctx = {}) {
     await providers[ref.provider].stop(keys[ref.provider], ref.providerId, ctx);
     return { status: 200, result: { stopped: true } };
   } catch (e) {
+    if (isGone(e)) return { status: 200, result: { stopped: true, alreadyGone: true } }; // stopping a dead pod is a success, so retries are safe
     return { status: 502, error: `${ref.provider}: ${short(e)}` };
   }
 }

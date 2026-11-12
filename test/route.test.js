@@ -91,6 +91,23 @@ describe('run and stop', () => {
   });
 });
 
+describe('a pod that died', () => {
+  const gone = () => Object.assign(new Error('HTTP 404: sandbox not found'), { status: 404 });
+  const dead = { a: { ...fake('a', 0.1), run: async () => { throw gone(); }, stop: async () => { throw gone(); } } };
+  test('run says the pod is gone (410), not a provider outage', async () => {
+    const r = await runPod(dead, { a: 'ka' }, 'pod_a_x', { command: 'ls' });
+    expect(r.status).toBe(410);
+    expect(r.error).toContain('this pod is gone');
+  });
+  test('stop on a dead pod succeeds, so retries are safe', async () => {
+    expect(await stopPod(dead, { a: 'ka' }, 'pod_a_x')).toEqual({ status: 200, result: { stopped: true, alreadyGone: true } });
+  });
+  test('other provider errors are still 502', async () => {
+    const down = { a: { ...fake('a', 0.1), run: async () => { throw Object.assign(new Error('HTTP 500: boom'), { status: 500 }); } } };
+    expect((await runPod(down, { a: 'ka' }, 'pod_a_x', { command: 'ls' })).status).toBe(502);
+  });
+});
+
 test('price table is sorted, not-offered last', () => {
   const t = priceTable({ a: fake('a', 0.1), d: fake('d', null), b: fake('b', 0.02) });
   expect(t.map((p) => p.provider)).toEqual(['b', 'a', 'd']);
