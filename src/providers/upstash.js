@@ -1,7 +1,7 @@
 // Upstash Box. Docs: https://upstash.com/docs/box · prices: https://upstash.com/docs/box/overall/pricing
 // Sizes small (2 vCPU / 4 GB), medium (4 / 8) and large (8 / 16), billed per active CPU hour.
-// Not tested yet: the REST paths come from the @upstash/box 0.8.0 SDK source, not from public API docs (2026-11-12),
-// and have never been run on a real account.
+// Working: run on a real account on 2026-11-12. The REST paths were read from the @upstash/box 0.8.0 SDK source (they are
+// not in Upstash's public API docs) and matched the live service.
 import { call, sleep } from './http.js';
 
 const API = 'https://us-east-1.box.upstash.com';
@@ -16,7 +16,7 @@ const auth = (key) => ({ 'x-box-api-key': key });
 export default {
   label: 'Upstash Box',
   keyHeader: 'X-Upstash-Key',
-  help: 'https://github.com/flisk-sh/fleet/issues/4',
+  working: '2026-11-12', // real account run: start, run with env/cwd/timeout, files, timeout (exit 124), stop, stop again
   priceSource: 'https://upstash.com/docs/box/overall/pricing',
   note: 'Sizes 2/4, 4/8 or 8/16 (vCPU/GB), billed only while the CPU works. US East only.',
   price: (size) => upstashSize(size)?.hour ?? null,

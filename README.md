@@ -4,13 +4,14 @@ One API for every agent pod. A pod is a Linux machine your agent can run command
 
 Fleet starts each pod on the cheapest sandbox provider you have a key for, and moves to the next one when a provider fails. You bring your own provider accounts: connect each one once in the cabinet (fleet keeps the key encrypted), or send its key with each call.
 
-Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the cabinet: up to 10 named fleet keys, your pods, an overview, providers and docs. Daytona and Blaxel have been run end to end on a real account. The other nine adapters are written from the providers' public API docs and tested against fake replies only.
+Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the cabinet: up to 10 named fleet keys, your pods, an overview, providers and docs. Daytona, Blaxel and Upstash Box have been run end to end on a real account. The other eight adapters are written from the providers' public API docs and tested against fake replies only.
 
 ## Providers
 
 | Provider | Status | Header for your key | List price, 2 vCPU / 4 GB, per hour | Source |
 |---|---|---|---|---|
 | Daytona | **Working**: run end to end on a real account on 2026-11-12 | `X-Daytona-Key` | $0.166 | https://www.daytona.io/pricing |
+| Upstash Box | **Working**: run end to end on a real account on 2026-11-12 | `X-Upstash-Key` | $0.100 (active CPU) | https://upstash.com/docs/box/overall/pricing |
 | Blaxel | **Working**: run end to end on a real account on 2026-11-12 | `X-Blaxel-Key`: `<workspace>:<API key>` | $0.166 | https://blaxel.ai/pricing |
 | boat | **Blocked**: needs a card (7-day trial, then $20 a month), [help wanted](https://github.com/flisk-sh/fleet/issues/1) | `X-Boat-Key`: `<key>[:<organization>]` | $0.018 | https://docs.boat.dev/pricing |
 | Isorun | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/2) | `X-Isorun-Key` | $0.110 | https://docs.isorun.ai/getting-started/pricing |
@@ -20,7 +21,6 @@ Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the c
 | Vercel Sandbox | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Vercel-Key` (`<token>:<project id>[:<team id>]`) | $0.341 at most (CPU billed only while busy) | https://vercel.com/docs/sandbox/pricing |
 | Fly Sprites | **Blocked**: needs a card on accounts whose Fly trial ended, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Sprites-Key` | $0.164 at most (billed on use) | https://fly.io/pricing |
 | Morph | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Morph-Key` | $0.100 | https://cloud.morph.so/web/subscribe |
-| Upstash Box | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Upstash-Key` | $0.100 (active CPU) | https://upstash.com/docs/box/overall/pricing |
 
 Most providers need one API key. Three need more, joined with colons in one header value (the cabinet's Providers page has one input per part): Blaxel `workspace:key`, Vercel `token:projectId[:teamId]`, boat `key[:organization]`.
 
