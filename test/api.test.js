@@ -437,7 +437,7 @@ describe('provider status', () => {
   // Providers that have run end to end on a real account. Add one here only after scripts/real-check.mjs passed for it.
   const WORKING = { daytona: '2026-11-12', blaxel: '2026-11-12', upstash: '2026-11-12', vercel: '2026-11-12' };
   // Providers nobody can test yet, and why.
-  const BLOCKED = { boat: 'card', hopx: 'down', runloop: 'invite', sprites: 'card' };
+  const BLOCKED = { boat: 'card', hopx: 'down', morph: 'card', runloop: 'invite', sprites: 'card' };
   const LABEL = { down: 'Provider down', card: 'Needs a card', invite: 'Invite only' };
   test('every provider is working, blocked (with the reason) or untested, on the home page, the API and the cabinet', async () => {
     const { PROVIDERS } = await import('../src/providers/index.js');
@@ -469,7 +469,8 @@ describe('provider status', () => {
     expect(card('Hopx')).toContain('error 526');
     expect(card('Hopx')).toContain('Provider down');
     expect(card('Runloop')).toContain('Invite only');
-    expect(card('Morph')).toContain('waits for a test on a real account');
+    expect(card('E2B')).toContain('waits for a test on a real account');
+    expect(card('Morph')).toContain('Needs a card');
     // Blaxel asks for its two parts, Vercel for three, a plain provider for one key
     expect(card('Blaxel').match(/name="f_/g)).toHaveLength(2);
     expect(card('Blaxel')).toContain('name="f_workspace"');

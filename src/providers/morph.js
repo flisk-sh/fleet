@@ -2,7 +2,8 @@
 // MicroVMs started from snapshots. Fleet makes a sized snapshot of the minimal image, boots an instance from it,
 // polls until it is ready, and runs commands with the synchronous exec call.
 // 1 MCU = 1 vCPU-hour + 4 GB RAM-hours, $0.05 an MCU.
-// Not tested yet: written from the OpenAPI spec on 2026-11-12, never run on a real account.
+// Not tested yet: written from the OpenAPI spec on 2026-11-12. A real key on 2026-11-12 was accepted, but the first
+// call (POST /snapshot) answered 402 payment required: the account needs billing before any pod starts.
 // Guess: Morph reuses a snapshot with the same image and size; if not, each start leaves one small snapshot behind.
 import { call, sleep } from './http.js';
 
@@ -15,6 +16,7 @@ export default {
   label: 'Morph',
   keyHeader: 'X-Morph-Key',
   help: 'https://github.com/flisk-sh/fleet/issues/4',
+  blocked: { kind: 'card', note: 'Morph answered 402 "payment required" to a new account with no billing set up, so we cannot test it for free.' },
   priceSource: 'https://cloud.morph.so/web/subscribe',
   note: 'MicroVMs from snapshots. 4 GB per vCPU is included in the price.',
   price: (size) => (size.cpu > 64 ? null : Math.round(morphMcu(size) * MCU * 1000) / 1000),
@@ -22,7 +24,7 @@ export default {
     blurb: 'MicroVMs that start, branch and pause from snapshots, with synchronous exec over HTTP.',
     regions: [],
     billing: 'per MCU (1 vCPU + 4 GB an hour)',
-    credit: '300 MCU starting credit on the Developer plan (docs disagree)',
+    credit: 'Docs mention 300 MCU starting credit, but a new account got 402 "payment required" until billing is set up (seen 2026-11-12)',
     card: null,
     minimum: 0,
     maxCpu: 64,
