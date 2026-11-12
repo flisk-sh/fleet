@@ -17,7 +17,7 @@ Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the c
 | Isorun | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/2) | `X-Isorun-Key` | $0.110 | https://docs.isorun.ai/getting-started/pricing |
 | E2B | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/3) | `X-E2B-Key` | $0.166 | https://e2b.dev/pricing |
 | Hopx | **Blocked**: provider down (API error 526 since 2026-11-12), [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Hopx-Key` | $0.166 | https://hopx.ai/pricing |
-| Runloop | **Blocked**: invitation only (waitlist: support@runloop.ai), [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Runloop-Key` | $0.317 | https://www.runloop.ai/pricing |
+| Runloop | **Blocked**: invitation only (waitlist: support@runloop.ai), and winding down: transition support ends 2026-11-13, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Runloop-Key` | $0.317 | https://www.runloop.ai/pricing |
 | Vercel Sandbox | **Working**: run end to end on a real account on 2026-11-12 (Hobby: 45-minute sandboxes) | `X-Vercel-Key`: `<token>:<project id>[:<team id>]` | $0.341 at most (CPU billed only while busy) | https://vercel.com/docs/sandbox/pricing |
 | Fly Sprites | **Blocked**: needs a card on accounts whose Fly trial ended, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Sprites-Key` | $0.164 at most (billed on use) | https://fly.io/pricing |
 | Morph | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Morph-Key` | $0.100 | https://cloud.morph.so/web/subscribe |
