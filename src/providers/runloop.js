@@ -34,7 +34,7 @@ export default {
   help: 'https://github.com/flisk-sh/fleet/issues/4',
   blocked: { kind: 'invite', note: 'Runloop sign-up is by invitation only (waitlist: support@runloop.ai), so we cannot test it yet.' },
   priceSource: 'https://www.runloop.ai/pricing',
-  note: 'Devboxes for coding agents. Sign-up is by invitation only (waitlist).',
+  note: 'Devboxes for coding agents. Winding down: transition support ends 13 Nov 2026 (Upstash, Nov 2026). Sign-up is by invitation only.',
   price: (size) => {
     const s = runloopSize(size);
     return s ? Math.round((s.cpu * CPU_HOUR + s.ram * GB_HOUR) * 1000) / 1000 : null;
