@@ -1,13 +1,16 @@
 // The cabinet: same layout as inference.flisk.si's console (sidebar, title with a beta tag, ruled tables), in black and white.
 import { CSS, esc, FONTS, FLISK_BAR } from './page.js';
-import { MAX_KEYS, podStatus, summarize } from './store.js';
+import { LIMIT_RANGES, MAX_KEYS, podStatus, summarize } from './store.js';
 
 const SECTIONS = [
+  ['start', 'Get started'],
   ['overview', 'Overview'],
   ['pods', 'Pods'],
+  ['usage', 'Usage'],
   ['keys', 'API keys'],
   ['try', 'Try a pod'],
   ['providers', 'Providers'],
+  ['limits', 'Limits'],
   ['docs', 'Docs'],
 ];
 
@@ -45,7 +48,7 @@ const CABINET_CSS = `
 .metrics span{color:var(--dim);font-size:13px}
 .bar{display:inline-block;height:10px;background:var(--green);vertical-align:middle}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:22px}
-input[type=text],input[type=password],select{font:14px/1.2 var(--mono);border:1px solid var(--ink);background:var(--card);color:var(--ink);padding:10px 12px;min-width:240px}
+input[type=text],input[type=password],input[type=number],select{font:14px/1.2 var(--mono);border:1px solid var(--ink);background:var(--card);color:var(--ink);padding:10px 12px;min-width:240px}
 input:disabled{opacity:.55}
 .box{border:1px solid var(--ink);background:var(--card);padding:16px;margin-top:22px}
 .box.inv{background:var(--night);color:var(--glow);border-color:var(--night)}
@@ -64,7 +67,39 @@ input:disabled{opacity:.55}
 .sk.big{height:34px;width:60%;margin-bottom:8px}
 @keyframes pulse{50%{opacity:.05}}
 @media (prefers-reduced-motion:reduce){.sk{animation:none}}
-@media (max-width:820px){.cab{grid-template-columns:1fr}.side{border-right:0;border-bottom:1px solid var(--ink);flex-direction:row;flex-wrap:wrap;padding:14px}.side .logo{width:100%;margin-bottom:8px}.side .me{margin-top:0;border-top:0;padding-top:4px;flex-direction:row;align-items:center;width:100%}.main{padding:0 16px 48px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics>div:nth-child(3){border-left:0}.metrics>div:nth-child(n+3){border-top:1px solid var(--ink)}input[type=text],input[type=password],select{min-width:0;width:100%}}
+.card{border:1px solid var(--ink);background:var(--card);margin-top:22px}
+.chead{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--ink);font-size:17px}
+.chead i{font:500 12px/26px var(--mono);font-style:normal;border:1px solid var(--ink);width:28px;height:28px;text-align:center;flex:none}
+.card.done .chead i{background:var(--green);border-color:var(--green);color:#fff}
+.chead select{font:600 15px/1.2 var(--sans);min-width:0;padding:6px 10px}
+.cbody{padding:16px 18px}.cbody p{margin:0 0 10px}
+.codebox{display:flex;gap:10px;align-items:flex-start}.codebox pre{flex:1;min-width:0;background:var(--paper)}
+.keyline{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid var(--ink);background:var(--paper);padding:8px 10px}.keyline code{font:14px var(--mono);flex:1}
+.ex{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.exb{text-align:left;font:14px/1.45 var(--sans);border:1px solid var(--ink);background:var(--paper);padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:8px}
+.exb:hover{background:var(--card);box-shadow:inset 0 -3px 0 var(--green)}.exb .m{color:var(--dim)}
+.search input{width:100%;margin-top:22px;padding:13px 14px;font:15px var(--sans)}
+.catalog{display:grid;grid-template-columns:220px minmax(0,1fr);gap:22px;margin-top:18px;align-items:start}
+.filters{display:flex;flex-direction:column;border:1px solid var(--ink);background:var(--card)}
+.filters button{display:flex;justify-content:space-between;gap:8px;font:14px var(--sans);text-align:left;background:transparent;border:0;border-bottom:1px solid var(--ink);padding:10px 12px;cursor:pointer}
+.filters button:last-child{border-bottom:0}.filters button.on{background:var(--ink);color:var(--paper)}.filters .c{font:12px var(--mono)}
+.pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.pcard{border:1px solid var(--ink);background:var(--card);padding:16px;display:flex;flex-direction:column;gap:10px}
+.pcard[hidden]{display:none}
+.ph{display:flex;align-items:center;gap:10px}.ph b{font:800 22px/1 var(--serif);letter-spacing:-.02em;flex:1}
+.pmark{width:34px;height:34px;display:grid;place-items:center;background:var(--night);color:var(--glow);font:500 15px var(--mono)}
+.pp{font:500 18px var(--mono)}.pp small{font-size:12px;color:var(--dim)}
+.pcard p{margin:0;color:var(--dim)}
+.pcard dl{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin:0;border-top:1px solid var(--ink);padding-top:10px}
+.pcard dt{font:10.5px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--dim)}.pcard dd{margin:2px 0 0;font-size:13.5px}
+.pf{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--ink);padding-top:10px;margin-top:auto}
+.badge{font:10.5px/1 var(--mono);text-transform:uppercase;letter-spacing:.05em;border:1px solid var(--green);color:var(--green);padding:4px 6px;margin:0 6px 6px 0;display:inline-block}
+.links a{font:12px var(--mono);text-transform:uppercase;margin-left:12px}
+.b.on{background:var(--ink);color:var(--paper)}
+.st{font:12px var(--mono);border:1px solid;padding:2px 6px}.st.ok{color:var(--green)}.st.bad{color:#b42318}
+.limgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px}
+.limrow{display:flex;align-items:baseline;gap:10px}.limrow input{font:800 40px/1 var(--serif);width:150px;min-width:0;padding:6px 10px;background:var(--paper)}.limrow span{color:var(--dim)}
+@media (max-width:820px){.cab{grid-template-columns:1fr}.side{border-right:0;border-bottom:1px solid var(--ink);flex-direction:row;flex-wrap:wrap;padding:14px}.side .logo{width:100%;margin-bottom:8px}.side .me{margin-top:0;border-top:0;padding-top:4px;flex-direction:row;align-items:center;width:100%}.main{padding:0 16px 48px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics>div:nth-child(3){border-left:0}.metrics>div:nth-child(n+3){border-top:1px solid var(--ink)}input[type=text],input[type=password],select{min-width:0;width:100%}.ex,.pgrid,.limgrid{grid-template-columns:minmax(0,1fr)}.catalog{grid-template-columns:minmax(0,1fr)}.filters{flex-direction:row;flex-wrap:wrap}.filters button{border-bottom:0;border-right:1px solid var(--ink)}.codebox{flex-direction:column;align-items:stretch}.codebox pre{width:100%}}
 `;
 
 const when = (iso) => (iso ? iso.replace('T', ' ').slice(0, 16) + ' UTC' : 'never');
@@ -96,23 +131,55 @@ ${body}
 </div></body></html>`;
 }
 
-// Like a provider's "Get started" page: four steps, each ticked off when fleet can see it's done.
-function getStarted(keys, pods) {
+// Get started, after Monid's: set up your agent (picker), your key, then copy-ready things to ask it. Steps tick off
+// when fleet can see them done.
+function startSection(origin, keys, pods) {
   const real = pods.some((p) => !p.failedStart && p.provider !== 'demo');
   const any = pods.some((p) => !p.failedStart);
-  const steps = [
-    [keys.length > 0, 'Create a fleet key', 'It goes in the Authorization header of every call.', '/console?section=keys', 'Create key'],
-    [any, 'Try the demo pod', 'No provider account needed: see start, run and stop end to end.', '/console?section=try', 'Try a pod'],
-    [real, 'Bring a provider key', 'Make a key at boat, Isorun, E2B or Daytona and start a real pod.', '/console?section=providers', 'Get a key'],
-    [false, 'Give it to your agent', 'Add fleet as an MCP server: pod_create, pod_run, pod_stop.', '/console?section=docs', 'Set up MCP'],
+  const agents = [
+    ['claude', 'Claude Code', `claude mcp add --transport http fleet ${origin}/mcp \\\n  --header "Authorization: Bearer fleet_..." \\\n  --header "X-Daytona-Key: ..."`],
+    ['cursor', 'Cursor', `// .cursor/mcp.json\n{ "mcpServers": { "fleet": {\n    "url": "${origin}/mcp",\n    "headers": { "Authorization": "Bearer fleet_...", "X-Daytona-Key": "..." }\n} } }`],
+    ['any', 'Any agent', `set up ${origin}/SKILL.md`],
   ];
-  if (steps.slice(0, 3).every(([done]) => done)) return '';
-  return `<h2>Get started</h2><div class="start">${steps
-    .map(
-      ([done, title, text, href, cta], i) =>
-        `<div class="${done ? 'done' : ''}"><i>${done ? '✓' : i + 1}</i><div><b>${esc(title)}</b><span>${esc(text)}</span></div>${done ? '<span>Done</span>' : `<a class="b${i === steps.findIndex(([d]) => !d) ? ' inv' : ''}" href="${href}">${esc(cta)}</a>`}</div>`,
-    )
-    .join('')}</div>`;
+  const examples = [
+    'Start a fleet pod, clone this repo, run its tests, then stop the pod and tell me what failed.',
+    'Run this Python script in a fleet pod with 2 vCPU and 4 GB, show me the output, then stop the pod.',
+    'Start one fleet pod on each provider I have a key for, time "npm install" in each, and stop them all.',
+  ];
+  const step = (n, done, title, inner) =>
+    `<div class="card${done ? ' done' : ''}"><div class="chead"><i>${done ? '✓' : n}</i><b>${title}</b></div><div class="cbody">${inner}</div></div>`;
+  const latest = keys[0];
+  return `<p class="lede" style="margin:22px 0 0">One key. Every pod your agent needs.</p>
+${step(
+  1,
+  false,
+  `Set up your <select id="agent" aria-label="Your agent">${agents.map(([id, label]) => `<option value="${id}">${esc(label)}</option>`).join('')}</select>`,
+  `${agents.map(([id, , code], i) => `<div data-agent="${id}"${i ? ' hidden' : ''}><p>${id === 'any' ? 'In your agent’s chat, send:' : 'Run this once, with your own keys in place of the dots:'}</p><div class="codebox"><pre>${esc(code)}</pre><button type="button" class="b" data-copy="${esc(code)}">Copy</button></div></div>`).join('')}`,
+)}
+${step(
+  2,
+  keys.length > 0,
+  'Your fleet key',
+  keys.length
+    ? `<p>Give this key to your agent. It goes in the Authorization header.</p><div class="keyline"><span class="m">${esc(latest.name)}</span><code>${esc(latest.hint || latest.id + '…')}</code><a class="b" href="/console?section=keys">Manage</a></div>`
+    : `<p>You don't have a key yet.</p><a class="b inv" href="/console?section=keys">Create key</a>`,
+)}
+${step(
+  3,
+  real,
+  'Bring a provider key',
+  `<p>Fleet starts pods on your own provider account. ${real ? 'You have started a real pod.' : any ? 'You tried the demo pod; now start a real one.' : 'No account yet? Try the demo pod first.'}</p><div class="row" style="margin-top:12px"><a class="b${real ? '' : ' inv'}" href="/console?section=providers">Pick a provider</a><a class="b" href="/console?section=try">Try a pod</a></div>`,
+)}
+${step(
+  4,
+  false,
+  'Try it out',
+  `<p>Fleet is ready with your agent. Copy any of these and send it to your agent.</p><div class="ex">${examples.map((e) => `<button type="button" class="exb" data-copy="${esc(e)}"><span class="m">Copy</span>${esc(e)}</button>`).join('')}</div>`,
+)}
+<script>
+(()=>{const a=document.getElementById('agent');a.addEventListener('change',()=>document.querySelectorAll('[data-agent]').forEach(d=>d.hidden=d.dataset.agent!==a.value));
+document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',()=>navigator.clipboard.writeText(b.dataset.copy).then(()=>{const t=b.querySelector('.m')||b;const was=t.textContent;t.textContent='Copied';setTimeout(()=>t.textContent=was,1500)})))})();
+</script>`;
 }
 
 function overview(pods, keys = []) {
@@ -124,7 +191,7 @@ function overview(pods, keys = []) {
         `<tr><td>${d.day}</td><td class="n">${d.started}</td><td class="n">${d.failed}</td><td>${d.started ? `<span class="bar" style="width:${Math.round((d.started / max) * 220)}px"></span>` : ''}${d.failed ? `<span class="bar" style="width:${Math.max(4, Math.round((d.failed / max) * 220))}px;background:transparent;border:1.5px solid var(--ink);box-sizing:border-box"></span>` : ''}</td></tr>`,
     )
     .join('');
-  return `${getStarted(keys, pods)}<div class="metrics">
+  return `<div class="metrics">
 <div><b>${s.running}</b><span>Running, under 1 hour</span></div>
 <div><b>${s.startedToday}</b><span>Started today</span></div>
 <div><b>${s.movedToday}</b><span>Moved to next provider today</span></div>
@@ -173,17 +240,40 @@ ${keys.length ? `<div class="scroll" style="margin-top:22px"><table><tr><th>Name
 <p class="note">"Last used" updates at most once an hour.</p>`;
 }
 
+// Provider catalog, after Monid's tools page: search, filters with counts, one card per provider with badges.
 function providersSection(prices, providers) {
-  const rows = prices
+  const list = prices.map((p) => ({ ...p, meta: providers[p.provider], facts: providers[p.provider].facts || {} }));
+  const FILTERS = [
+    ['all', 'All', () => true],
+    ['nocard', 'No card needed', (p) => p.facts.card === false],
+    ['credit', 'Free credit', (p) => /credit/i.test(p.facts.credit || '')],
+    ['nomin', 'No monthly minimum', (p) => !p.facts.minimum],
+    ['eu', 'Runs in the EU', (p) => (p.facts.regions || []).includes('EU')],
+    ['us', 'Runs in the US', (p) => (p.facts.regions || []).includes('US')],
+  ];
+  const tags = (p) => FILTERS.filter(([id, , f]) => id !== 'all' && f(p)).map(([id]) => id).join(' ');
+  const cards = list
     .map((p) => {
-      const meta = providers[p.provider];
       const kp = KEY_PAGE[p.provider];
-      return `<tr><td>${esc(p.label)}</td><td>${esc(meta.keyHeader)}</td><td class="n">${money(p.pricePerHour)}</td><td><a href="${SIGNUP[p.provider] || p.source}" target="_blank" rel="noopener">Sign up</a></td><td>${kp ? `<a href="${kp.url}" target="_blank" rel="noopener">Get a key</a> <span class="note" style="margin:0">(${kp.kind})</span>` : ''}</td><td>${esc(p.note)}</td></tr>`;
+      return `<article class="pcard" data-tags="all ${tags(p)}" data-text="${esc(`${p.label} ${p.facts.blurb || ''} ${(p.facts.badges || []).join(' ')}`.toLowerCase())}">
+<div class="ph"><span class="pmark">${esc(p.label.slice(0, 1).toUpperCase())}</span><b>${esc(p.label)}</b><span class="pp">${money(p.pricePerHour)}<small>/h</small></span></div>
+<p>${esc(p.facts.blurb || p.note)}</p>
+<dl><div><dt>Credit</dt><dd>${esc(p.facts.credit || '—')}</dd></div><div><dt>Biggest pod</dt><dd>${p.facts.maxCpu ? `${p.facts.maxCpu} vCPU · ${p.facts.maxRam} GB` : '—'}</dd></div><div><dt>Regions</dt><dd>${esc((p.facts.regions || []).join(', ') || '—')}</dd></div><div><dt>Header</dt><dd class="n">${esc(p.meta.keyHeader)}</dd></div></dl>
+<div class="pf"><span class="badges">${(p.facts.badges || []).map((b) => `<span class="badge">${esc(b)}</span>`).join('')}</span><span class="links"><a href="${SIGNUP[p.provider] || p.source}" target="_blank" rel="noopener">Sign up</a>${kp ? `<a href="${kp.url}" target="_blank" rel="noopener">Get a key</a>` : ''}</span></div>
+</article>`;
     })
     .join('');
-  return `<p class="note">Bring your own account at each provider. Send its key in the header below with every call; fleet never stores it. List prices are for 2 vCPU and 4 GB, per hour.</p>
-<div class="scroll" style="margin-top:22px"><table><tr><th>Provider</th><th>Header</th><th>Per hour</th><th>Account</th><th>API key</th><th>Note</th></tr>${rows}</table></div>
-<p class="note">No callback comes back from a provider: they hand out API keys, not sign-in. Make a key there, then paste it in <a href="/console?section=try">Try a pod</a> or send it in the header.</p>`;
+  return `<div class="search"><input type="text" id="q" placeholder="Search providers (for example EU, no card, GPU)" aria-label="Search providers"></div>
+<div class="catalog">
+<nav class="filters" aria-label="Filter providers">${FILTERS.map(([id, label, f], i) => `<button type="button" data-f="${id}"${i ? '' : ' class="on"'}><span>${esc(label)}</span><span class="c">${list.filter(f).length}</span></button>`).join('')}</nav>
+<div class="pgrid" id="pgrid">${cards}<p class="note" id="none" hidden>No provider matches. Clear the search.</p></div>
+</div>
+<p class="note">List prices for 2 vCPU and 4 GB, per hour, from each provider's own page. Bring your own account: no callback comes back from a provider, so make a key there and send it in the header, or paste it in <a href="/console?section=try">Try a pod</a>. Compare a whole month on the <a href="/pricing">pricing page</a>.</p>
+<script>
+(()=>{let f='all';const q=document.getElementById('q');const cards=[...document.querySelectorAll('.pcard')];
+const draw=()=>{const t=q.value.trim().toLowerCase();let n=0;cards.forEach(c=>{const ok=c.dataset.tags.split(' ').includes(f)&&(!t||c.dataset.text.includes(t));c.hidden=!ok;n+=ok});document.getElementById('none').hidden=n>0};
+document.querySelectorAll('[data-f]').forEach(b=>b.addEventListener('click',()=>{f=b.dataset.f;document.querySelectorAll('[data-f]').forEach(x=>x.classList.toggle('on',x===b));draw()}));q.addEventListener('input',draw)})();
+</script>`;
 }
 
 function trySection(prices, providers) {
@@ -238,29 +328,44 @@ finally{$('wait').style.display='none';$('go').textContent='Start pod';$('go').d
 }
 
 function docsSection(origin) {
-  return `<h2>Start a pod</h2>
-<pre style="margin-top:14px">curl -X POST ${esc(origin)}/v1/pods \\
-  -H "Authorization: Bearer fleet_..." \\
-  -H "X-E2B-Key: ..." -H "X-Daytona-Key: ..." \\
-  -d '{"cpu":2,"ram":4}'</pre>
-<h2>Run a command, then stop</h2>
-<pre style="margin-top:14px">curl -X POST ${esc(origin)}/v1/pods/POD_ID/run \\
-  -H "Authorization: Bearer fleet_..." -H "X-E2B-Key: ..." \\
-  -d '{"command":"echo hi"}'
-
-curl -X DELETE ${esc(origin)}/v1/pods/POD_ID \\
-  -H "Authorization: Bearer fleet_..." -H "X-E2B-Key: ..."</pre>
-<h2>MCP for Claude Code or Cursor</h2>
-<pre style="margin-top:14px">{ "mcpServers": { "fleet": {
-    "type": "http",
-    "url": "${esc(origin)}/mcp",
-    "headers": { "Authorization": "Bearer fleet_...", "X-E2B-Key": "..." }
-} } }</pre>
-<p class="note">Tools: pod_create, pod_run, pod_stop. A pod that a provider already stopped answers 410 "this pod is gone".</p>`;
+  return `<div class="card"><div class="chead"><b>The full docs are public</b></div><div class="cbody"><p>Every call with curl, TypeScript and Python, the MCP set-up, errors and limits.</p><div class="row" style="margin-top:12px"><a class="b inv" href="/docs">Open the docs</a><a class="b" href="/SKILL.md">SKILL.md for agents</a></div></div></div>
+<div class="card"><div class="chead"><b>Give your agent one line</b></div><div class="cbody"><div class="codebox"><pre>set up ${esc(origin)}/SKILL.md</pre><button type="button" class="b" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent).then(()=>{this.textContent='Copied'})">Copy</button></div></div></div>`;
 }
 
-export function cabinetPage({ origin, login, section, keys, pods, prices, providers, newKey, error }) {
-  const id = SECTIONS.some(([s]) => s === section) ? section : 'overview';
+// Usage, after Monid's: every start, run and stop, newest first.
+function usageSection(calls, errorsOnly) {
+  const badge = (st) => `<span class="st ${st >= 400 ? 'bad' : 'ok'}">${st}</span>`;
+  const rows = calls
+    .map(
+      (c) => `<tr><td>${when(c.at)}</td><td class="n">${esc(c.kind)}</td><td>${esc(c.provider || '—')}</td><td class="n">${esc(c.ref || '—')}</td><td>${badge(c.status)}</td><td class="n">${(c.ms / 1000).toFixed(1)} s</td><td>${esc(c.error || '')}</td></tr>`,
+    )
+    .join('');
+  return `<div class="row"><a class="b${errorsOnly ? '' : ' on'}" href="/console?section=usage">All</a><a class="b${errorsOnly ? ' on' : ''}" href="/console?section=usage&only=errors">Errors</a><a class="b" style="margin-left:auto" href="/console?section=usage${errorsOnly ? '&only=errors' : ''}">Refresh</a></div>
+${calls.length ? `<div class="scroll" style="margin-top:18px"><table><tr><th>Time</th><th>Call</th><th>Provider</th><th>Pod</th><th>Status</th><th>Took</th><th>Error</th></tr>${rows}</table></div><p class="note">The last ${calls.length} calls${errorsOnly ? ' that failed' : ''}, from the API, MCP and Try a pod.</p>` : `<div class="box"><b>${errorsOnly ? 'No failed calls' : 'No calls yet'}</b><p class="note">Every pod start, run and stop shows up here with its status and how long it took.</p></div>`}`;
+}
+
+// Limits, after Monid's budgets: the account's own caps, below fleet's hard ones.
+function limitsSection(limits, { error, saved }) {
+  const field = (k, label, unit, help) => {
+    const [lo, hi] = LIMIT_RANGES[k];
+    return `<div class="card lim"><div class="chead"><b>${label}</b></div><div class="cbody"><div class="limrow"><input type="number" name="${k}" min="${lo}" max="${hi}" step="${k === 'maxRam' ? '0.5' : '1'}" value="${esc(limits[k])}" aria-label="${label}" required><span>${unit}</span></div><p class="note">${help} From ${lo} to ${hi}.</p></div></div>`;
+  };
+  return `${error ? `<div class="err">${esc(error)}</div>` : ''}${saved ? '<div class="box">Saved. New pods follow these limits.</div>' : ''}
+<form method="post" action="/console/limits">
+<div class="limgrid">
+${field('podsPerDay', 'Pods a day', 'pods', 'Starts past this answer 429 until midnight UTC.')}
+${field('lifetimeMin', 'Pod lifetime', 'minutes', 'Each provider stops the pod by itself after this, even if your agent forgets.')}
+${field('maxCpu', 'Biggest pod: CPU', 'vCPU', 'Bigger requests answer 400.')}
+${field('maxRam', 'Biggest pod: memory', 'GB', 'Bigger requests answer 400.')}
+</div>
+<div class="row"><button class="b inv" type="submit">Save limits</button></div>
+</form>
+<p class="note">Fleet doesn't bill you, so there is no money budget here: these caps keep your provider bills small. Fleet's own caps stay on top: 120 calls a minute and 300 pods a day per account.</p>`;
+}
+
+export function cabinetPage({ origin, login, section, keys, pods, calls = [], limits, prices, providers, newKey, error, saved, errorsOnly }) {
+  const auto = !keys.length && !pods.length ? 'start' : 'overview';
+  const id = SECTIONS.some(([s]) => s === section) ? section : auto;
   const title = SECTIONS.find(([s]) => s === id)[1];
   const body =
     id === 'overview'
@@ -272,7 +377,13 @@ export function cabinetPage({ origin, login, section, keys, pods, prices, provid
           : id === 'try'
             ? trySection(prices, providers)
             : id === 'providers'
-            ? providersSection(prices, providers)
-            : docsSection(origin);
+              ? providersSection(prices, providers)
+              : id === 'start'
+                ? startSection(origin, keys, pods)
+                : id === 'usage'
+                  ? usageSection(calls, errorsOnly)
+                  : id === 'limits'
+                    ? limitsSection(limits, { error, saved })
+                    : docsSection(origin);
   return shell({ login, section: id, title, body });
 }

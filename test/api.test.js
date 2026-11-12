@@ -109,7 +109,10 @@ describe('cabinet', () => {
       ['pods', 'Start your first pod'],
       ['keys', 'Create key'],
       ['providers', 'X-mid-Key'],
-      ['docs', 'pod_create'],
+      ['docs', 'SKILL.md'],
+      ['start', 'Set up your'],
+      ['usage', 'No calls yet'],
+      ['limits', 'Save limits'],
     ]) {
       const r = await page('GET', `/console?section=${section}`);
       expect(r.status).toBe(200);
@@ -222,6 +225,78 @@ describe('free-plan guards and demo pods', () => {
   });
 });
 
+describe('screens from the owner: get started, catalog, usage, limits, pricing, docs', () => {
+  test('public docs, pricing and SKILL.md need no key', async () => {
+    const { PROVIDERS } = await import('../src/providers/index.js');
+    const get = (p) => handle(new Request(`${ORIGIN}${p}`), {}, { providers: PROVIDERS });
+    const docs = await (await get('/docs')).text();
+    for (const t of ['Start a pod', 'Run a command', 'Stop a pod', 'data-tab="ts"', 'claude mcp add']) expect(docs).toContain(t);
+    const pricing = await (await get('/pricing')).text();
+    expect(pricing).toContain('What a month of pods costs');
+    expect(pricing).toContain('"id":"daytona"');
+    expect(pricing).not.toContain('"id":"demo"');
+    const skill = await get('/SKILL.md');
+    expect(skill.headers.get('content-type')).toContain('text/markdown');
+    expect(await skill.text()).toStartWith('---\nname: fleet');
+    for (const p of ['/docs', '/pricing']) {
+      const html = await (await get(p)).text();
+      for (const m of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) expect(() => new Function(m[1])).not.toThrow();
+    }
+  });
+  test('a brand-new account lands on Get started; with a key it lands on Overview', async () => {
+    const env = { DB: db(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' };
+    const cookie = (await makeSession(env, 'newbie')).split(';')[0];
+    const fresh = await (await handle(new Request(`${ORIGIN}/console`, { headers: { cookie } }), env, { providers })).text();
+    expect(fresh).toContain('Set up your');
+    const { page } = await setup();
+    expect(await (await page('GET', '/console')).text()).toContain('Started today');
+  });
+  test('the catalog has a card and badges per provider', async () => {
+    const { PROVIDERS } = await import('../src/providers/index.js');
+    const env = { DB: db(), PUBLIC_ORIGIN: ORIGIN, SESSION_SECRET: 's3cret' };
+    const cookie = (await makeSession(env, 'octo')).split(';')[0];
+    const html = await (await handle(new Request(`${ORIGIN}/console?section=providers`, { headers: { cookie } }), env, { providers: PROVIDERS })).text();
+    expect((html.match(/class="pcard"/g) || []).length).toBe(4);
+    expect(html).toContain('$200 credit');
+    expect(html).toContain('No card needed');
+  });
+  test('every start, run and stop goes to the usage log, failures too', async () => {
+    const { env, req, page } = await setup();
+    const pod = await (await req('POST', '/v1/pods', {})).json();
+    await req('POST', `/v1/pods/${pod.id}/run`, { command: 'ls' });
+    await req('DELETE', `/v1/pods/${pod.id}`);
+    await req('POST', '/v1/pods', {}, { 'X-mid-Key': '' });
+    const rows = env.DB.raw.query("SELECT kind, status, provider, ref FROM calls WHERE login = 'octo' ORDER BY n").all();
+    expect(rows.map((r) => `${r.kind}:${r.status}`)).toEqual(['start:201', 'run:200', 'stop:200', 'start:502']);
+    expect(rows[0]).toMatchObject({ provider: 'mid', ref: 'pod_mid_one' });
+    expect(JSON.stringify(rows)).not.toContain('secret-token');
+    const usage = await (await page('GET', '/console?section=usage')).text();
+    expect(usage).toContain('pod_mid_one');
+    const errors = await (await page('GET', '/console?section=usage&only=errors')).text();
+    expect(errors).toContain('502');
+    expect(errors).not.toContain('>201<');
+  });
+  test('own limits: saved, checked, and enforced on new pods', async () => {
+    const { env, req, page } = await setup();
+    const bad = await (await page('POST', '/console/limits', { podsPerDay: '0', maxCpu: '2', maxRam: '4', lifetimeMin: '30' })).text();
+    expect(bad).toContain('podsPerDay must be');
+    const ok = await (await page('POST', '/console/limits', { podsPerDay: '1', maxCpu: '2', maxRam: '4', lifetimeMin: '30' })).text();
+    expect(ok).toContain('Saved');
+    expect((await req('POST', '/v1/pods', { cpu: 4, ram: 4 })).status).toBe(400);
+    const sizes = [];
+    const original = providers.mid.create;
+    providers.mid.create = async (key, size) => (sizes.push(size), { id: 'one' });
+    try {
+      expect((await req('POST', '/v1/pods', { cpu: 2, ram: 4 })).status).toBe(201);
+      expect(sizes[0].ttl).toBe(1800);
+      const capped = await req('POST', '/v1/pods', { cpu: 2, ram: 4 });
+      expect(capped.status).toBe(429);
+    } finally {
+      providers.mid.create = original;
+    }
+  });
+});
+
 describe('try a pod', () => {
   test('starts, runs, stops, times each step, and keeps no key', async () => {
     const { env, page } = await setup();
@@ -277,7 +352,7 @@ describe('MCP', () => {
 
 test('every inline page script parses', async () => {
   const { page } = await setup();
-  for (const section of ['overview', 'pods', 'keys', 'try', 'providers', 'docs']) {
+  for (const section of ['start', 'overview', 'pods', 'usage', 'keys', 'try', 'providers', 'limits', 'docs']) {
     const html = await (await page('GET', `/console?section=${section}`)).text();
     for (const m of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) expect(() => new Function(m[1])).not.toThrow();
   }

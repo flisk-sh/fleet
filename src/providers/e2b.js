@@ -56,9 +56,25 @@ export default {
   priceSource: 'https://e2b.dev/pricing',
   note: 'Memory is set by the E2B template, not by fleet. Up to 8 vCPU on the free tier.',
   price: (size) => (size.cpu > 8 ? null : Math.round((size.cpu * CPU_HOUR + size.ram * GIB_HOUR) * 1000) / 1000),
+  facts: {
+    blurb: 'Firecracker sandboxes made for AI agents. Pause and resume with memory.',
+    regions: ['US'],
+    billing: 'per second',
+    credit: '$100 one-time credit, no card',
+    card: false,
+    minimum: 0,
+    maxCpu: 8,
+    maxRam: 8,
+    session: 3600, // seconds on the free tier; the $150-a-month Pro plan allows 24 hours
+    concurrent: 10, // free tier; Pro allows 100
+    pro: { monthly: 150, session: 86400, concurrent: 100 },
+    startsPerDay: null,
+    badges: ['$100 credit', 'No card', '1 h sessions free'],
+    source: 'https://e2b.dev/pricing',
+  },
 
   async create(key, size, { fetchImpl = fetch } = {}) {
-    const body = { templateID: 'base', timeout: 3600 };
+    const body = { templateID: 'base', timeout: size.ttl ?? 3600 };
     if (size.cpu !== 2) body.cpuCount = size.cpu;
     const made = await call(fetchImpl, `${API}/v2/sandboxes`, { method: 'POST', headers: { 'x-api-key': key }, body });
     if (!made?.sandboxID) throw new Error('E2B returned no sandbox id');

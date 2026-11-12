@@ -34,13 +34,28 @@ export default {
   priceSource: 'https://docs.isorun.ai/getting-started/pricing',
   note: 'Pay per second, no minimum.',
   price: (size) => Math.round((size.cpu * CPU_HOUR + size.ram * GIB_HOUR) * 1000) / 1000,
+  facts: {
+    blurb: 'KVM microVMs from any Docker image, ready in milliseconds. Hibernate and fork.',
+    regions: ['US'],
+    billing: 'per second',
+    credit: '$50 free credit, no card',
+    card: false,
+    minimum: 0,
+    maxCpu: 8,
+    maxRam: 16,
+    session: null,
+    concurrent: null,
+    startsPerDay: null,
+    badges: ['$50 credit', 'No card', 'No minimum'],
+    source: 'https://docs.isorun.ai/getting-started/pricing',
+  },
 
   async create(key, size, { fetchImpl = fetch } = {}) {
     const made = await call(fetchImpl, `${baseFor(key)}/v1/runs`, {
       method: 'POST',
       headers: auth(key),
       // timeout: Isorun destroys the run by itself after an hour, so a forgotten pod stops billing.
-      body: { image: 'ubuntu:24.04', vcpus: size.cpu, mem_mib: Math.round(size.ram * 1024), timeout: 3600 },
+      body: { image: 'ubuntu:24.04', vcpus: size.cpu, mem_mib: Math.round(size.ram * 1024), timeout: size.ttl ?? 3600 },
     });
     if (!made?.id) throw new Error('Isorun returned no run id');
     return { id: made.id };

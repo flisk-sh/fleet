@@ -2,9 +2,11 @@ import { PROVIDERS } from './providers/index.js';
 import { createPod, runPod, stopPod, priceTable, DEFAULT_SIZE } from './route.js';
 import { handleMcp } from './mcp.js';
 import { bearer, githubAuthorizeUrl, githubLogin } from './auth.js';
-import { homePage, messagePage } from './page.js';
+import { homePage, messagePage, shell } from './page.js';
+import { docsPage, skillMd, DOCS_CSS } from './docs.js';
+import { pricingPage, PRICING_CSS } from './pricing.js';
 import { cabinetPage } from './console.js';
-import { createKey, listKeys, listPods, loginForKey, podRef, podsStartedToday, recordPod, revokeKey } from './store.js';
+import { checkLimits, createKey, getLimits, LIMIT_DEFAULTS, listCalls, listKeys, listPods, logCall, loginForKey, podRef, podsStartedToday, recordPod, revokeKey, setLimits } from './store.js';
 import { overMinuteLimit, PODS_PER_DAY } from './limit.js';
 import { clearSession, makeSession, readSession, sameOrigin } from './session.js';
 
@@ -50,16 +52,26 @@ export function safeNext(next) {
 const out = (r) => json(r.status, r.status < 400 ? r.pod || r.result : { error: r.error, failed: r.failed });
 
 async function cabinet(env, origin, login, section, providers, extra = {}) {
-  const [keys, pods] = await Promise.all([extra.keys ? extra.keys : listKeys(env, login), listPods(env, login)]);
-  return html(cabinetPage({ origin, login, section, keys, pods, prices: priceTable(providers), providers, ...extra }), 200, { 'cache-control': 'no-store' });
+  const [keys, pods, calls, limits] = await Promise.all([
+    extra.keys ? extra.keys : listKeys(env, login),
+    listPods(env, login),
+    section === 'usage' ? listCalls(env, login, { errorsOnly: extra.errorsOnly }) : [],
+    extra.limits ? extra.limits : getLimits(env, login),
+  ]);
+  return html(cabinetPage({ origin, login, section, keys, pods, calls, limits, prices: priceTable(providers), providers, ...extra }), 200, { 'cache-control': 'no-store' });
 }
 
-// Every pod call records pod facts and checks the daily cap (one indexed count, no write).
-const podCtx = (env, login, fetchImpl) => ({
-  fetchImpl,
-  record: (type, data) => recordPod(env, login, type, data),
-  allowCreate: async () => (await podsStartedToday(env, login)) < PODS_PER_DAY,
-});
+// Every pod call records pod facts, goes to the usage log, and follows the account's own limits.
+const podCtx = async (env, login, fetchImpl) => {
+  const limits = await getLimits(env, login).catch(() => ({ ...LIMIT_DEFAULTS }));
+  return {
+    fetchImpl,
+    limits,
+    record: (type, data) => recordPod(env, login, type, data),
+    log: (c) => logCall(env, login, c),
+    allowCreate: async () => (await podsStartedToday(env, login)) < Math.min(PODS_PER_DAY, limits.podsPerDay),
+  };
+};
 
 // "Try a pod" in the cabinet: start, run one command, always stop, and time each step. The provider key is used for this call only.
 async function tryPod(request, env, login, providers, fetchImpl) {
@@ -71,7 +83,7 @@ async function tryPod(request, env, login, providers, fetchImpl) {
   if (!key) return json(400, { error: 'paste your provider API key first' });
   if (command.length > 500) return json(400, { error: 'keep the command under 500 characters' });
   const keys = { [provider]: key };
-  const ctx = podCtx(env, login, fetchImpl);
+  const ctx = await podCtx(env, login, fetchImpl);
   const t0 = Date.now();
   const made = await createPod(providers, keys, { provider, cpu: 2, ram: 4 }, ctx);
   const createMs = Date.now() - t0;
@@ -105,7 +117,14 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
   if (request.method === 'GET' && path === '/') {
     return html(homePage({ origin, prices: priceTable(providers), size: DEFAULT_SIZE }), 200, { 'cache-control': 'public, max-age=300' });
   }
-  if (request.method === 'GET' && path === '/robots.txt') return new Response('User-agent: *\nAllow: /$\nDisallow: /\n', { headers: { 'content-type': 'text/plain' } });
+  if (request.method === 'GET' && path === '/robots.txt') {
+    return new Response('User-agent: *\nAllow: /$\nAllow: /pricing\nAllow: /docs\nAllow: /SKILL.md\nDisallow: /\n', { headers: { 'content-type': 'text/plain' } });
+  }
+  if (request.method === 'GET' && path === '/docs') return html(docsPage(origin, (t, b) => shell(t, b, DOCS_CSS)), 200, { 'cache-control': 'public, max-age=300' });
+  if (request.method === 'GET' && path === '/pricing') return html(pricingPage(origin, providers, (t, b) => shell(t, b, PRICING_CSS)), 200, { 'cache-control': 'public, max-age=300' });
+  if (request.method === 'GET' && (path === '/SKILL.md' || path === '/skill.md')) {
+    return new Response(skillMd(origin), { headers: { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'public, max-age=300', 'access-control-allow-origin': '*' } });
+  }
   if (request.method === 'GET' && path === '/v1/prices') return json(200, { size: DEFAULT_SIZE, prices: priceTable(providers) });
 
   // ---- sign-in
@@ -146,7 +165,9 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
     const session = await readSession(env, request);
     if (!session) return request.method === 'GET' ? redirect(`/auth/start?next=${encodeURIComponent(path + url.search)}`) : html(messagePage('Signed out', 'Sign in again.'), 401);
     const { login } = session;
-    if (request.method === 'GET' && path === '/console') return cabinet(env, origin, login, url.searchParams.get('section') || 'overview', providers);
+    if (request.method === 'GET' && path === '/console') {
+      return cabinet(env, origin, login, url.searchParams.get('section') || 'auto', providers, { errorsOnly: url.searchParams.get('only') === 'errors' });
+    }
     if (request.method === 'POST') {
       if (!sameOrigin(request, origin)) return html(messagePage('Not allowed', 'This form only works from fleet itself.'), 403);
       if (path === '/console/keys') {
@@ -155,6 +176,14 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
         return cabinet(env, origin, login, 'keys', providers, { keys: made.list, newKey: made.key, error: made.error });
       }
       if (path === '/console/try') return tryPod(request, env, login, providers, fetchImpl);
+      if (path === '/console/limits') {
+        const form = await request.formData().catch(() => null);
+        const input = Object.fromEntries(['podsPerDay', 'maxCpu', 'maxRam', 'lifetimeMin'].map((k) => [k, form?.get(k)]));
+        const checked = checkLimits(input);
+        if (checked.error) return cabinet(env, origin, login, 'limits', providers, { error: checked.error, limits: { ...(await getLimits(env, login)), ...input } });
+        await setLimits(env, login, checked.limits);
+        return cabinet(env, origin, login, 'limits', providers, { limits: checked.limits, saved: true });
+      }
       const m = /^\/console\/keys\/([a-f0-9]{12})\/revoke$/.exec(path);
       if (m) {
         const done = await revokeKey(env, login, m[1]);
@@ -172,7 +201,7 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
   if (!login) return json(401, { error: `missing, revoked or unknown fleet key. Create one at ${origin}/console?section=keys and send it as "Authorization: Bearer fleet_..."` });
   if (await overMinuteLimit(login, { cache: env.LIMIT_CACHE })) return json(429, { error: 'too many requests for this account: at most 120 a minute. Wait a minute' });
   const keys = providerKeys(request, providers);
-  const ctx = podCtx(env, login, fetchImpl);
+  const ctx = await podCtx(env, login, fetchImpl);
 
   if (path === '/mcp') {
     if (request.method !== 'POST') return json(405, { error: 'POST only' });

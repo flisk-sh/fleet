@@ -39,7 +39,7 @@ describe('boat', () => {
     expect(await boat.create('boat_k', size, f)).toEqual({ id: 'bx_1' });
     expect(f.calls[0]).toMatchObject({ url: 'https://boat.dev/api/v1/sandboxes', method: 'POST' });
     expect(f.calls[0].headers.authorization).toBe('Bearer boat_k');
-    expect(json(f.calls[0])).toEqual({ type: 'small', snapshots: false });
+    expect(json(f.calls[0])).toEqual({ type: 'small', snapshots: false, ttlSeconds: 3600 });
   });
   test('run retries while the machine starts, then returns output', async () => {
     const f = fakeFetch([

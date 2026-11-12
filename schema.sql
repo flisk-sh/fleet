@@ -23,3 +23,27 @@ CREATE TABLE IF NOT EXISTS pods (
 );
 CREATE INDEX IF NOT EXISTS pods_login_started ON pods (login, started);
 CREATE INDEX IF NOT EXISTS pods_login_ref ON pods (login, ref);
+
+-- Usage log: one row per pod call (start, run, stop), from the API, MCP or Try a pod.
+CREATE TABLE IF NOT EXISTS calls (
+  n INTEGER PRIMARY KEY AUTOINCREMENT,
+  login TEXT NOT NULL,
+  at TEXT NOT NULL,
+  kind TEXT NOT NULL,           -- start, run or stop
+  provider TEXT,
+  ref TEXT,                     -- pod id cut at the first "~"
+  status INTEGER NOT NULL,
+  ms INTEGER NOT NULL,
+  error TEXT
+);
+CREATE INDEX IF NOT EXISTS calls_login_at ON calls (login, at);
+
+-- Each account's own limits, set in the cabinet. Missing row = the defaults.
+CREATE TABLE IF NOT EXISTS limits (
+  login TEXT PRIMARY KEY,
+  pods_per_day INTEGER NOT NULL,
+  max_cpu INTEGER NOT NULL,
+  max_ram REAL NOT NULL,
+  lifetime_min INTEGER NOT NULL,
+  updated TEXT NOT NULL
+);

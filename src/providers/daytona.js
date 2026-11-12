@@ -15,13 +15,29 @@ export default {
   priceSource: 'https://www.daytona.io/pricing',
   note: 'Up to 4 vCPU and 8 GB a pod. Output comes back as one stream.',
   price: (size) => (size.cpu > 4 || size.ram > 8 ? null : Math.round((size.cpu * CPU_HOUR + size.ram * GIB_HOUR) * 1000) / 1000),
+  facts: {
+    blurb: 'Sandboxes that start in milliseconds, with GPUs and Windows on request.',
+    regions: ['EU', 'US'],
+    billing: 'per second',
+    credit: '$200 free credit, no card',
+    card: false,
+    minimum: 0,
+    maxCpu: 4,
+    maxRam: 8,
+    session: null,
+    concurrent: null,
+    poolCpu: 10, // a new organisation's first tier: 10 vCPU across all sandboxes
+    startsPerDay: null,
+    badges: ['$200 credit', 'No card', 'EU and US'],
+    source: 'https://www.daytona.io/pricing',
+  },
 
   async create(key, size, { fetchImpl = fetch, wait = sleep } = {}) {
     // autoStopInterval 60 min, autoDeleteInterval 0: a forgotten pod stops after an hour and is deleted on stop.
     let box = await call(fetchImpl, `${API}/sandbox`, {
       method: 'POST',
       headers: auth(key),
-      body: { cpu: size.cpu, memory: Math.ceil(size.ram), autoStopInterval: 60, autoDeleteInterval: 0 },
+      body: { cpu: size.cpu, memory: Math.ceil(size.ram), autoStopInterval: Math.max(1, Math.ceil((size.ttl ?? 3600) / 60)), autoDeleteInterval: 0 },
     });
     if (!box?.id) throw new Error('Daytona returned no sandbox id');
     for (let i = 0; box.state !== 'started' && i < 30; i++) {

@@ -1,6 +1,7 @@
 // What fleet remembers, in D1 (see schema.sql). Never a provider key, never a provider's access token.
 // Free plan: 100,000 rows written and 5 million rows read a day, so every write here is one row and every read uses an index.
 import { sha256, newFleetKey } from './auth.js';
+import { PODS_PER_DAY } from './limit.js';
 
 export const MAX_KEYS = 10;
 const MAX_PODS = 100;
@@ -138,4 +139,46 @@ export function summarize(pods, now = new Date()) {
     gone: real.filter((p) => p.gone).length,
     days,
   };
+}
+
+// ---- usage log
+export async function logCall(env, login, c) {
+  await env.DB.prepare('INSERT INTO calls (login, at, kind, provider, ref, status, ms, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(login, nowIso(), c.kind, c.provider ?? null, c.id ? podRef(c.id) : null, c.status, Math.round(c.ms), c.error ? clip(c.error) : null)
+    .run();
+}
+
+export async function listCalls(env, login, { errorsOnly = false, limit = 200 } = {}) {
+  const sql = `SELECT * FROM calls WHERE login = ?${errorsOnly ? ' AND status >= 400' : ''} ORDER BY n DESC LIMIT ?`;
+  const { results } = await env.DB.prepare(sql).bind(login, limit).all();
+  return results;
+}
+
+// ---- each account's own limits
+export const LIMIT_DEFAULTS = { podsPerDay: PODS_PER_DAY, maxCpu: 16, maxRam: 64, lifetimeMin: 60 };
+export const LIMIT_RANGES = { podsPerDay: [1, PODS_PER_DAY], maxCpu: [1, 16], maxRam: [1, 64], lifetimeMin: [5, 1440] };
+
+export async function getLimits(env, login) {
+  const r = await env.DB.prepare('SELECT * FROM limits WHERE login = ?').bind(login).first();
+  if (!r) return { ...LIMIT_DEFAULTS };
+  return { podsPerDay: r.pods_per_day, maxCpu: r.max_cpu, maxRam: r.max_ram, lifetimeMin: r.lifetime_min };
+}
+
+// Values outside the allowed range are an error, not silently clamped.
+export function checkLimits(input) {
+  const out = {};
+  for (const [k, [lo, hi]] of Object.entries(LIMIT_RANGES)) {
+    const v = Number(input[k]);
+    if (!Number.isFinite(v) || v < lo || v > hi || (k !== 'maxRam' && !Number.isInteger(v))) return { error: `${k} must be ${k === 'maxRam' ? 'a number' : 'a whole number'} from ${lo} to ${hi}` };
+    out[k] = v;
+  }
+  return { limits: out };
+}
+
+export async function setLimits(env, login, l) {
+  await env.DB.prepare(
+    'INSERT INTO limits (login, pods_per_day, max_cpu, max_ram, lifetime_min, updated) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(login) DO UPDATE SET pods_per_day = excluded.pods_per_day, max_cpu = excluded.max_cpu, max_ram = excluded.max_ram, lifetime_min = excluded.lifetime_min, updated = excluded.updated',
+  )
+    .bind(login, l.podsPerDay, l.maxCpu, l.maxRam, l.lifetimeMin, nowIso())
+    .run();
 }

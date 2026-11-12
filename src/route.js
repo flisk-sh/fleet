@@ -57,12 +57,15 @@ const record = async (ctx, type, data) => {
 // A provider answering 404 or 410 for a pod id means the pod is gone: stopped, expired or deleted. Say so plainly.
 const isGone = (e) => e?.status === 404 || e?.status === 410;
 
-export async function createPod(providers, keys, body, ctx = {}) {
+async function createPodInner(providers, keys, body, ctx = {}) {
   const size = parseSize(body);
   if (size.error) return { status: 400, error: size.error };
   const picked = pickOrder(providers, keys, size, body);
   if (picked.error) return { status: 400, error: picked.error };
-  if (ctx.allowCreate && !(await ctx.allowCreate())) return { status: 429, error: 'daily pod limit reached for this account. It resets at midnight UTC' };
+  const lim = ctx.limits;
+  if (lim && (size.cpu > lim.maxCpu || size.ram > lim.maxRam)) return { status: 400, error: `over your own limit: at most ${lim.maxCpu} vCPU and ${lim.maxRam} GB a pod. Change it in the cabinet under Limits` };
+  if (lim) size.ttl = lim.lifetimeMin * 60;
+  if (ctx.allowCreate && !(await ctx.allowCreate())) return { status: 429, error: 'daily pod limit reached for this account. It resets at midnight UTC; you can change it in the cabinet under Limits' };
   const failed = [];
   for (const name of picked.order) {
     try {
@@ -78,7 +81,7 @@ export async function createPod(providers, keys, body, ctx = {}) {
   return { status: 502, error: 'no provider could start a pod', failed };
 }
 
-export async function runPod(providers, keys, id, body, ctx = {}) {
+async function runPodInner(providers, keys, id, body, ctx = {}) {
   const ref = parsePodId(id, providers);
   if (!ref) return { status: 404, error: 'no such pod' };
   if (!keys[ref.provider]) return { status: 400, error: `this pod runs on ${ref.provider}. Send your key in the ${providers[ref.provider].keyHeader} header` };
@@ -94,7 +97,7 @@ export async function runPod(providers, keys, id, body, ctx = {}) {
   }
 }
 
-export async function stopPod(providers, keys, id, ctx = {}) {
+async function stopPodInner(providers, keys, id, ctx = {}) {
   const ref = parsePodId(id, providers);
   if (!ref) return { status: 404, error: 'no such pod' };
   if (!keys[ref.provider]) return { status: 400, error: `this pod runs on ${ref.provider}. Send your key in the ${providers[ref.provider].keyHeader} header` };
@@ -108,6 +111,25 @@ export async function stopPod(providers, keys, id, ctx = {}) {
     return { status: 502, error: `${ref.provider}: ${short(e)}` };
   }
 }
+
+// Every start, run and stop goes to the usage log (ctx.log). Logging must never break a call.
+const timed = (kind, inner, refOf) => async (...args) => {
+  const ctx = args[args.length - 1] || {};
+  const t0 = Date.now();
+  const r = await inner(...args);
+  try {
+    const ref = refOf(r, args);
+    await ctx.log?.({ kind, status: r.status, ms: Date.now() - t0, provider: ref.provider ?? null, id: ref.id ?? null, error: r.status >= 400 ? r.error : null });
+  } catch {}
+  return r;
+};
+const fromId = (providers, id) => {
+  const p = parsePodId(id, providers);
+  return { provider: p?.provider, id: p ? id : null };
+};
+export const createPod = timed('start', createPodInner, (r) => ({ provider: r.pod?.provider, id: r.pod?.id }));
+export const runPod = timed('run', runPodInner, (r, [providers, , id]) => fromId(providers, id));
+export const stopPod = timed('stop', stopPodInner, (r, [providers, , id]) => fromId(providers, id));
 
 export function priceTable(providers, size = DEFAULT_SIZE) {
   return Object.entries(providers)
