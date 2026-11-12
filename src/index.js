@@ -7,7 +7,7 @@ import { docsPage, skillMd, DOCS_CSS } from './docs.js';
 import { pricingPage, PRICING_CSS } from './pricing.js';
 import { measured, podlyticsData, podlyticsPage } from './podlytics.js';
 import { cabinetPage } from './console.js';
-import { connectedKeys, connectProvider, disconnectProvider, listConnections, checkLimits, createKey, getLimits, LIMIT_DEFAULTS, listCalls, listKeys, listPods, logCall, loginForKey, podListItem, podRef, podStatus, podsStartedToday, recordPod, revokeKey, setLimits } from './store.js';
+import { connectedKeys, connectProvider, disconnectProvider, listConnections, checkLimits, createKey, getLimits, LIMIT_DEFAULTS, listCalls, listKeys, listPods, logCall, accessForKey, podListItem, podRef, podStatus, podsStartedToday, recordPod, revokeKey, setLimits } from './store.js';
 import { overMinuteLimit, PODS_PER_DAY } from './limit.js';
 import { vaultReady } from './vault.js';
 import { assetResponse, llmsTxt, robotsTxt, sitemapXml } from './seo.js';
@@ -230,7 +230,7 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
       if (!sameOrigin(request, origin)) return html(messagePage('Not allowed', 'This form only works from fleet itself.'), 403);
       if (path === '/console/keys') {
         const form = await request.formData().catch(() => null);
-        const made = await createKey(env, login, form?.get('name'));
+        const made = await createKey(env, login, form?.get('name'), form?.get('scope') === 'read' ? 'read' : 'full');
         return cabinet(env, origin, login, 'keys', providers, { keys: made.list, newKey: made.key, error: made.error });
       }
       if (path === '/console/try') return tryPod(request, env, login, providers, fetchImpl, waitUntil);
@@ -270,11 +270,14 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
   const isApi = path === '/mcp' || path.startsWith('/v1/');
   if (!isApi) return html(messagePage('Page not found', 'Nothing lives at this address.'), 404);
 
-  const login = await loginForKey(env, bearer(request));
+  const access = await accessForKey(env, bearer(request));
+  const login = access?.login;
   if (!login) return json(401, { error: `missing, revoked or unknown fleet key. Create one at ${origin}/console?section=keys and send it as "Authorization: Bearer fleet_..."` });
   if (await overMinuteLimit(login, { cache: env.LIMIT_CACHE })) return json(429, { error: 'too many requests for this account: at most 120 a minute. Wait a minute' });
   const keys = await keysFor(request, env, login, providers);
-  const ctx = podCtx(env, login, fetchImpl, waitUntil);
+  const ctx = { ...podCtx(env, login, fetchImpl, waitUntil), scope: access.scope };
+  // A read-only key may list pods and read files, nothing else.
+  const readOnlyCall = request.method === 'GET' && (path === '/v1/pods' || /^\/v1\/pods\/[^/]+\/files$/.test(path));
 
   if (path === '/mcp') {
     if (request.method !== 'POST') return json(405, { error: 'POST only' });
@@ -283,6 +286,8 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
     const answer = await handleMcp(message, providers, keys, ctx);
     return answer ? json(200, answer) : new Response(null, { status: 202 });
   }
+
+  if (access.scope === 'read' && !readOnlyCall) return json(403, { error: 'this fleet key is read-only: it can list pods and read files, nothing else. Use a full key for this call' });
 
   if (path === '/v1/pods' && request.method === 'POST') {
     const body = await readJson(request);
