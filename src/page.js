@@ -105,12 +105,13 @@ p.note{color:var(--dim);margin:14px 0 0;max-width:72ch}
 .msg{padding:80px 48px;border-bottom:1px solid var(--ink)}
 @media (prefers-reduced-motion:reduce){.route li,.route .foot{animation:none;opacity:1}}
 @media (max-width:900px){.hero,.sec.two{grid-template-columns:minmax(0,1fr)}.hero{min-height:0}.art{border-left:0;border-top:1px solid var(--ink);min-height:300px;height:300px}.steps{grid-template-columns:1fr 1fr}.steps>div:nth-child(3){border-left:0}.steps>div:nth-child(n+3){border-top:1px solid var(--ink)}.feat{grid-template-columns:1fr}.feat>div+div{border-left:0;border-top:1px solid var(--ink)}.foot-grid{grid-template-columns:1fr 1fr}.foot-grid>div:first-child{grid-column:1/-1;padding-left:24px}.foot-grid>div:nth-child(2){border-left:0}.foot-grid>div{border-top:1px solid var(--ink);min-height:0}}
-@media (max-width:600px){.hero .l,.sec,.msg{padding-left:16px;padding-right:16px}.top nav{gap:14px;padding:0 12px}.top .cta{padding:0 14px}.top nav a.hide{display:none}.steps{grid-template-columns:1fr}.steps>div{border-left:0!important;border-top:1px solid var(--ink)}.steps>div:first-child{border-top:0}.route li{grid-template-columns:18px minmax(0,1fr) 64px}.route li .st{grid-column:2/4;text-align:left}.word{padding:14px 12px 6px}.legal{padding:10px 16px}.foot-grid{grid-template-columns:1fr}.foot-grid>div{border-left:0!important}}
+@media (max-width:600px){.hero .l,.sec,.msg{padding-left:16px;padding-right:16px}.top nav{gap:14px;padding:0 12px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}.top nav a{white-space:nowrap}.top nav a.spons{display:none}.top .cta{padding:0 14px;flex-shrink:0}.top nav a.hide{display:none}.steps{grid-template-columns:1fr}.steps>div{border-left:0!important;border-top:1px solid var(--ink)}.steps>div:first-child{border-top:0}.route li{grid-template-columns:18px minmax(0,1fr) 64px}.route li .st{grid-column:2/4;text-align:left}.word{padding:14px 12px 6px}.legal{padding:10px 16px}.foot-grid{grid-template-columns:1fr}.foot-grid>div{border-left:0!important}}
 `;
 
 // The shared Flisk product bar (flisk.si/assets/bar.js), the same one every Flisk site loads. It lists the products
 // marked bar: true in flisk-sh/flisk.si _data/catalog.yml and marks the current site.
-export const FLEET_MARK = "<svg class=\"mark\" width=\"26\" height=\"26\" viewBox=\"0 0 64 64\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"64\" height=\"64\" rx=\"14\" fill=\"#0b0b0d\"/><rect x=\"10\" y=\"16\" width=\"30\" height=\"6\" rx=\"3\" fill=\"#fbfaf7\" opacity=\".25\"/><rect x=\"10\" y=\"29\" width=\"44\" height=\"6\" rx=\"3\" fill=\"#fbfaf7\" opacity=\".25\"/><rect x=\"10\" y=\"42\" width=\"20\" height=\"6\" rx=\"3\" fill=\"#fbfaf7\" opacity=\".25\"/><rect x=\"42\" y=\"13\" width=\"12\" height=\"12\" rx=\"3\" fill=\"#16a34a\"/><rect x=\"34\" y=\"26\" width=\"12\" height=\"12\" rx=\"3\" fill=\"#16a34a\" opacity=\".6\"/><rect x=\"26\" y=\"39\" width=\"12\" height=\"12\" rx=\"3\" fill=\"#16a34a\" opacity=\".35\"/></svg>";
+const FLEET_MARK_INNER = "<rect width=\"64\" height=\"64\" rx=\"14\" fill=\"#0b0b0d\"/><rect x=\"10\" y=\"16\" width=\"30\" height=\"6\" rx=\"3\" fill=\"#fbfaf7\" opacity=\".25\"/><rect x=\"10\" y=\"29\" width=\"44\" height=\"6\" rx=\"3\" fill=\"#fbfaf7\" opacity=\".25\"/><rect x=\"10\" y=\"42\" width=\"20\" height=\"6\" rx=\"3\" fill=\"#fbfaf7\" opacity=\".25\"/><rect x=\"42\" y=\"13\" width=\"12\" height=\"12\" rx=\"3\" fill=\"#16a34a\"/><rect x=\"34\" y=\"26\" width=\"12\" height=\"12\" rx=\"3\" fill=\"#16a34a\" opacity=\".6\"/><rect x=\"26\" y=\"39\" width=\"12\" height=\"12\" rx=\"3\" fill=\"#16a34a\" opacity=\".35\"/>";
+export const FLEET_MARK = `<svg class="mark" width="26" height="26" viewBox="0 0 64 64" aria-hidden="true" focusable="false">${FLEET_MARK_INNER}</svg>`;
 export const FLISK_BAR = '<script src="https://flisk.si/assets/bar.js" defer></script>';
 
 const COPY_JS = `<script>document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',()=>navigator.clipboard.writeText(b.dataset.copy).then(()=>{b.textContent='Copied';setTimeout(()=>{b.textContent='Copy'},1500)})))</script>`;
@@ -174,7 +175,7 @@ function laneArt(prices) {
   const labels = lanes
     .map((p, i) => `<text x="${(i * w + 9).toFixed(1)}" y="386" font-family="JetBrains Mono, monospace" font-size="10.5" fill="${i === 1 ? '#16a34a' : '#171715'}">${esc(p.label.toUpperCase())}${i === 0 ? ' ×' : i === 1 ? ' ●' : ''}</text>`)
     .join('');
-  const pod = lanes.length > 1 ? `<g class="pod"><rect x="${(w + w / 2 - 28).toFixed(1)}" y="150" width="56" height="56" fill="#22c55e"/><rect x="${(w + w / 2 - 19).toFixed(1)}" y="159" width="38" height="38" fill="#0b0b0d"/><text x="${(w + w / 2 - 9).toFixed(1)}" y="183" font-family="JetBrains Mono, monospace" font-size="12" fill="#22c55e">&gt;_</text></g>` : '';
+  const pod = lanes.length > 1 ? `<g class="pod"><svg x="${(w + w / 2 - 34).toFixed(1)}" y="144" width="68" height="68" viewBox="0 0 64 64">${FLEET_MARK_INNER}</svg></g>` : '';
   return `<svg class="art" viewBox="0 0 300 400" preserveAspectRatio="none" role="img" aria-labelledby="art-t">
 <title id="art-t">One lane per provider: ${esc(lanes[0]?.label || '')} is crossed out, the pod starts on ${esc(lanes[1]?.label || '')}</title>
 <defs>
@@ -246,7 +247,7 @@ export function homePage({ origin, prices, size }) {
 </div>
 <div>
 <div class="cmd"><code>set up ${esc(origin.replace(/^https?:\/\//, ''))}/SKILL.md</code><button type="button" data-copy="set up ${esc(origin)}/SKILL.md">Copy</button></div>
-<div class="cta-row"><a class="b inv" href="/console?section=try">Try a demo pod</a><a class="b" href="/docs">Read the docs</a></div>
+<div class="cta-row"><a class="b inv" href="/console/demo">Watch agents race</a><a class="b" href="/console?section=try">Try a demo pod</a><a class="b" href="/docs">Read the docs</a></div>
 <p class="note" style="margin-top:12px">Give that line to your agent and it sets itself up. The demo pod needs no provider account.</p>
 </div>
 </div>

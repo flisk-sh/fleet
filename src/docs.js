@@ -262,7 +262,7 @@ export const DOCS_CSS = `
 .ep{padding:34px 0;border-bottom:1px solid var(--ink)}
 .ep:last-child{border-bottom:0}
 .ep h2{font-size:clamp(26px,3vw,36px);margin-bottom:10px}
-.ep p{max-width:70ch}
+.ep p{max-width:70ch;overflow-wrap:anywhere}
 .ep table{margin:14px 0}
 .tabs{border:1px solid var(--ink);margin-top:16px;background:var(--card)}
 .tabbar{display:flex;border-bottom:1px solid var(--ink)}

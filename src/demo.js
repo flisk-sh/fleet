@@ -38,22 +38,27 @@ export function flavourFiles(f) {
 const now = () => Date.now();
 
 // One flavour, start to finish. Never throws: a failure becomes a melted flavour with its pod stopped.
-async function makeFlavour(providers, keys, f, t0, ctx) {
+async function makeFlavour(providers, keys, f, t0, ctx, emit = () => {}) {
   const row = { id: f.id, name: f.name, startMs: now() - t0, ok: false, steps: [] };
-  const step = async (name, fn) => {
+  // Every step is announced as it starts and as it ends, so a page can move the ship live instead of replaying afterwards.
+  const step = async (name, fn, kind) => {
     const s = now() - t0;
+    emit({ type: 'step-start', id: f.id, name, kind, t: s });
     const r = await fn().catch((e) => ({ ok: false, detail: String(e?.message || e).slice(0, 200) }));
-    row.steps.push({ name, startMs: s, endMs: now() - t0, ok: r.ok !== false, detail: r.detail || '' });
+    const rec = { name, kind, startMs: s, endMs: now() - t0, ok: r.ok !== false, detail: r.detail || '' };
+    row.steps.push(rec);
+    emit({ type: 'step-end', id: f.id, ...rec });
     return r;
   };
   const started = await step('Start a kitchen (sandbox)', async () => {
     const made = await createPod(providers, keys, { cpu: 1, ram: 1 }, ctx);
     if (made.status !== 201) return { ok: false, detail: made.error || 'no provider could start a sandbox' };
     return { pod: made.pod.id, provider: made.pod.provider, detail: made.pod.provider };
-  });
+  }, 'start');
   if (!started.pod) {
     row.endMs = now() - t0;
     row.error = started.detail;
+    emit({ type: 'ship-end', id: f.id, ok: false, endMs: row.endMs, error: row.error });
     return row;
   }
   row.provider = started.provider;
@@ -65,7 +70,7 @@ async function makeFlavour(providers, keys, f, t0, ctx) {
         if (w.status !== 200) return { ok: false, detail: w.error };
       }
       return { detail: '2 files' };
-    });
+    }, 'write');
     let output = '';
     await step('Taste it: run the tests', async () => {
       const run = await runPod(providers, keys, id, { command: 'python3 -m unittest -v 2>&1', cwd: 'work', timeout: 60 }, ctx);
@@ -73,7 +78,7 @@ async function makeFlavour(providers, keys, f, t0, ctx) {
       output = run.result.stdout || run.result.stderr || '';
       const passed = run.result.exitCode === 0;
       return { ok: passed, detail: passed ? 'tastes right' : 'does not taste right' };
-    });
+    }, 'test');
     row.output = output.split('\n').filter((l) => /\.\.\. (ok|FAIL|ERROR)$/.test(l)).map((l) => l.replace(/^test_\w+ \(([^)]*)\) \.\.\. /, '$1 '));
     row.ok = row.steps.every((s) => s.ok);
   } finally {
@@ -81,75 +86,156 @@ async function makeFlavour(providers, keys, f, t0, ctx) {
     await step(row.ok ? 'Close the kitchen' : 'Undo: close the kitchen', async () => {
       const s = await stopPod(providers, keys, id, ctx);
       return { ok: s.status === 200, detail: s.status === 200 ? '' : s.error };
-    });
+    }, row.ok ? 'close' : 'undo');
     row.endMs = now() - t0;
+    emit({ type: 'ship-end', id: f.id, ok: row.ok, endMs: row.endMs });
   }
   return row;
 }
 
 // The whole order: all flavours at the same time (the saga's parallel steps). Each row is its own saga step.
-export async function demoRun(providers, keys, ctx = {}) {
+export async function demoRun(providers, keys, ctx = {}, emit = () => {}) {
   if (!Object.keys(keys).length) return { ok: false, error: 'connect Daytona, Blaxel, Upstash Box or Vercel on the Providers page first' };
   const t0 = now();
-  const flavours = await Promise.all(FLAVOURS.map((f) => makeFlavour(providers, keys, f, t0, ctx)));
+  const flavours = await Promise.all(FLAVOURS.map((f) => makeFlavour(providers, keys, f, t0, ctx, emit)));
   const served = flavours.filter((f) => f.ok).length;
   const totalMs = Math.max(...flavours.map((f) => f.endMs));
   const providersUsed = [...new Set(flavours.map((f) => f.provider).filter(Boolean))];
-  return { ok: served === flavours.length, served, total: flavours.length, totalMs, providersUsed, flavours };
+  // What it would have taken one after another: the sum of each ship's own time. Real numbers from this run.
+  const sequentialMs = flavours.reduce((sum, f) => sum + (f.endMs - f.startMs), 0);
+  return { ok: served === flavours.length, served, total: flavours.length, totalMs, sequentialMs, speedup: Math.round((sequentialMs / totalMs) * 10) / 10, providersUsed, flavours };
 }
 
-// The page. It draws the order as ice-cream cones and animates each flavour's bar from its real start and end times.
+// ---- the page ----
+// A race track. The server streams one line per real event, so each ship moves when its sandbox really finishes a step:
+// start (a quarter of the way), write (half), test, deliver. The planted-bug ship reaches the test, fails, turns around
+// and sails back while its sandbox is closed. A live clock runs, and the end shows a podium and the parallel payoff:
+// all four at once versus the sum of the four one after another (both real numbers from this run).
+const COLOURS = { vanilla: '#f3e2a0', chocolate: '#8a5a3c', strawberry: '#f48fb1', mint: '#5fd3a2' };
+
+const PAGE_CSS = `
+.race{padding:36px 48px 60px;border-bottom:1px solid var(--ink)}
+.race h1{font:800 clamp(34px,5vw,60px)/1 var(--serif);letter-spacing:-.04em;margin:8px 0 12px}
+.race .sub{max-width:62ch;font-size:17px;margin:0}
+.race .ctl{display:flex;align-items:center;gap:20px;margin:22px 0 26px;flex-wrap:wrap}
+.clock{font:500 34px/1 var(--mono);font-variant-numeric:tabular-nums;min-width:5.5ch}
+.clock small{font-size:14px;color:var(--dim);margin-left:4px}
+.lanes{border:1px solid var(--ink);background:var(--card)}
+.lane{display:grid;grid-template-columns:200px minmax(0,1fr);border-bottom:1px solid var(--ink)}
+.lane:last-child{border-bottom:0}
+.who{padding:14px 16px;border-right:1px solid var(--ink);display:flex;flex-direction:column;justify-content:center;gap:4px}
+.who b{display:flex;align-items:center;gap:8px;font:700 18px/1.2 var(--sans)}
+.dot{width:14px;height:14px;border-radius:50%;border:1px solid var(--ink);display:inline-block}
+.cap{font:12px/1.35 var(--mono);color:var(--dim);min-height:2.7em}
+.lane.ok .cap{color:var(--green)}.lane.bad .cap{color:#c2410c}
+.sea{position:relative;height:84px;margin:0;background:repeating-linear-gradient(180deg,#e8f1f4 0 10px,#dbe9ee 10px 12px);overflow:hidden}
+.sea::after{content:"";position:absolute;left:0;right:0;bottom:0;height:10px;background:repeating-linear-gradient(90deg,#c9dde4 0 18px,#d6e6ec 18px 36px)}
+.dock{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:22px;opacity:.7}
+.finish{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:30px}
+.finish i{font-style:normal;position:absolute;left:-34px;top:2px;font-size:26px;opacity:0;transition:opacity .4s}
+.lane.ok .finish i{opacity:1}
+.ship{position:absolute;top:50%;left:6%;font-size:44px;line-height:1;transform:translate(-50%,-58%);transition:left 1s cubic-bezier(.4,0,.2,1);filter:drop-shadow(0 3px 2px rgba(0,0,0,.18));will-change:left}
+.ship.bob{animation:bob 1.1s ease-in-out infinite}
+.ship.back{transform:translate(-50%,-58%) scaleX(-1)}
+.ship.sunk{opacity:.35;filter:grayscale(1)}
+@keyframes bob{0%,100%{margin-top:0}50%{margin-top:-5px}}
+.wake{position:absolute;top:50%;height:3px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.9));transform:translateY(8px);width:0}
+.result{margin-top:26px}
+.result[hidden]{display:none}
+.podium{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 18px}
+.pod{border:1px solid var(--ink);background:var(--card);padding:10px 14px;font:600 16px/1.3 var(--sans);min-width:150px}
+.pod small{display:block;font:12px var(--mono);color:var(--dim);margin-top:2px}
+.pod.gold{background:var(--ink);color:var(--paper)}.pod.gold small{color:#c9c9d1}
+.pod.out{border-style:dashed;color:#c2410c}
+.pay{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--ink);background:var(--card)}
+.pay>div{padding:18px 20px}.pay>div+div{border-left:1px solid var(--ink)}
+.pay b{display:block;font:800 clamp(30px,4vw,48px)/1 var(--serif);letter-spacing:-.03em}
+.pay span{font:12px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--dim)}
+.pay .win b{color:var(--green)}
+.story{margin:16px 0 0;max-width:72ch;color:var(--dim)}
+.result details{margin-top:14px;border:1px solid var(--ink);background:var(--card);padding:10px 14px}
+.result summary{cursor:pointer;font:12px var(--mono);text-transform:uppercase;letter-spacing:.05em}
+.result pre{border:0;padding:8px 0 0;white-space:pre-wrap}
+.err{border:1px solid #c2410c;color:#c2410c;padding:12px 14px;margin-top:16px;background:var(--card)}
+@media (max-width:760px){.race{padding:24px 16px 40px}.lane{grid-template-columns:1fr}.who{border-right:0;border-bottom:1px solid var(--ink);flex-direction:row;align-items:center;justify-content:space-between}.cap{min-height:0;text-align:right}.pay{grid-template-columns:1fr}.pay>div+div{border-left:0;border-top:1px solid var(--ink)}}
+@media (prefers-reduced-motion:reduce){.ship,.ship.bob{transition:none;animation:none}}
+`;
+
+const PAGE_JS = String.raw`
+(function(){
+var FL=window.__FLAVOURS__,go=document.getElementById('go'),clock=document.getElementById('clock'),lanes=document.getElementById('lanes'),result=document.getElementById('result');
+var CAP={start:'Starting a sandbox...',write:'Writing its code and tests...',test:'Running the tests...',close:'Docking...'};
+var POS={start:0.28,write:0.48,test:0.72,close:0.88};   // where the ship is when that step is DONE (fraction of the sea)
+var NEXT={start:0.26,write:0.46,test:0.7,close:0.87}; // where it creeps to while that step runs
+var state={},timer=null,t0=0;
+function el(tag,cls,html){var e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function build(){lanes.innerHTML='';state={};
+  FL.forEach(function(f){var lane=el('div','lane');lane.dataset.id=f.id;
+    lane.innerHTML='<div class="who"><b><i class="dot" style="background:'+f.colour+'"></i>'+esc(f.name)+'</b><span class="cap">Waiting in the harbour</span></div>'+
+      '<div class="sea"><span class="dock">&#9875;</span><span class="ship">&#9973;</span><span class="finish">&#127937;<i>&#127846;</i></span></div>';
+    lanes.appendChild(lane);state[f.id]={lane:lane,ship:lane.querySelector('.ship'),cap:lane.querySelector('.cap'),pos:0.06}});
+  Object.keys(state).forEach(function(id){place(id,0.06,0)});}
+function place(id,p,secs){var s=state[id];s.ship.style.transition='left '+secs+'s '+(secs>2?'ease-out':'cubic-bezier(.4,0,.2,1)');s.ship.style.left=(p*100)+'%';s.pos=p}
+function sail(id){state[id].ship.classList.add('bob')}
+function tick(){var s=(performance.now()-t0)/1000;clock.firstChild.nodeValue=s.toFixed(1)}
+function onEvent(e){var s=state[e.id];
+  if(e.type==='step-start'){
+    if(e.kind==='undo'){s.cap.textContent='Tests failed: sandbox closing, ship recalled';s.ship.classList.add('back');place(e.id,0.06,2.4);return}
+    s.cap.textContent=CAP[e.kind]||e.name;sail(e.id);place(e.id,NEXT[e.kind]||s.pos,6)}
+  else if(e.type==='step-end'){
+    if(e.kind==='undo')return;
+    if(e.kind==='test'&&!e.ok){s.cap.textContent='Tests failed!';place(e.id,0.62,0.5);return}
+    if(e.ok&&POS[e.kind]){place(e.id,POS[e.kind],0.7)}
+    if(!e.ok&&e.kind!=='test'){s.cap.textContent=(e.detail||'failed').slice(0,90)}}
+  else if(e.type==='ship-end'){s.ship.classList.remove('bob');
+    s.lane.classList.add(e.ok?'ok':'bad');
+    if(e.ok){place(e.id,0.88,0.7);s.cap.textContent='Delivered in '+(e.endMs/1000).toFixed(1)+' s';}
+    else{s.ship.classList.add('sunk');if(e.error){s.cap.textContent=e.error.slice(0,90)}else{s.cap.textContent='Recalled after '+(e.endMs/1000).toFixed(1)+' s. Sandbox closed.'}}}}
+function ms(n){return (n/1000).toFixed(1)+' s'}
+function finish(r){clearInterval(timer);clock.firstChild.nodeValue=(r.totalMs/1000).toFixed(1);
+  var ok=r.flavours.filter(function(f){return f.ok}).sort(function(a,b){return a.endMs-b.endMs});
+  var bad=r.flavours.filter(function(f){return !f.ok});
+  var medal=['&#129351;','&#129352;','&#129353;','&#127846;'];
+  var h='<div class="podium">';
+  ok.forEach(function(f,i){h+='<div class="pod'+(i===0?' gold':'')+'">'+medal[Math.min(i,3)]+' '+esc(f.name)+'<small>delivered in '+ms(f.endMs)+' on '+esc(f.provider||'?')+'</small></div>'});
+  bad.forEach(function(f){h+='<div class="pod out">&#10060; '+esc(f.name)+'<small>recalled after '+ms(f.endMs)+'</small></div>'});
+  h+='</div><div class="pay"><div class="win"><b>'+ms(r.totalMs)+'</b><span>all '+r.total+' at once</span></div><div><b>'+ms(r.sequentialMs)+'</b><span>one after another</span></div><div class="win"><b>'+r.speedup+'&times;</b><span>faster with fleet</span></div></div>';
+  if(bad.length){h+='<p class="story"><b>'+esc(bad[0].name)+'</b> had a bug we planted on purpose. Its tests failed, so fleet closed that sandbox and sent the ship back, and the other '+ok.length+' were not affected. That is the undo step of a saga.</p>'}
+  else{h+='<p class="story">Every ship delivered.</p>'}
+  h+='<details><summary>What ran in each sandbox</summary><pre>';
+  r.flavours.forEach(function(f){h+=esc(f.name)+' ('+esc(f.provider||'no provider')+')\n';(f.steps||[]).forEach(function(s){h+='  '+(s.ok?'ok  ':'FAIL')+' '+esc(s.name)+'  '+ms(s.endMs-s.startMs)+(s.detail?'  '+esc(s.detail):'')+'\n'});(f.output||[]).forEach(function(l){h+='    '+esc(l)+'\n'});h+='\n'});
+  h+='</pre></details>';
+  result.innerHTML=h;result.hidden=false;go.disabled=false;go.textContent='Race again'}
+function fail(msg){clearInterval(timer);var d=el('div','err');d.textContent=msg;result.innerHTML='';result.appendChild(d);result.hidden=false;go.disabled=false}
+go.addEventListener('click',async function(){
+  go.disabled=true;result.hidden=true;result.innerHTML='';build();t0=performance.now();clock.firstChild.nodeValue='0.0';timer=setInterval(tick,100);
+  var res;try{res=await fetch('/console/demo',{method:'POST',headers:{accept:'application/x-ndjson'}})}catch(e){return fail('Could not reach fleet: '+e.message)}
+  if(!res.ok||!res.body){var j={};try{j=await res.json()}catch(e){}return fail(j.error||'The race could not start')}
+  var reader=res.body.getReader(),dec=new TextDecoder(),buf='',final=null;
+  for(;;){var chunk=await reader.read();if(chunk.done)break;buf+=dec.decode(chunk.value,{stream:true});var i;
+    while((i=buf.indexOf('\n'))>=0){var line=buf.slice(0,i);buf=buf.slice(i+1);if(!line.trim())continue;var e=JSON.parse(line);
+      if(e.type==='done')final=e.result;else if(e.type==='error')return fail(e.error);else onEvent(e)}}
+  if(final)finish(final);else fail('The race ended without a result')});
+build();
+})();
+`;
+
 export function demoPage() {
+  const flavours = FLAVOURS.map((f) => ({ id: f.id, name: f.name, colour: COLOURS[f.id] }));
   return shell(
-    'Ice-cream race · fleet demo',
-    `<section class="msg icecream">
-<p class="m label">Agent demo · a saga</p>
-<h1 style="font-size:clamp(40px,6vw,72px)">A fleet of ships races to deliver the ice cream.</h1>
-<p class="lede">Each flavour is one ship: its own sandbox, its own job, all setting off at the same time. The first to deliver its scoop wins the race. One ship carries a bug we planted on purpose, so you can see the undo: it turns back, and the others still deliver.</p>
-<p style="margin-top:24px"><button id="go" class="b inv" type="button">Start the race</button></p>
-<div id="counter" class="counter" aria-live="polite"></div>
-<p id="verdict" class="lede" style="margin-top:18px;min-height:1.6em"></p>
+    'Agent race · fleet demo',
+    `<section class="race">
+<p class="m label">Live demo · parallel agents</p>
+<h1>Race four AI jobs at once.</h1>
+<p class="sub">Each ship is one agent job in its own sandbox: it writes code, runs the tests and delivers a scoop. All four set off together on your own providers, and you watch them move as the real work finishes. One ship has a bug we planted on purpose, so you can see what fleet does when a job fails.</p>
+<div class="ctl"><button id="go" class="b inv" type="button">Start the race</button><span class="clock" aria-live="off"><span id="clockwrap"><span id="clock">0.0</span></span><small>s</small></span></div>
+<div id="lanes" class="lanes" aria-label="Race track"></div>
+<div id="result" class="result" hidden aria-live="polite"></div>
 </section>
-<script>
-(()=>{const go=document.getElementById('go'),counter=document.getElementById('counter'),verdict=document.getElementById('verdict');
-const esc=(s)=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const cone=(name)=>'<div class="flavour" data-f="'+name+'"><div class="head"><span class="scoop-ico">&#9973;</span><b>'+esc(name)+' ship</b><span class="state">at sea</span></div><div class="track"><i class="bar"></i><span class="boat">&#9973;</span></div><ol class="steps"></ol></div>';
-function draw(r){counter.innerHTML=r.flavours.map(f=>cone(f.name)).join('');
-  r.flavours.forEach(f=>{const el=counter.querySelector('[data-f="'+f.name+'"]');
-    const bar=el.querySelector('.bar'),state=el.querySelector('.state'),ol=el.querySelector('.steps');
-    el.classList.add(f.ok?'ok':'bad');
-    const scale=(ms)=>(ms/r.totalMs*100).toFixed(2)+'%';
-    const delay=f.startMs;
-    setTimeout(()=>{bar.style.transition='width '+Math.max(300,f.endMs-f.startMs)+'ms linear';bar.style.left=scale(f.startMs);bar.style.width='0%';
-      requestAnimationFrame(()=>requestAnimationFrame(()=>{bar.style.width=scale(f.endMs-f.startMs)}));
-      state.textContent=f.error?'no ship':(f.ok?'delivered':'turned back');
-    },delay*0.6);
-    (f.steps||[]).forEach((s,i)=>{setTimeout(()=>{const li=document.createElement('li');li.textContent=(s.ok?'✓ ':'✗ ')+s.name+(s.detail?' · '+s.detail:'');if(!s.ok)li.style.color='#c2410c';ol.appendChild(li)},s.startMs*0.6+i*0)});
-    if(f.error){const li=document.createElement('li');li.textContent='✗ '+f.error;ol.appendChild(li)}
-    if(f.output&&f.output.length){const pre=document.createElement('div');pre.className='taste';pre.textContent=f.output.join('\\n');el.appendChild(pre)}
-  });
-  setTimeout(()=>{verdict.textContent=r.served===r.total?'All '+r.total+' ships delivered in '+(r.totalMs/1000).toFixed(1)+' s, sailing on '+(r.providersUsed.join(', ')||'your providers')+'.':r.served+' of '+r.total+' delivered in '+(r.totalMs/1000).toFixed(1)+' s. The turned-back ship was recalled: its sandbox closed, and the others were not affected.'},r.totalMs*0.6+400);
-}
-go.addEventListener('click',async()=>{go.disabled=true;counter.innerHTML='';verdict.textContent='Ships are leaving the harbour...';
-  let r;try{const res=await fetch('/console/demo',{method:'POST',headers:{'content-type':'application/json'}});r=await res.json();if(!res.ok)throw new Error(r.error||'failed')}catch(e){verdict.textContent=String(e.message||e);go.disabled=false;return}
-  draw(r);go.disabled=false});})();
-</script>
-<style>
-.icecream .counter{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-top:26px}
-.flavour{border:1px solid var(--ink);background:var(--card);padding:14px 14px 12px;border-radius:16px 16px 6px 6px;position:relative}
-.flavour .head{display:flex;align-items:center;gap:8px;font:600 17px/1.2 var(--sans)}
-.flavour .head .state{margin-left:auto;font:11px/1 var(--mono);text-transform:uppercase;color:var(--dim)}
-.flavour.ok .state{color:var(--green)}.flavour.bad .state{color:#c2410c}
-.scoop-ico{font-size:22px}
-.track{position:relative;height:12px;border:1px solid var(--ink);margin:12px 0 10px;background:repeating-linear-gradient(90deg,transparent 0 9px,rgba(23,23,21,.08) 9px 10px)}
-.track .bar{position:absolute;top:0;bottom:0;width:0;background:repeating-linear-gradient(90deg,var(--green) 0 10px,#16a34a 10px 14px)}
-.track .boat{position:absolute;top:-12px;left:0;font-size:16px;transform:translateX(-50%)}
-.flavour.bad .track .bar{background:#c2410c}
-.steps{list-style:none;margin:0;padding:0;font:12px/1.5 var(--mono)}
-.steps li{padding:2px 0}
-.taste{margin-top:8px;font:11px/1.4 var(--mono);color:var(--dim);white-space:pre-wrap}
-.counter{min-height:1px}
-</style>`,
+<script>window.__FLAVOURS__=${JSON.stringify(flavours).replace(/</g, '\\u003c')};</script>
+<script>${PAGE_JS}</script>
+<style>${PAGE_CSS}</style>`,
     '',
   );
 }
