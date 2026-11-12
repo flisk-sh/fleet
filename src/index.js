@@ -1,12 +1,12 @@
 import { PROVIDERS } from './providers/index.js';
-import { createPod, runPod, stopPod, priceTable, DEFAULT_SIZE } from './route.js';
+import { createPod, readFile, runPod, stopPod, priceTable, writeFile, DEFAULT_SIZE } from './route.js';
 import { handleMcp } from './mcp.js';
 import { bearer, githubAuthorizeUrl, githubLogin } from './auth.js';
 import { homePage, messagePage, shell } from './page.js';
 import { docsPage, skillMd, DOCS_CSS } from './docs.js';
 import { pricingPage, PRICING_CSS } from './pricing.js';
 import { cabinetPage } from './console.js';
-import { connectedKeys, connectProvider, disconnectProvider, listConnections, checkLimits, createKey, getLimits, LIMIT_DEFAULTS, listCalls, listKeys, listPods, logCall, loginForKey, podRef, podsStartedToday, recordPod, revokeKey, setLimits } from './store.js';
+import { connectedKeys, connectProvider, disconnectProvider, listConnections, checkLimits, createKey, getLimits, LIMIT_DEFAULTS, listCalls, listKeys, listPods, logCall, loginForKey, podListItem, podRef, podStatus, podsStartedToday, recordPod, revokeKey, setLimits } from './store.js';
 import { overMinuteLimit, PODS_PER_DAY } from './limit.js';
 import { vaultReady } from './vault.js';
 import { clearSession, makeSession, readSession, sameOrigin } from './session.js';
@@ -80,6 +80,7 @@ const podCtx = (env, login, fetchImpl, waitUntil = null) => {
     fetchImpl,
     getLimits: getLimitsOnce,
     record: (type, data) => recordPod(env, login, type, data),
+    listPods: async () => (await listPods(env, login)).filter((p) => !p.failedStart).map((p) => ({ ...podListItem(p), status: podStatus(p) })),
     log: (c) => {
       const write = logCall(env, login, c).catch(() => {});
       if (waitUntil) waitUntil(write);
@@ -246,14 +247,25 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
     if (!body) return json(400, { error: 'body is not JSON' });
     return out(await createPod(providers, keys, body, ctx));
   }
-  const m = /^\/v1\/pods\/([^/]+)(\/run)?$/.exec(path);
+  if (path === '/v1/pods' && request.method === 'GET') {
+    const want = url.searchParams.get('status');
+    const pods = (await listPods(env, login)).filter((p) => !p.failedStart).map((p) => ({ ...podListItem(p), status: podStatus(p) }));
+    return json(200, { pods: want ? pods.filter((p) => p.status === want) : pods });
+  }
+  const m = /^\/v1\/pods\/([^/]+)(\/run|\/files)?$/.exec(path);
   if (m) {
     const id = decodeURIComponent(m[1]);
-    if (m[2] && request.method === 'POST') {
+    if (m[2] === '/run' && request.method === 'POST') {
       const body = await readJson(request);
       if (!body) return json(400, { error: 'body is not JSON' });
       return out(await runPod(providers, keys, id, body, ctx));
     }
+    if (m[2] === '/files' && request.method === 'PUT') {
+      const body = await readJson(request);
+      if (!body) return json(400, { error: 'body is not JSON' });
+      return out(await writeFile(providers, keys, id, body, ctx));
+    }
+    if (m[2] === '/files' && request.method === 'GET') return out(await readFile(providers, keys, id, { path: url.searchParams.get('path') }, ctx));
     if (!m[2] && request.method === 'DELETE') return out(await stopPod(providers, keys, id, ctx));
   }
   return json(404, { error: 'no such API route' });

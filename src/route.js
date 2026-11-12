@@ -85,11 +85,16 @@ async function runPodInner(providers, keys, id, body, ctx = {}) {
   const ref = parsePodId(id, providers);
   if (!ref) return { status: 404, error: 'no such pod' };
   if (!keys[ref.provider]) return { status: 400, error: `this pod runs on ${ref.provider}. Send your key in the ${providers[ref.provider].keyHeader} header` };
-  const command = typeof body?.command === 'string' ? body.command : '';
-  if (!command.trim()) return { status: 400, error: 'command is required' };
+  const raw = typeof body?.command === 'string' ? body.command : '';
+  if (!raw.trim()) return { status: 400, error: 'command is required' };
+  const wrapped = wrapCommand(raw, body);
+  if (wrapped.error) return { status: 400, error: wrapped.error };
   try {
-    const out = await providers[ref.provider].run(keys[ref.provider], ref.providerId, command, ctx);
-    return { status: 200, result: { stdout: out.stdout ?? '', stderr: out.stderr ?? '', exitCode: out.exitCode ?? null } };
+    const out = await providers[ref.provider].run(keys[ref.provider], ref.providerId, wrapped.command, ctx);
+    const exitCode = out.exitCode ?? null;
+    const result = { stdout: out.stdout ?? '', stderr: out.stderr ?? '', exitCode };
+    if (wrapped.timeout) result.timedOut = exitCode === 124;
+    return { status: 200, result };
   } catch (e) {
     if (isGone(e)) await record(ctx, 'gone', { id });
     if (isGone(e)) return { status: 410, error: `this pod is gone: ${ref.provider} no longer has it (stopped, expired or deleted). Create a new pod` };
@@ -109,6 +114,95 @@ async function stopPodInner(providers, keys, id, ctx = {}) {
     if (isGone(e)) await record(ctx, 'gone', { id });
     if (isGone(e)) return { status: 200, result: { stopped: true, alreadyGone: true } }; // stopping a dead pod is a success, so retries are safe
     return { status: 502, error: `${ref.provider}: ${short(e)}` };
+  }
+}
+
+// ---- run options and files, built on run() alone, so every provider gets them with no adapter code.
+// Quote one value for a POSIX shell.
+export const shq = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+// env (object of strings), cwd (path) and timeout (seconds, 1-3600) turn into one `sh -c` line.
+// A provider that runs the line in a shell and one that splits it into words both see the same command.
+export function wrapCommand(command, { env, cwd, timeout } = {}) {
+  const parts = [];
+  if (cwd !== undefined) {
+    if (typeof cwd !== 'string' || !cwd.trim()) return { error: 'cwd must be a path' };
+    parts.push(`cd ${shq(cwd)}`);
+  }
+  if (env !== undefined) {
+    if (!env || typeof env !== 'object' || Array.isArray(env)) return { error: 'env must be an object of names to values' };
+    const pairs = Object.entries(env);
+    if (pairs.length > 100) return { error: 'env takes at most 100 variables' };
+    for (const [k, v] of pairs) {
+      if (!ENV_NAME.test(k)) return { error: `env name "${k}" is not a valid variable name` };
+      if (v === null || typeof v === 'object') return { error: `env ${k} must be a string, number or boolean` };
+    }
+    if (pairs.length) parts.push(`export ${pairs.map(([k, v]) => `${k}=${shq(v)}`).join(' ')}`);
+  }
+  let secs = null;
+  if (timeout !== undefined) {
+    secs = Number(timeout);
+    if (!Number.isInteger(secs) || secs < 1 || secs > 3600) return { error: 'timeout must be a whole number of seconds from 1 to 3600' };
+  }
+  if (!parts.length && secs === null) return { command };
+  const inner = parts.length ? `${parts.join(' && ')} && ${command}` : command;
+  // timeout(1) exits 124 when the command ran out of time; -k 5 kills it 5 s later if it ignores TERM.
+  return { command: secs === null ? `sh -c ${shq(inner)}` : `timeout -k 5 ${secs} sh -c ${shq(inner)}`, timeout: secs };
+}
+
+export const MAX_FILE_BYTES = 256 * 1024;
+const toB64 = (bytes) => {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+};
+const fromB64 = (s) => Uint8Array.from(atob(String(s).replace(/\s+/g, '')), (c) => c.charCodeAt(0));
+const checkPath = (path) => (typeof path === 'string' && path.trim() && !path.includes('\0') ? null : 'path is required');
+
+async function writeFileInner(providers, keys, id, body, ctx = {}) {
+  const bad = checkPath(body?.path);
+  if (bad) return { status: 400, error: bad };
+  if (typeof body?.content !== 'string') return { status: 400, error: 'content must be a string (text, or base64 with "encoding": "base64")' };
+  let bytes;
+  if (body.encoding === 'base64') {
+    try {
+      bytes = fromB64(body.content);
+    } catch {
+      return { status: 400, error: 'content is not valid base64' };
+    }
+  } else if (body.encoding === undefined || body.encoding === 'utf8') bytes = new TextEncoder().encode(body.content);
+  else return { status: 400, error: 'encoding must be "utf8" or "base64"' };
+  if (bytes.length > MAX_FILE_BYTES) return { status: 413, error: `file is ${bytes.length} bytes; fleet moves at most ${MAX_FILE_BYTES} bytes a call` };
+  const p = shq(body.path);
+  const command = `mkdir -p "$(dirname ${p})" && printf %s ${shq(toB64(bytes))} | base64 -d > ${p}`;
+  const r = await runPodInner(providers, keys, id, { command }, ctx);
+  if (r.status !== 200) return r;
+  if (r.result.exitCode !== 0) return { status: 422, error: `could not write ${body.path}: ${(r.result.stderr || r.result.stdout).trim().slice(0, 300) || `exit code ${r.result.exitCode}`}` };
+  return { status: 200, result: { path: body.path, bytes: bytes.length } };
+}
+
+async function readFileInner(providers, keys, id, body, ctx = {}) {
+  const bad = checkPath(body?.path);
+  if (bad) return { status: 400, error: bad };
+  const p = shq(body.path);
+  const command = `[ -f ${p} ] || { echo "no such file" >&2; exit 2; }; s=$(wc -c < ${p}); [ "$s" -le ${MAX_FILE_BYTES} ] || { echo "file is $s bytes, fleet reads at most ${MAX_FILE_BYTES}" >&2; exit 3; }; base64 < ${p}`;
+  const r = await runPodInner(providers, keys, id, { command }, ctx);
+  if (r.status !== 200) return r;
+  const why = (r.result.stderr || '').trim();
+  if (r.result.exitCode === 2) return { status: 404, error: `no such file in the pod: ${body.path}` };
+  if (r.result.exitCode === 3) return { status: 413, error: why || 'file too big' };
+  if (r.result.exitCode !== 0) return { status: 422, error: `could not read ${body.path}: ${why.slice(0, 300) || `exit code ${r.result.exitCode}`}` };
+  let bytes;
+  try {
+    bytes = fromB64(r.result.stdout);
+  } catch {
+    return { status: 502, error: 'the pod did not answer with base64; is base64 installed in its image?' };
+  }
+  try {
+    return { status: 200, result: { path: body.path, bytes: bytes.length, encoding: 'utf8', content: new TextDecoder('utf-8', { fatal: true }).decode(bytes) } };
+  } catch {
+    return { status: 200, result: { path: body.path, bytes: bytes.length, encoding: 'base64', content: toB64(bytes) } };
   }
 }
 
@@ -132,6 +226,8 @@ const fromId = (providers, id) => {
 export const createPod = timed('start', createPodInner, (r) => ({ provider: r.pod?.provider, id: r.pod?.id }));
 export const runPod = timed('run', runPodInner, (r, [providers, , id]) => fromId(providers, id));
 export const stopPod = timed('stop', stopPodInner, (r, [providers, , id]) => fromId(providers, id));
+export const writeFile = timed('write', writeFileInner, (r, [providers, , id]) => fromId(providers, id));
+export const readFile = timed('read', readFileInner, (r, [providers, , id]) => fromId(providers, id));
 
 export function priceTable(providers, size = DEFAULT_SIZE) {
   return Object.entries(providers)

@@ -112,6 +112,19 @@ export async function recordPod(env, login, type, data) {
   }
 }
 
+// One pod for GET /v1/pods and pod_list. E2B pod ids carry an access token fleet never stores,
+// so a listed E2B pod can be seen and stopped but not run in: the caller keeps the id pod_create gave.
+export const podListItem = (p) => ({
+  id: p.ref,
+  provider: p.provider,
+  cpu: p.cpu,
+  ram: p.ram,
+  pricePerHour: p.price,
+  started: p.started,
+  stopped: p.stopped || null,
+  ...(p.provider === 'e2b' ? { note: 'E2B ids hold an access token fleet does not store: run commands with the id pod_create returned' } : {}),
+});
+
 // A pod fleet never saw stop: under an hour old it is probably running; older, the provider has likely stopped it.
 export function podStatus(p, now = new Date()) {
   if (p.failedStart) return 'failed';

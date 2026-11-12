@@ -326,7 +326,9 @@ function trySection(prices, providers, connections = {}) {
 (()=>{const P=${pages};const C=${conn};const $=(i)=>document.getElementById(i);
 const store=(()=>{try{return window.localStorage}catch{return null}})();
 const load=()=>{const v=$('prov').value;const k=store&&store.getItem('fleet_try_'+v);$('pkey').value=k||'';$('remember').checked=!!k;$('getkey').href=P[v]||'#';$('getkey').style.display=P[v]?'':'none';$('pkey').disabled=v==='demo';$('pkey').placeholder=v==='demo'?'No key needed for the demo pod':C.includes(v)?'Connected: leave empty to use your saved key':'Your provider API key'};
-$('prov').addEventListener('change',load);load();
+if(C.length&&[...$('prov').options].some(o=>o.value===C[0]))$('prov').value=C[0];
+const label=()=>{const v=$('prov').value;$('go').textContent=v==='demo'?'Start demo pod':'Start '+$('prov').selectedOptions[0].textContent.split(' · ')[0]+' pod'};
+$('prov').addEventListener('change',()=>{load();label()});load();label();
 const s=(ms)=>ms==null?'—':(ms/1000).toFixed(1)+' s';
 $('try').addEventListener('submit',async(e)=>{e.preventDefault();const key=$('pkey').value.trim();const err=$('err');err.style.display='none';
 const isDemo=$('prov').value==='demo';$('pkey').disabled=isDemo;
@@ -340,7 +342,7 @@ else{$('tc').textContent=s(d.createMs);$('tr').textContent=s(d.runMs);$('ts').te
 const NL=String.fromCharCode(10);$('so').textContent=(d.stdout||'')+(d.stderr?NL+'[stderr]'+NL+d.stderr:'')+(d.exitCode==null?'':NL+'[exit '+d.exitCode+']');
 $('meta').textContent='Pod '+d.pod+' on '+d.provider+(d.stopError?'. Stop failed: '+d.stopError+'. Stop it on the provider’s site.':', stopped.');$('out').style.display='block'}}
 catch(x){err.textContent='Fleet did not answer: '+x.message;err.style.display='block'}
-finally{$('wait').style.display='none';$('go').textContent='Start pod';$('go').disabled=false}});})();
+finally{$('wait').style.display='none';label();$('go').disabled=false}});})();
 </script>`;
 }
 

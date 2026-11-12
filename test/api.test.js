@@ -356,6 +356,13 @@ describe('connect a provider once', () => {
     const call = await handle(new Request(`${ORIGIN}/v1/pods`, { method: 'POST', headers: { authorization: `Bearer ${key}` }, body: '{"provider":"mid"}' }), env, { providers });
     expect(call.status).toBe(400);
   });
+  test('try a pod picks a connected provider first, not the demo', async () => {
+    const { env, page } = await connectedSetup();
+    await page('POST', '/console/providers/mid/connect', { key: 'mid-secret-key-1234' });
+    const html = await (await page('GET', '/console?section=try')).text();
+    expect(html).toContain('const C=["mid"]');
+    expect(html).toContain("$('prov').value=C[0]");
+  });
   test('try a pod uses the connected key when none is pasted', async () => {
     const { env, page } = await connectedSetup();
     await page('POST', '/console/providers/mid/connect', { key: 'mid-secret-key-1234' });
