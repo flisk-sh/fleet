@@ -585,3 +585,17 @@ describe('public price list and browsers', () => {
     expect(res.headers.get('access-control-allow-origin')).toBeNull();
   });
 });
+
+describe('the public demo page is findable', () => {
+  test('robots, sitemap and llms.txt list /demo, and the page has canonical and og:image', async () => {
+    const robots = await (await handle(new Request('https://fleet.test/robots.txt'), {})).text();
+    expect(robots).toContain('Allow: /demo');
+    const map = await (await handle(new Request('https://fleet.test/sitemap.xml'), {})).text();
+    expect(map).toContain('https://fleet.flisk.si/demo');
+    const llms = await (await handle(new Request('https://fleet.test/llms.txt'), {})).text();
+    expect(llms).toContain('/demo');
+    const page = await (await handle(new Request('https://fleet.test/demo'), {})).text();
+    expect(page).toContain('rel="canonical"');
+    expect(page).toContain('og:image');
+  });
+});
