@@ -17,11 +17,6 @@ html{-webkit-text-size-adjust:100%;overflow-x:clip}
 body{margin:0;background:var(--paper) ${GRAIN};color:var(--ink);font:15px/1.55 var(--sans)}
 a{color:inherit}
 .m{font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;font-size:12px}
-.fbar{background:var(--night);color:#c9c9d1;font:12px/1 var(--mono);display:flex;gap:18px;align-items:center;padding:8px 16px;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
-.fbar a{text-decoration:none}.fbar a:hover{color:#fff}
-.fbar .home{display:flex;align-items:center;gap:7px;color:#fff;font-weight:500}
-.fbar .on{color:var(--glow)}
-.fbar .all{margin-left:auto;color:#fff}
 .mark{display:inline-grid;place-items:center;width:18px;height:18px;background:var(--glow);color:var(--night);font:500 9px/1 var(--mono)}
 .frame{max-width:1240px;margin:0 auto;border-left:1px solid var(--ink);border-right:1px solid var(--ink);background:transparent;position:relative}
 .top{display:flex;justify-content:space-between;align-items:stretch;border-bottom:1px solid var(--ink);height:46px;position:relative}
@@ -104,8 +99,9 @@ p.note{color:var(--dim);margin:14px 0 0;max-width:72ch}
 @media (max-width:600px){.hero .l,.sec,.msg{padding-left:16px;padding-right:16px}.top nav{gap:14px;padding:0 12px}.top .cta{padding:0 14px}.top nav a.hide{display:none}.steps{grid-template-columns:1fr}.steps>div{border-left:0!important;border-top:1px solid var(--ink)}.steps>div:first-child{border-top:0}.route li{grid-template-columns:18px minmax(0,1fr) 64px}.route li .st{grid-column:2/4;text-align:left}.word{padding:14px 12px 6px}.legal{padding:10px 16px}.foot-grid{grid-template-columns:1fr}.foot-grid>div{border-left:0!important}}
 `;
 
-// The Flisk product bar, as on flisk.sh. Fleet is the green one.
-export const FLISK_BAR = `<div class="fbar" role="navigation" aria-label="Flisk products"><a class="home" href="https://flisk.sh"><span class="mark">&gt;_</span>flisk</a><a href="https://flisk.sh">Flisk CLI</a><a href="https://os.flisk.si">FliskOS</a><a href="https://inference.flisk.si">Inference</a><a href="https://gardener.flisk.si">Gardener</a><a href="https://tools.flisk.si">Flisk Tools</a><a class="on" href="/">Fleet</a><a class="all" href="https://flisk.si">All products</a></div>`;
+// The shared Flisk product bar (flisk.si/assets/bar.js), the same one every Flisk site loads. It lists the products
+// marked bar: true in flisk-sh/flisk.si _data/catalog.yml and marks the current site.
+export const FLISK_BAR = '<script src="https://flisk.si/assets/bar.js" defer></script>';
 
 const COPY_JS = `<script>document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',()=>navigator.clipboard.writeText(b.dataset.copy).then(()=>{b.textContent='Copied';setTimeout(()=>{b.textContent='Copy'},1500)})))</script>`;
 
