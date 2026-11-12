@@ -359,5 +359,6 @@ ${note}
 <script>window.__JOBS__=${JSON.stringify(jobs).replace(/</g, '\\u003c')};${replay ? `window.__REPLAY__=${JSON.stringify(RECORDED).replace(/</g, '\\u003c')};` : ''}</script>
 <script>${PAGE_JS}</script>`,
     PAGE_CSS,
+    replay ? { path: '/demo' } : undefined, // the public recorded run is indexable; the live demo in the cabinet is not
   );
 }
