@@ -45,7 +45,7 @@ describe('podlytics', () => {
     const res = await handle(new Request(`${ORIGIN}/podlytics`), seeded(), { providers: PROVIDERS });
     expect(res.status).toBe(200);
     const html = await res.text();
-    for (const t of ['pod<span class="d">lytics</span></span>', 'Cost vs size', 'Start time vs cost', 'Starts that worked', '"id":"daytona"']) expect(html).toContain(t);
+    for (const t of ['aria-current="page"><i></i>podlytics', 'Cost vs size', 'Start time vs cost', 'Starts that worked', '"id":"daytona"']) expect(html).toContain(t);
     for (const secret of ['alice', 'bob', 'secretref', '"id":"demo"']) expect(html).not.toContain(secret);
     for (const m of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) expect(() => new Function(m[1])).not.toThrow();
     const home = await (await handle(new Request(`${ORIGIN}/`), {}, { providers: PROVIDERS })).text();

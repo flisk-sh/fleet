@@ -24,6 +24,7 @@ a{color:inherit}
 .top::before{left:-4px}.top::after{right:-4px}
 .top nav{display:flex;gap:26px;align-items:center;padding:0 20px}
 .top nav a{text-decoration:none}.top nav a:hover{text-decoration:underline}
+.swp{display:inline-flex;border:1px solid var(--ink);padding:2px;gap:2px}.swp a{padding:5px 9px;text-decoration:none!important}.swp a.on{background:var(--ink);color:var(--paper)}.swp a:not(.on):hover{background:var(--green);color:#fff}
 .top .cta{display:flex;align-items:center;padding:0 22px;background:var(--ink);color:var(--paper);text-decoration:none}
 .top .cta:hover{background:var(--green)}
 .logo{display:inline-flex;align-items:center;gap:9px;font:800 26px/1 var(--serif);letter-spacing:-.03em;text-decoration:none}
@@ -122,7 +123,7 @@ ${FONTS}
 <body>
 ${FLISK_BAR}
 <div class="frame">
-<div class="top m"><nav><a href="/pricing">Pricing</a><a href="/podlytics">Podlytics</a><a href="/docs">Docs</a><a href="/docs#mcp">MCP</a><a class="hide" href="https://github.com/flisk-sh/fleet">Source</a></nav><a class="cta" href="/console">Console</a></div>
+<div class="top m"><nav><span class="swp" aria-label="Fleet products"><a class="on" href="/" aria-current="page">fleet</a><a href="/podlytics">podlytics</a></span><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/docs#mcp">MCP</a><a class="hide" href="https://github.com/flisk-sh/fleet">Source</a></nav><a class="cta" href="/console">Console</a></div>
 ${body}
 <div class="foot-grid">
 <div><a class="logo" href="/"><span class="mark">&gt;_</span>fleet</a><div><a class="b inv" href="/console?section=try" style="display:inline-block;margin:0">Try a demo pod</a></div><span class="m" style="color:var(--dim)">Beta · part of Flisk</span></div>

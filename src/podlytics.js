@@ -1,7 +1,11 @@
 // /podlytics: charts that compare the pod providers, after slopalytics.com's tabs of model charts.
 // Prices come from the provider adapters (each provider's own price page). Speed and success come from fleet's own
 // usage log (the calls table), summed over every account for the last 30 days. No login or pod id leaves the server.
-import { esc, FONTS, FLISK_BAR } from './page.js';
+import { esc, FLISK_BAR } from './page.js';
+
+const PL_FONTS =
+  '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+  '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">';
 
 export const PL_SIZES = [
   { cpu: 1, ram: 1 },
@@ -256,7 +260,7 @@ function client(D, SIZES) {
       }
       if (r.v == null) {
         el('rect', { x: cx - bw / 2, y: yOf(max * 0.12), width: bw, height: yOf(0) - yOf(max * 0.12), class: 'nobar' }, svg);
-        el('text', { x: cx, y: yOf(max * 0.12) - 8, 'text-anchor': 'middle', class: 'tick dim' }, svg).textContent = r.none || 'no data';
+        el('text', { x: cx, y: yOf(max * 0.12) - 8, 'text-anchor': 'middle', class: 'tick dim' }, svg).textContent = slot < 90 ? 'n/a' : r.none || 'no data';
         return;
       }
       const y = yOf(r.v);
@@ -310,15 +314,15 @@ function client(D, SIZES) {
     const ps = shown();
     const kinds = ['start', 'run', 'stop'];
     const max = Object.fromEntries(kinds.map((k) => [k, Math.max(1, ...ps.map((p) => p.stats[k]?.p90 || p.stats[k]?.p50 || 0))]));
-    box.innerHTML = ps
+    box.innerHTML = '<div class="crow hd2"><span></span><span>Start</span><span>Run</span><span>Stop</span></div>' + ps
       .map(
         (p) =>
           `<div class="crow"><span class="cn" style="color:${p.color}">${p.label}</span>` +
           kinds
             .map((k) => {
               const s = p.stats[k];
-              if (!s || s.p50 == null) return `<span class="cc none">${k}: no data</span>`;
-              return `<span class="cc" data-tip="${p.label} ${k}: median ${secs(s.p50)}, p90 ${secs(s.p90)}, ${s.n} calls"><i style="width:${Math.max(3, (s.p50 / max[k]) * 100)}%;background:${p.color}"></i><i class="p90" style="left:calc(${(s.p90 / max[k]) * 100}% - 2px)"></i><em><span>${k}</span>${secs(s.p50)}</em></span>`;
+              if (!s || s.p50 == null) return '<span class="cc none">no data</span>';
+              return `<span class="cc" data-tip="${p.label} ${k}: median ${secs(s.p50)}, p90 ${secs(s.p90)}, ${s.n} calls"><i style="width:${Math.max(3, (s.p50 / max[k]) * 100)}%;background:${p.color}"></i><i class="p90" style="left:calc(${(s.p90 / max[k]) * 100}% - 2px)"></i><em>${secs(s.p50)}</em></span>`;
             })
             .join('') +
           '</div>',
@@ -451,16 +455,15 @@ function client(D, SIZES) {
 }
 
 const CSS = `
-:root{--bg:#0b0b0d;--panel:#101013;--line:#222228;--ink:#ececf1;--dim:#8a8a96;--faint:#55555f;--green:#3ddc84;--mono:'JetBrains Mono',ui-monospace,Menlo,monospace;--sans:'Inter Tight',system-ui,-apple-system,'Segoe UI',sans-serif}
+:root{--bg:#0b0b0d;--panel:#101013;--line:#222228;--ink:#ececf1;--dim:#8a8a96;--faint:#55555f;--green:#3ddc84;--mono:'Geist Mono',ui-monospace,Menlo,monospace;--sans:Geist,system-ui,-apple-system,'Segoe UI',sans-serif}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;overflow-x:clip}
-body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans)}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);font-feature-settings:'ss01','tnum';-webkit-font-smoothing:antialiased}
 a{color:inherit}
 .hd{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:22px;height:56px;padding:0 22px;border-bottom:1px solid var(--line);background:rgba(11,11,13,.92);backdrop-filter:blur(8px)}
-.brand{display:flex;align-items:center;gap:9px;text-decoration:none;font:600 20px/1 var(--sans);letter-spacing:-.02em;white-space:nowrap}
+.brand{display:flex;align-items:center;gap:9px;text-decoration:none;font:700 21px/1 var(--sans);letter-spacing:-.04em;white-space:nowrap}
 .brand .mk{display:inline-grid;place-items:center;width:22px;height:22px;background:var(--green);color:#0b0b0d;font:500 10px/1 var(--mono)}
-.brand span.d{color:var(--dim)}
-.sw{display:flex;gap:14px;font-size:13px;color:var(--dim);white-space:nowrap}.sw a{text-decoration:none}.sw a:hover,.sw a.on{color:var(--ink)}
+.sw{display:flex;padding:3px;gap:2px;border:1px solid var(--line);border-radius:999px;background:var(--panel);font:500 12.5px/1 var(--mono);white-space:nowrap}.sw a{display:flex;align-items:center;gap:6px;text-decoration:none;color:var(--dim);padding:7px 12px;border-radius:999px}.sw a:hover{color:var(--ink)}.sw a.on{background:var(--ink);color:var(--bg)}.sw a i{width:6px;height:6px;border-radius:50%;background:var(--faint)}.sw a.on i{background:var(--green)}
 .tabs{display:flex;gap:20px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;align-self:stretch;border-left:1px solid var(--line);padding-left:20px}
 .tabs::-webkit-scrollbar{display:none}
 .tabs a{display:flex;align-items:center;text-decoration:none;color:var(--dim);font-size:13.5px;white-space:nowrap;border-bottom:2px solid transparent;margin-bottom:-1px}
@@ -495,13 +498,13 @@ polyline.soon{stroke-dasharray:6 5}
 @keyframes grow{from{transform:scaleY(0)}}
 .note{color:var(--dim);font-size:12.5px;margin:10px 0 0}
 #c-calls{display:grid;gap:10px;margin-top:12px}
-.crow{display:grid;grid-template-columns:90px repeat(3,minmax(0,1fr));gap:10px;align-items:center}
-.cn{font-weight:600}
-.cc{position:relative;height:28px;border:1px solid var(--line);background:var(--panel);overflow:hidden}
-.cc i{position:absolute;left:0;top:0;bottom:0;opacity:.32}
+.crow{display:grid;grid-template-columns:110px repeat(3,minmax(0,1fr));gap:10px;align-items:center}.crow.hd2{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}
+.cn{font-weight:600;letter-spacing:-.01em}
+.cc{position:relative;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--panel);overflow:hidden}
+.cc i{position:absolute;left:0;top:0;bottom:0;opacity:.38;border-radius:0 4px 4px 0}
 .cc i.p90{width:2px;background:var(--ink);opacity:.7}
-.cc em{position:relative;display:flex;justify-content:space-between;font:12px/28px var(--mono);font-style:normal;padding:0 9px;color:var(--ink)}.cc em span{color:var(--dim)}
-.cc.none{color:var(--faint);font:12px/28px var(--mono);padding-left:8px}
+.cc em{position:relative;display:flex;justify-content:flex-end;font:500 12.5px/32px var(--mono);font-style:normal;padding:0 10px;color:var(--ink)}.cc em span{display:none}
+.cc.none{color:var(--faint);font:12px/32px var(--mono);padding-right:10px;text-align:right}
 aside{position:sticky;top:56px;align-self:start;max-height:calc(100vh - 56px);overflow:auto;padding:18px 18px 24px}
 .ah{display:flex;justify-content:space-between;align-items:center}
 .ah h3{margin:0;font:600 16px/1 var(--sans)}.ah h3 small{color:var(--dim);font-weight:400;margin-left:6px;font-size:13px}
@@ -521,8 +524,8 @@ aside{position:sticky;top:56px;align-self:start;max-height:calc(100vh - 56px);ov
 .ft{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 22px;border-top:1px solid var(--line);color:var(--dim);font-size:12.5px}
 .ft a{color:var(--ink);text-decoration:none}.ft a:hover{text-decoration:underline}
 #tip{position:fixed;z-index:20;pointer-events:none;background:#17171c;border:1px solid var(--faint);padding:8px 10px;font:12.5px/1.45 var(--sans);max-width:280px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
-@media (max-width:1000px){.app{grid-template-columns:minmax(0,1fr)}main{border-right:0}aside{position:static;max-height:none;order:-1;border-bottom:1px solid var(--line)}.sw,.tools label span{display:none}}
-@media (max-width:600px){.about,.tools{display:none}.hd{gap:12px;padding:0 16px}.tabs{padding-left:12px;gap:14px}.chart{padding:18px 16px}aside{padding:16px}.crow{grid-template-columns:minmax(0,1fr)}.ft{padding:12px 16px}}
+@media (max-width:1000px){.app{grid-template-columns:minmax(0,1fr)}main{border-right:0}aside{position:static;max-height:none;order:-1;border-bottom:1px solid var(--line)}.tools label span{display:none}}
+@media (max-width:600px){.about,.tools{display:none}.hd{gap:12px;padding:0 16px}.tabs{padding-left:12px;gap:14px}.chart{padding:18px 16px}aside{padding:16px}.crow{grid-template-columns:minmax(0,1fr)}.crow.hd2{display:none}.ft{padding:12px 16px}}
 @media (prefers-reduced-motion:reduce){.grow{animation:none}}
 `;
 
@@ -550,14 +553,14 @@ export function podlyticsPage(data) {
 <title>podlytics: sandbox providers compared</title>
 <meta name="description" content="Price, start time and success rate of agent pod providers (boat, Daytona, E2B, Isorun), from list prices and fleet's own measured calls.">
 <meta name="theme-color" content="#0b0b0d">
-${FONTS}
+${PL_FONTS}
 <style>${CSS}</style>
 </head>
 <body>
 ${FLISK_BAR}
 <header class="hd">
-<a class="brand" href="/podlytics"><span class="mk">&gt;_</span><span>pod<span class="d">lytics</span></span></a>
-<nav class="sw" aria-label="fleet"><a class="on" href="/podlytics">Benchmarks</a><a href="/pricing">Calculator</a><a href="/">fleet</a></nav>
+<a class="brand" href="/" title="fleet"><span class="mk">&gt;_</span><span>fleet</span></a>
+<nav class="sw" aria-label="Fleet products"><a href="/"><i></i>fleet</a><a class="on" href="/podlytics" aria-current="page"><i></i>podlytics</a></nav>
 <nav class="tabs" aria-label="Charts">${CHARTS.map(([id, l]) => (id === '|' ? '<span class="sep"></span>' : `<a href="?chart=${id}" data-c="${id}"${id === 'size' ? ' class="on"' : ''}>${esc(l)}</a>`)).join('')}</nav>
 <div class="tools"><label><input type="checkbox" id="working"><span>Working only</span></label><button type="button" class="ib" id="csv" title="Download the data as CSV">CSV ↓</button></div>
 </header>
