@@ -95,7 +95,7 @@ describe('agent race', () => {
     expect(html.split('<main')[1].split('</main>')[0].replace(/<script>[^]*?<\/script>/g, '').toLowerCase()).not.toContain('sandbox'); // provider product names live in the logo data only
   });
   test('the recorded run is consistent: real providers, the fix, and the totals add up', () => {
-    expect(RECORDED.jobs.map((j) => j.id)).toEqual(JOBS.map((j) => j.id).slice(0, RECORDED.jobs.length)); // a recording may be older than the job list
+    expect(RECORDED.jobs.map((j) => j.id)).toEqual(JOBS.map((j) => j.id)); // re-record the race (and these ids) whenever the job list changes
     expect(RECORDED.sequentialMs).toBe(RECORDED.jobs.reduce((sum, j) => sum + j.endMs - j.startMs, 0));
     expect(RECORDED.totalMs).toBe(Math.max(...RECORDED.jobs.map((j) => j.endMs)));
     expect(RECORDED.jobs.filter((j) => j.fixed).map((j) => j.id)).toEqual(['wordcount']);
