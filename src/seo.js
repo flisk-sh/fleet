@@ -26,8 +26,8 @@ export const PAGES = {
     description: 'Compare a month of agent sandboxes across providers, by pods a month, length, size and how many run at once. Fleet itself adds nothing.',
   },
   '/demo': {
-    title: 'Four agents, four pods, all at once: a recorded fleet run',
-    description: 'Watch four coding agents each get their own sandbox pod on a different provider, write code and tests, fail one, fix it and stop the pods. A real run, played back at its real speed.',
+    title: 'Six agents, six pods, all at once: a recorded fleet run',
+    description: 'Watch six coding agents each get their own sandbox pod on a different provider, write code and tests, fail one, fix it and stop the pods. A real run, played back at its real speed.',
   },
   '/podlytics': {
     title: 'podlytics: sandbox providers compared',
@@ -114,7 +114,7 @@ export const llmsTxt = () => `# fleet
 - [SKILL.md](${SITE}/SKILL.md): the same as one file an agent can read to set itself up
 - [Pricing](${SITE}/pricing): compare a month of pods across providers
 - [Podlytics](${SITE}/podlytics): price, start time and success rate of providers
-- [Demo](${SITE}/demo): a recorded run of four agents in four pods at once
+- [Demo](${SITE}/demo): a recorded run of six agents in six pods at once
 - [Source](https://github.com/flisk-sh/fleet): MIT licensed
 
 ## Providers
