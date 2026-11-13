@@ -134,7 +134,9 @@ async function publicUrlInner(providers, keys, id, body, ctx = {}) {
   if (typeof prov.publicUrl !== 'function') return { status: 501, error: `${ref.provider} cannot give a pod a public URL through fleet yet` };
   try {
     const r = await prov.publicUrl(keys[ref.provider], ref.providerId, port, { ...ctx, startup });
-    return { status: 200, result: { url: r.url, port } };
+    // wakesOnVisit: the pod sleeps when idle and a visit to the URL starts it again (the link keeps working).
+    // Otherwise the link works until the pod's own lifetime ends: expiresAt when the provider says, else unknown (null).
+    return { status: 200, result: { url: r.url, port, wakesOnVisit: r.wakesOnVisit === true, expiresAt: r.expiresAt ?? null } };
   } catch (e) {
     if (isGone(e)) return { status: 410, error: `this pod is gone: ${ref.provider} no longer has it (stopped, expired or deleted). Create a new pod` };
     return { status: 502, error: `${ref.provider}: ${short(e)}` };

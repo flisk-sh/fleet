@@ -70,7 +70,7 @@ export default {
     if (startup) await call(fetchImpl, `${API}/v2/box/${encodeURIComponent(id)}/startup`, { method: 'PUT', headers: auth(key), body: { init_command: startup } });
     const r = await call(fetchImpl, `${API}/v2/box/${encodeURIComponent(id)}/preview`, { method: 'POST', headers: auth(key), body: { port } });
     if (!r?.url) throw new Error('Upstash returned no public URL (only boxes started with public: true can have one)');
-    return { url: r.url };
+    return { url: r.url, wakesOnVisit: true };
   },
 
   async stop(key, id, { fetchImpl = fetch } = {}) {

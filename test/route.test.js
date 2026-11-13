@@ -125,7 +125,7 @@ describe('public pods and public URLs', () => {
   test('a provider that can expose a port answers its URL and gets the startup command', async () => {
     const a = { ...fake('a', 0.1), seen: null, async publicUrl(key, id, port, opts) { this.seen = { key, id, port, startup: opts.startup }; return { url: `https://${id}-${port}.example` }; } };
     const r = await publicUrl({ a }, { a: 'ka' }, 'pod_a_a-1', { port: 3000, startup: 'cd ~/app && flisk up' });
-    expect(r).toEqual({ status: 200, result: { url: 'https://a-1-3000.example', port: 3000 } });
+    expect(r).toEqual({ status: 200, result: { url: 'https://a-1-3000.example', port: 3000, wakesOnVisit: false, expiresAt: null } });
     expect(a.seen).toEqual({ key: 'ka', id: 'a-1', port: 3000, startup: 'cd ~/app && flisk up' });
   });
 
