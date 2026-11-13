@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createPod, parsePodId, pickOrder, priceTable, runPod, stopPod } from '../src/route.js';
+import { createPod, parsePodId, pickOrder, priceTable, publicUrl, runPod, stopPod } from '../src/route.js';
 
 const fake = (name, price, { fail = false } = {}) => ({
   label: name,
@@ -111,4 +111,38 @@ describe('a pod that died', () => {
 test('price table is sorted, not-offered last', () => {
   const t = priceTable({ a: fake('a', 0.1), d: fake('d', null), b: fake('b', 0.02) });
   expect(t.map((p) => p.provider)).toEqual(['b', 'a', 'd']);
+});
+
+describe('public pods and public URLs', () => {
+  test('public: true reaches the provider as part of the size; anything else is a normal pod', async () => {
+    const a = fake('a', 0.1);
+    await createPod({ a }, { a: 'ka' }, { public: true });
+    await createPod({ a }, { a: 'ka' }, { public: 'yes' });
+    expect(a.calls[0][2]).toMatchObject({ public: true });
+    expect(a.calls[1][2].public).toBeUndefined();
+  });
+
+  test('a provider that can expose a port answers its URL and gets the startup command', async () => {
+    const a = { ...fake('a', 0.1), seen: null, async publicUrl(key, id, port, opts) { this.seen = { key, id, port, startup: opts.startup }; return { url: `https://${id}-${port}.example` }; } };
+    const r = await publicUrl({ a }, { a: 'ka' }, 'pod_a_a-1', { port: 3000, startup: 'cd ~/app && flisk up' });
+    expect(r).toEqual({ status: 200, result: { url: 'https://a-1-3000.example', port: 3000 } });
+    expect(a.seen).toEqual({ key: 'ka', id: 'a-1', port: 3000, startup: 'cd ~/app && flisk up' });
+  });
+
+  test('bad ports, missing keys, unknown pods and providers without the feature', async () => {
+    const a = { ...fake('a', 0.1), async publicUrl() { return { url: 'x' }; } };
+    const b = fake('b', 0.1);
+    expect((await publicUrl({ a }, { a: 'ka' }, 'pod_a_a-1', { port: 0 })).status).toBe(400);
+    expect((await publicUrl({ a }, { a: 'ka' }, 'pod_a_a-1', { port: '3000x' })).status).toBe(400);
+    expect((await publicUrl({ a }, { a: 'ka' }, 'pod_a_a-1', { port: 3000, startup: 'x'.repeat(2001) })).status).toBe(400);
+    expect((await publicUrl({ a }, {}, 'pod_a_a-1', { port: 3000 })).error).toContain('X-a-Key');
+    expect((await publicUrl({ a }, { a: 'ka' }, 'pod_z_1', { port: 3000 })).status).toBe(404);
+    const no = await publicUrl({ b }, { b: 'kb' }, 'pod_b_b-1', { port: 3000 });
+    expect(no.status).toBe(501);
+  });
+
+  test('a pod the provider no longer has is 410', async () => {
+    const a = { ...fake('a', 0.1), async publicUrl() { const e = new Error('HTTP 404'); e.status = 404; throw e; } };
+    expect((await publicUrl({ a }, { a: 'ka' }, 'pod_a_a-1', { port: 3000 })).status).toBe(410);
+  });
 });

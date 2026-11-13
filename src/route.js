@@ -8,7 +8,9 @@ export function parseSize(body = {}) {
   const ram = body.ram === undefined ? DEFAULT_SIZE.ram : Number(body.ram);
   if (!Number.isInteger(cpu) || cpu < 1 || cpu > 16) return { error: 'cpu must be a whole number from 1 to 16' };
   if (!Number.isFinite(ram) || ram < 1 || ram > 64) return { error: 'ram must be a number of GB from 1 to 64' };
-  return { cpu, ram };
+  // public: true asks for a pod that can later give a port a public URL and outlive the call (see publicUrl below).
+  // Providers that cannot do that ignore it and start a normal pod.
+  return body.public === true ? { cpu, ram, public: true } : { cpu, ram };
 }
 
 // keys: { boat: '...', e2b: '...' } — only providers the caller holds an account at.
@@ -113,6 +115,28 @@ async function stopPodInner(providers, keys, id, ctx = {}) {
   } catch (e) {
     if (isGone(e)) await record(ctx, 'gone', { id });
     if (isGone(e)) return { status: 200, result: { stopped: true, alreadyGone: true } }; // stopping a dead pod is a success, so retries are safe
+    return { status: 502, error: `${ref.provider}: ${short(e)}` };
+  }
+}
+
+// A public URL for one port of a pod: the running app can be opened from anywhere. Only some providers can do it.
+// startup (optional) is the command the pod runs each time it starts again, so the app comes back after the
+// provider pauses an idle pod and a visit wakes it.
+async function publicUrlInner(providers, keys, id, body, ctx = {}) {
+  const ref = parsePodId(id, providers);
+  if (!ref) return { status: 404, error: 'no such pod' };
+  if (!keys[ref.provider]) return { status: 400, error: `this pod runs on ${ref.provider}. Send your key in the ${providers[ref.provider].keyHeader} header` };
+  const port = Number(body?.port);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return { status: 400, error: 'port must be a whole number from 1 to 65535' };
+  const startup = body?.startup === undefined ? '' : String(body.startup);
+  if (startup.length > 2000) return { status: 400, error: 'startup is at most 2000 characters' };
+  const prov = providers[ref.provider];
+  if (typeof prov.publicUrl !== 'function') return { status: 501, error: `${ref.provider} cannot give a pod a public URL through fleet yet` };
+  try {
+    const r = await prov.publicUrl(keys[ref.provider], ref.providerId, port, { ...ctx, startup });
+    return { status: 200, result: { url: r.url, port } };
+  } catch (e) {
+    if (isGone(e)) return { status: 410, error: `this pod is gone: ${ref.provider} no longer has it (stopped, expired or deleted). Create a new pod` };
     return { status: 502, error: `${ref.provider}: ${short(e)}` };
   }
 }
@@ -233,6 +257,7 @@ const commandOf = ([, , , body]) => (typeof body?.command === 'string' ? body.co
 const pathOf = ([, , , body]) => (typeof body?.path === 'string' ? body.path.slice(0, 200) : null);
 export const runPod = timed('run', runPodInner, (r, [providers, , id]) => fromId(providers, id), commandOf);
 export const stopPod = timed('stop', stopPodInner, (r, [providers, , id]) => fromId(providers, id));
+export const publicUrl = timed('public', publicUrlInner, (r, [providers, , id]) => fromId(providers, id));
 export const writeFile = timed('write', writeFileInner, (r, [providers, , id]) => fromId(providers, id), pathOf);
 export const readFile = timed('read', readFileInner, (r, [providers, , id]) => fromId(providers, id), pathOf);
 

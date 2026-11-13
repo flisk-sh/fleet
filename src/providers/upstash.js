@@ -44,7 +44,9 @@ export default {
     let box = await call(fetchImpl, `${API}/v2/box`, {
       method: 'POST',
       headers: auth(key),
-      body: { size: s.name, runtime: 'python', ephemeral: true, ttl: Math.min(259200, size.ttl ?? 3600) },
+      // A public pod is a normal (not ephemeral) box: only those can have public URLs. It has no ttl; it pauses itself after an
+      // idle hour (no compute is billed while paused), a visit to its URL wakes it, and whoever asked for it deletes it.
+      body: size.public ? { size: s.name, runtime: 'python' } : { size: s.name, runtime: 'python', ephemeral: true, ttl: Math.min(259200, size.ttl ?? 3600) },
     });
     if (!box?.id) throw new Error('Upstash returned no box id');
     const id = box.id;
@@ -60,6 +62,15 @@ export default {
   async run(key, id, command, { fetchImpl = fetch } = {}) {
     const r = await call(fetchImpl, `${API}/v2/box/${encodeURIComponent(id)}/exec`, { method: 'POST', headers: auth(key), body: { command: ['sh', '-c', command] } });
     return { stdout: r?.output ?? '', stderr: r?.error ?? '', exitCode: r?.exit_code ?? null };
+  },
+
+  // POST /v2/box/:id/preview answers { url: https://<box>-<port>.preview.box.upstash.com }; PUT /v2/box/:id/startup sets the
+  // init command the box runs on every start (read from the @upstash/box 0.8.0 SDK, getPublicURL and setInitCommand).
+  async publicUrl(key, id, port, { fetchImpl = fetch, startup = '' } = {}) {
+    if (startup) await call(fetchImpl, `${API}/v2/box/${encodeURIComponent(id)}/startup`, { method: 'PUT', headers: auth(key), body: { init_command: startup } });
+    const r = await call(fetchImpl, `${API}/v2/box/${encodeURIComponent(id)}/preview`, { method: 'POST', headers: auth(key), body: { port } });
+    if (!r?.url) throw new Error('Upstash returned no public URL (only boxes started with public: true can have one)');
+    return { url: r.url };
   },
 
   async stop(key, id, { fetchImpl = fetch } = {}) {

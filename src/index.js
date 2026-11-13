@@ -1,5 +1,5 @@
 import { PROVIDERS } from './providers/index.js';
-import { createPod, readFile, runPod, stopPod, priceTable, writeFile, DEFAULT_SIZE } from './route.js';
+import { createPod, publicUrl, readFile, runPod, stopPod, priceTable, writeFile, DEFAULT_SIZE } from './route.js';
 import { handleMcp } from './mcp.js';
 import { bearer, githubAuthorizeUrl, githubLogin } from './auth.js';
 import { homePage, messagePage, shell } from './page.js';
@@ -344,7 +344,7 @@ export async function handle(request, env = {}, opts = {}) {
   }
   const hist = /^\/v1\/pods\/([^/]+)\/history$/.exec(path);
   if (hist && request.method === 'GET') return json(200, { id: decodeURIComponent(hist[1]), history: (await listPodCalls(env, login, decodeURIComponent(hist[1]))).map(callItem) });
-  const m = /^\/v1\/pods\/([^/]+)(\/run|\/files)?$/.exec(path);
+  const m = /^\/v1\/pods\/([^/]+)(\/run|\/files|\/public)?$/.exec(path);
   if (m) {
     const id = decodeURIComponent(m[1]);
     if (m[2] === '/run' && request.method === 'POST') {
@@ -358,6 +358,11 @@ export async function handle(request, env = {}, opts = {}) {
       return out(await writeFile(providers, keys, id, body, ctx));
     }
     if (m[2] === '/files' && request.method === 'GET') return out(await readFile(providers, keys, id, { path: url.searchParams.get('path') }, ctx));
+    if (m[2] === '/public' && request.method === 'POST') {
+      const body = await readJson(request);
+      if (!body) return json(400, { error: 'body is not JSON' });
+      return out(await publicUrl(providers, keys, id, body, ctx));
+    }
     if (!m[2] && request.method === 'DELETE') return out(await stopPod(providers, keys, id, ctx));
   }
   return json(404, { error: 'no such API route' });
