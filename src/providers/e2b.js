@@ -76,7 +76,7 @@ export default {
 
   async create(key, size, { fetchImpl = fetch } = {}) {
     const body = { templateID: 'base', timeout: size.ttl ?? 3600 };
-    if (size.cpu !== 2) body.cpuCount = size.cpu;
+    // No cpuCount: a free-tier team gets 400 "Resizable templates are not enabled for your team" (seen 2026-11-13). The base template is 2 vCPU.
     const made = await call(fetchImpl, `${API}/v2/sandboxes`, { method: 'POST', headers: { 'x-api-key': key }, body });
     if (!made?.sandboxID) throw new Error('E2B returned no sandbox id');
     return { id: pack(made.sandboxID, made.envdAccessToken, made.domain) };

@@ -32,6 +32,7 @@ export default {
   label: 'Isorun',
   keyHeader: 'X-Isorun-Key',
   help: 'https://github.com/flisk-sh/fleet/issues/2', // untested: never run against a real account
+  blocked: { kind: 'down', note: 'Isorun sign-in failed on 2026-11-13 and its EU runner answered 521 the day before, so we cannot test it right now.' },
   priceSource: 'https://docs.isorun.ai/getting-started/pricing',
   note: 'Pay per second, no minimum.',
   price: (size) => Math.round((size.cpu * CPU_HOUR + size.ram * GIB_HOUR) * 1000) / 1000,
