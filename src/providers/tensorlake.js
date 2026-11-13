@@ -58,7 +58,12 @@ export default {
 
   async run(key, id, command, { fetchImpl = fetch, wait = sleep } = {}) {
     const base = `${host(id)}/api/v1/processes`;
-    const p = await call(fetchImpl, base, { method: 'POST', headers: auth(key), body: { command: 'sh', args: ['-c', command] } });
+    // The sandbox starts in / (owned by root): relative paths and files belong in the user's home, like on the other providers.
+    const p = await call(fetchImpl, base, {
+      method: 'POST',
+      headers: auth(key),
+      body: { command: 'sh', args: ['-c', `cd "$HOME" 2>/dev/null; ${command}`] },
+    });
     if (p?.pid === undefined || p?.pid === null) throw new Error('Tensorlake returned no process id');
     let st = p;
     for (let i = 0; st.status === 'running' && i < 1200; i++) {
@@ -67,7 +72,9 @@ export default {
     }
     const lines = async (stream) => (await call(fetchImpl, `${base}/${p.pid}/${stream}`, { headers: auth(key) }))?.lines ?? [];
     const [out, err] = [await lines('stdout'), await lines('stderr')];
-    return { stdout: out.join('\n'), stderr: err.join('\n'), exitCode: st.exit_code ?? (st.signal ? 128 : null) };
+    // The line lists carry no line ends: put the last one back, as a real stream would end with it.
+    const text = (ls) => (ls.length ? `${ls.join('\n')}\n` : '');
+    return { stdout: text(out), stderr: text(err), exitCode: st.exit_code ?? (st.signal ? 128 : null) };
   },
 
   async stop(key, id, { fetchImpl = fetch } = {}) {
