@@ -299,10 +299,10 @@ function providersSection(prices, providers, { connections = {}, canConnect = fa
       const kp = KEY_PAGE[p.provider] || (p.facts.keyPage ? { url: p.facts.keyPage, kind: 'dashboard' } : null);
       const biggest = [p.facts.maxCpu ? `${p.facts.maxCpu} vCPU` : '', p.facts.maxRam ? `${p.facts.maxRam} GB` : ''].filter(Boolean).join(' · ') || '—';
       return `<article class="pcard" data-tags="all ${tags(p)}" data-text="${esc(`${p.label} ${p.facts.blurb || ''} ${(p.facts.badges || []).join(' ')}`.toLowerCase())}">
-<div class="ph">${logoSvg(p.provider, p.label, 34)}<b>${esc(p.label)}</b><span class="pp">${money(p.pricePerHour)}<small>/h</small></span></div>
+<div class="ph">${logoSvg(p.provider, p.label, 34)}<b>${esc(p.label)}</b><span class="pp">${p.pricePerHour === 0 ? 'Free' : `${money(p.pricePerHour)}<small>/h</small>`}</span></div>
 <div>${statusTag(p)}</div>
 <p>${esc(p.facts.blurb || p.note)}</p>
-${p.status === 'working' ? '' : `<p class="soon">${p.status === 'blocked' ? `${esc(p.blocker)} It is built from ${esc(p.label)}'s docs and passes tests against fake replies.` : `Built from ${esc(p.label)}'s public docs and passes tests against fake replies, so it should work. It waits for a test on a real account.`} Fleet still routes to it if you connect a key. <a href="${esc(p.help)}" target="_blank" rel="noopener">${p.status === 'blocked' ? 'Follow it' : 'Help test it'}</a>.</p>`}
+${p.status === 'working' ? '' : `<p class="soon">${p.status === 'blocked' ? `${esc(p.blocker)} It is built from ${esc(p.label)}'s docs and passes tests against fake replies.` : (p.untestedNote ? esc(p.untestedNote) : `Built from ${esc(p.label)}'s public docs and passes tests against fake replies, so it should work. It waits for a test on a real account.`)} Fleet still routes to it if you connect a key. <a href="${esc(p.help)}" target="_blank" rel="noopener">${p.status === 'blocked' ? 'Follow it' : 'Help test it'}</a>.</p>`}
 <dl><div><dt>Credit</dt><dd>${esc(p.facts.credit || '—')}</dd></div><div><dt>Biggest pod</dt><dd>${biggest}</dd></div><div><dt>Regions</dt><dd>${esc((p.facts.regions || []).join(', ') || '—')}</dd></div><div><dt>Header</dt><dd class="n">${esc(p.meta.keyHeader)}</dd></div></dl>
 <div class="pf"><span class="badges">${(p.facts.badges || []).map((b) => `<span class="badge">${esc(b)}</span>`).join('')}</span><span class="links"><a href="${SIGNUP[p.provider] || p.facts.signup || p.source}" target="_blank" rel="noopener">Sign up</a>${kp ? `<a href="${kp.url}" target="_blank" rel="noopener">Get a key</a>` : ''}</span></div>
 ${connectBox(p, connections[p.provider], canConnect)}
@@ -328,7 +328,7 @@ function trySection(prices, providers, connections = {}) {
     (demo ? `<option value="${esc(demo[0])}">Demo · simulated, no account needed</option>` : '') +
     prices
       .filter((p) => p.pricePerHour !== null)
-      .map((p) => `<option value="${esc(p.provider)}">${esc(p.label)} · ${money(p.pricePerHour)} an hour${p.status === 'working' ? '' : ` · ${esc(String(p.stateLabel || 'untested').toLowerCase())}`}</option>`)
+      .map((p) => `<option value="${esc(p.provider)}">${esc(p.label)} · ${p.pricePerHour === 0 ? 'free' : `${money(p.pricePerHour)} an hour`}${p.status === 'working' ? '' : ` · ${esc(String(p.stateLabel || 'untested').toLowerCase())}`}</option>`)
       .join('');
   const pages = JSON.stringify(Object.fromEntries(Object.entries(KEY_PAGE).map(([k, v]) => [k, v.url])));
   const conn = JSON.stringify(Object.keys(connections));
@@ -359,7 +359,7 @@ function trySection(prices, providers, connections = {}) {
 const store=(()=>{try{return window.localStorage}catch{return null}})();
 const load=()=>{const v=$('prov').value;$('plogo').innerHTML=L[v]||'';const k=store&&store.getItem('fleet_try_'+v);$('pkey').value=k||'';$('remember').checked=!!k;$('getkey').href=P[v]||'#';$('getkey').style.display=P[v]?'':'none';$('pkey').disabled=v==='demo';$('pkey').placeholder=v==='demo'?'No key needed for the demo pod':C.includes(v)?'Connected: leave empty to use your saved key':'Your provider API key'};
 if(C.length&&[...$('prov').options].some(o=>o.value===C[0]))$('prov').value=C[0];
-const label=()=>{const v=$('prov').value;$('go').textContent=v==='demo'?'Start demo pod':'Start '+$('prov').selectedOptions[0].textContent.split(' · ')[0]+' pod'};
+const label=()=>{const v=$('prov').value;$('go').textContent=v==='demo'?'Start demo pod':'Start '+(n=>n.endsWith(' pod')?n:n+' pod')($('prov').selectedOptions[0].textContent.split(' · ')[0])};
 $('prov').addEventListener('change',()=>{load();label()});load();label();
 const s=(ms)=>ms==null?'—':(ms/1000).toFixed(1)+' s';
 $('try').addEventListener('submit',async(e)=>{e.preventDefault();const key=$('pkey').value.trim();const err=$('err');err.style.display='none';
