@@ -17,7 +17,7 @@ export const PL_SIZES = [
   { cpu: 8, ram: 16 },
   { cpu: 16, ram: 32 },
 ];
-const COLORS = { daytona: '#3ddc84', boat: '#ff8a5c', e2b: '#ffc94d', isorun: '#6fa8ff' };
+const COLORS = { daytona: '#3ddc84', boat: '#ff8a5c', e2b: '#ffc94d', isorun: '#6fa8ff', fleetpod: '#ffffff' };
 const SPARE = ['#c792ea', '#5ce1e6', '#f78fb3', '#b8e986', '#e0e0e8', '#ff6b6b', '#a3a3ff', '#d4a373', '#7fd1b9', '#f3a6ff'];
 const DAYS = 30;
 
