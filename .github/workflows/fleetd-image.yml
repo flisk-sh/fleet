@@ -1,0 +1,37 @@
+# Publishes ghcr.io/flisk-sh/fleetd (the pod host that host.flisk.si starts on Render, Fly and Koyeb).
+# Runs when fleetd/ changes on main, or by hand. A new GHCR package starts private: make it public once.
+name: fleetd image
+
+on:
+  push:
+    branches: [main]
+    paths: ['fleetd/**', '.github/workflows/fleetd-image.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: fleetd
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/flisk-sh/fleetd:latest
+            ghcr.io/flisk-sh/fleetd:${{ github.sha }}
+          labels: org.opencontainers.image.source=https://github.com/flisk-sh/fleet
