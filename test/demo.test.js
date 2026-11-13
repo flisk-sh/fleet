@@ -118,7 +118,7 @@ describe('agent race', () => {
   test('every page has Demo in the top nav, pointing at the public race', async () => {
     for (const path of ['/', '/pricing', '/docs', '/demo']) {
       const html = await (await handle(new Request(`https://fleet.flisk.si${path}`), {})).text();
-      expect(html).toContain('<a href="/demo">Demo</a>');
+      expect(html).toMatch(/<a href="\/demo"[^>]*>Demo<\/a>/);
     }
   });
 });

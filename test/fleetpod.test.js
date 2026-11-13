@@ -70,3 +70,17 @@ describe('cabinet wording for the free provider', () => {
     expect(await get('section=providers')).toMatch(/Fleet pod<\/b><span class="pp">Free<\/span>/);
   });
 });
+
+describe('standard second-level header', () => {
+  test('every site page has brand, nav, current page marked, and a green Console call-to-action', async () => {
+    const { handle } = await import('../src/index.js');
+    for (const path of ['/', '/pricing', '/docs', '/demo']) {
+      const html = await (await handle(new Request(`https://fleet.test${path}`), {})).text();
+      expect(html).toContain('<a class="brand" href="/"');
+      expect(html).toContain('<a class="cta" href="/console">Console');
+      expect(html).not.toContain('class="swp"');
+    }
+    const pricing = await (await handle(new Request('https://fleet.test/pricing'), {})).text();
+    expect(pricing).toMatch(/<a href="\/pricing" aria-current="page">Pricing<\/a>/);
+  });
+});

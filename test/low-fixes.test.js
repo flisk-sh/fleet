@@ -35,7 +35,7 @@ describe('touch targets', () => {
     const html = await get('/');
     expect(html).toContain('.foot-grid a:not(.b):not(.logo){padding:6px 0;margin-bottom:0}');
     expect(html).toContain('.legal a{display:inline-block;padding:7px 0;');
-    expect(html).toContain('.top nav>a:not(.spons){padding:9px 0}');
+    expect(html).toContain('.top nav a{position:relative;text-decoration:none;padding:19px 0}');
   });
 });
 
