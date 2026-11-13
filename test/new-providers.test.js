@@ -288,10 +288,14 @@ describe('tensorlake (written from docs.tensorlake.ai, 2026-11-12)', () => {
       { body: { lines: ['oops'] } },
     ]);
     const r = await tensorlake.run('k', id, 'echo a; echo b', f);
-    expect(r).toEqual({ stdout: 'a\nb', stderr: 'oops', exitCode: 3 });
+    expect(r).toEqual({ stdout: 'a\nb\n', stderr: 'oops\n', exitCode: 3 }); // line lists carry no line ends: the last one is put back
     expect(f.calls[0].url).toBe('https://sbx_123.sandbox.tensorlake.ai/api/v1/processes');
-    expect(json(f.calls[0])).toEqual({ command: 'sh', args: ['-c', 'echo a; echo b'] });
+    expect(json(f.calls[0])).toEqual({ command: 'sh', args: ['-c', 'cd "$HOME" 2>/dev/null; echo a; echo b'] }); // starts in /, which is root-owned
     expect(f.calls[2].url).toEndWith('/api/v1/processes/7/stdout');
+  });
+  test('empty output stays empty', async () => {
+    const f = fakeFetch([{ body: { pid: 7, status: 'exited', exit_code: 0 } }, { body: { lines: [] } }, { body: { lines: [] } }]);
+    expect(await tensorlake.run('k', id, 'true', f)).toEqual({ stdout: '', stderr: '', exitCode: 0 });
   });
   test('stop deletes the sandbox; price and size', async () => {
     const f = fakeFetch([{ body: null }]);
