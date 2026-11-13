@@ -449,6 +449,7 @@ describe('MCP', () => {
     expect((await req('POST', '/v1/pods', {}, as)).status).toBe(403);
     expect((await req('POST', '/v1/pods/pod_mid_x/run', { command: 'ls' }, as)).status).toBe(403);
     expect((await req('PUT', '/v1/pods/pod_mid_x/files', { path: '/a', content: 'x' }, as)).status).toBe(403);
+    expect((await req('POST', '/v1/pods/pod_mid_x/public', { port: 3000 }, as)).status).toBe(403);
     expect((await req('DELETE', '/v1/pods/pod_mid_x', undefined, as)).status).toBe(403);
     expect((await req('POST', '/v1/pods', {})).status).toBe(201);
   });

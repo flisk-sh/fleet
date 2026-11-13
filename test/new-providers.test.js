@@ -204,6 +204,28 @@ describe('upstash box', () => {
   });
 });
 
+describe('upstash public box', () => {
+  test('public: true makes a normal box (no ephemeral, no ttl), so it can have a public URL', async () => {
+    const f = fakeFetch([{ body: { id: 'box_2', status: 'idle' } }]);
+    expect(await upstash.create('uk', { ...size, public: true }, f)).toEqual({ id: 'box_2' });
+    const body = json(f.calls[0]);
+    expect(body).toEqual({ size: 'small', runtime: 'python' });
+  });
+  test('publicUrl sets the startup command, then asks for the preview URL', async () => {
+    const f = fakeFetch([{ body: {} }, { body: { url: 'https://box_2-3000.preview.box.upstash.com' } }]);
+    expect(await upstash.publicUrl('uk', 'box_2', 3000, { ...f, startup: 'cd ~/app && flisk up' })).toEqual({ url: 'https://box_2-3000.preview.box.upstash.com' });
+    expect(f.calls[0]).toMatchObject({ url: 'https://us-east-1.box.upstash.com/v2/box/box_2/startup', method: 'PUT' });
+    expect(json(f.calls[0])).toEqual({ init_command: 'cd ~/app && flisk up' });
+    expect(f.calls[1]).toMatchObject({ url: 'https://us-east-1.box.upstash.com/v2/box/box_2/preview', method: 'POST' });
+    expect(json(f.calls[1])).toEqual({ port: 3000 });
+  });
+  test('no startup command means no startup call; no URL in the answer is an error', async () => {
+    const f = fakeFetch([{ body: {} }]);
+    await expect(upstash.publicUrl('uk', 'box_1', 3000, f)).rejects.toThrow('no public URL');
+    expect(f.calls).toHaveLength(1);
+  });
+});
+
 describe('credentials with more than one part', async () => {
   const { joinFields, fieldsOf, splitFields } = await import('../src/providers/fields.js');
   test('most providers need one key; blaxel, vercel and boat need more', () => {
