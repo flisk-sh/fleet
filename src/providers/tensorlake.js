@@ -1,7 +1,7 @@
 // Tensorlake Sandboxes (tensorlake.ai). REST docs: https://docs.tensorlake.ai/api-reference/v2/sandboxes/create.md
 // Control plane on api.tensorlake.ai; commands go to the sandbox's own proxy host (<id>.sandbox.tensorlake.ai/api/v1/processes)
 // with the same API key. Prices: https://docs.tensorlake.ai/platform/billing.md (Usage Credits rates).
-// Not tested yet: written from the docs on 2026-11-12, never run on a real account.
+// Run on a real account 2026-11-13 (free plan). Found there: the sandbox starts in / (root-owned) and the line lists drop the final newline.
 // Guesses: the proxy host is built as <id>.sandbox.tensorlake.ai (the commands page uses that form), not read from
 // ingress_endpoint; stdout/stderr come from the /stdout and /stderr line lists after the process has exited.
 import { call, sleep } from './http.js';
@@ -18,7 +18,7 @@ export const tensorlakeRam = (size) => Math.min(size.cpu * 8, Math.max(size.cpu,
 export default {
   label: 'Tensorlake',
   keyHeader: 'X-Tensorlake-Key',
-  help: 'https://github.com/flisk-sh/fleet/issues/4',
+  working: '2026-11-13', // real account run: start, run with env/cwd/timeout, files, timeout (exit 124), stop, stop again
   priceSource: 'https://docs.tensorlake.ai/platform/billing.md',
   note: 'MicroVMs billed per second on active CPU. Free plan: one 1 vCPU / 1 GB sandbox at a time; prepaid credits allow 4 vCPU / 16 GB.',
   price: (size) => (size.cpu > 16 ? null : Math.round((size.cpu * CPU_HOUR + tensorlakeRam(size) * GB_HOUR) * 1000) / 1000),
