@@ -1,4 +1,4 @@
-// The agent race: four small coding jobs, each in its own pod, all started at the same moment.
+// The agent race: six small coding jobs, each in its own pod, all started at the same moment.
 // Each job is what a coding agent does: start a pod, write the code and its tests, run the tests, stop the pod.
 // One job's first try carries a bug we planted on purpose: its tests fail, the agent writes the fix in the same pod
 // and runs the tests again. So the page shows what happens when an agent gets it wrong, and still ends green.
@@ -13,7 +13,7 @@ import { PROVIDERS } from './providers/index.js';
 
 export { RECORDED };
 
-export const DEMO_PROVIDERS = ['daytona', 'blaxel', 'upstash', 'vercel'];
+export const DEMO_PROVIDERS = ['daytona', 'blaxel', 'upstash', 'vercel', 'e2b', 'freestyle'];
 
 const test = (mod, fn, cases) =>
   [
@@ -71,6 +71,26 @@ export const JOBS = [
     tests: test('roman', 'roman', [
       ['year', 'roman(2026)', '"MMXXVI"'],
       ['four', 'roman(4)', '"IV"'],
+    ]),
+  },
+  {
+    id: 'palindrome',
+    title: 'Check if a text is a palindrome',
+    file: 'palin.py',
+    code: 'import re\n\ndef is_palindrome(text):\n    s = re.sub(r"[^a-z0-9]", "", text.lower())\n    return s == s[::-1]\n',
+    tests: test('palin', 'is_palindrome', [
+      ['sentence', 'is_palindrome("A man, a plan, a canal: Panama")', 'True'],
+      ['not_one', 'is_palindrome("fleet")', 'False'],
+    ]),
+  },
+  {
+    id: 'median',
+    title: 'Find the median of a list',
+    file: 'median.py',
+    code: 'def median(xs):\n    s = sorted(xs)\n    mid = len(s) // 2\n    return s[mid] if len(s) % 2 else (s[mid - 1] + s[mid]) / 2\n',
+    tests: test('median', 'median', [
+      ['odd', 'median([3, 1, 2])', '2'],
+      ['even', 'median([4, 1, 3, 2])', '2.5'],
     ]),
   },
 ];
@@ -162,7 +182,7 @@ export function jobOrders(providers, keys, n = JOBS.length) {
 
 // All jobs at the same time. Each one is independent: one job failing never stops the others.
 export async function demoRun(providers, keys, ctx = {}, emit = () => {}) {
-  if (!Object.keys(keys).length) return { ok: false, error: 'connect Daytona, Blaxel, Upstash Box or Vercel on the Providers page first' };
+  if (!Object.keys(keys).length) return { ok: false, error: 'connect Daytona, Blaxel, Upstash Box, Vercel, E2B or Freestyle on the Providers page first' };
   const plan = jobOrders(providers, keys);
   if (plan.error) return { ok: false, error: plan.error };
   emit({ type: 'plan', jobs: JOBS.map((j, i) => ({ id: j.id, provider: plan.orders[i][0] })) });
@@ -341,13 +361,18 @@ const LEGEND = [
 const PTAGS = Object.fromEntries(Object.entries(PROVIDERS).filter(([, p]) => !p.demo).map(([id, p]) => [id, providerTag(id, p.label, 16)]));
 
 export function demoPage({ replay = false } = {}) {
-  const jobs = JOBS.map((j) => ({ id: j.id, title: j.title }));
+  // A recording defines its own rows: the page shows the jobs that run was made with, not the jobs fleet runs today.
+  const shown = replay ? RECORDED.jobs : JOBS;
+  const N = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'][shown.length] || String(shown.length);
+  const used = RECORDED.providersUsed.map((id) => PROVIDERS[id]?.label || id);
+  const usedText = used.length > 1 ? `${used.slice(0, -1).join(', ')} and ${used.at(-1)}` : used[0];
+  const jobs = shown.map((j) => ({ id: j.id, title: j.title }));
   const lead = replay
-    ? `<p class="m label">Recorded run · real pods on four providers</p>`
+    ? `<p class="m label">Recorded run · real pods on ${used.length} providers</p>`
     : `<p class="m label">Live demo · parallel agent pods</p>`;
   const sub = replay
-    ? 'Each row is one coding agent with its own pod: it writes a small function and its tests, runs them, and stops the pod. Fleet spread the four over Daytona, Blaxel, Upstash Box and Vercel and started them together. One agent\'s first try has a bug we planted, so you can watch it fail its tests, fix the code in the same pod, and pass.'
-    : 'Each row is one coding agent with its own pod: it writes a small function and its tests, runs them, and stops the pod. Fleet spreads the four over the providers you connected and starts them together. One agent\'s first try has a bug we planted, so you can watch it fail its tests, fix the code in the same pod, and pass.';
+    ? `Each row is one coding agent with its own pod: it writes a small function and its tests, runs them, and stops the pod. Fleet spread the ${shown.length} over ${usedText} and started them together. One agent's first try has a bug we planted, so you can watch it fail its tests, fix the code in the same pod, and pass.`
+    : `Each row is one coding agent with its own pod: it writes a small function and its tests, runs them, and stops the pod. Fleet spreads the ${JOBS.length} over the providers you connected and starts them together. One agent's first try has a bug we planted, so you can watch it fail its tests, fix the code in the same pod, and pass.`;
   const note = replay
     ? `<p class="replay">This plays back a real run from ${esc(RECORDED.recordedOn)} at its real speed. <a href="/console/demo">Run it live</a> on your own providers: sign in with GitHub and connect one.</p>`
     : '';
@@ -355,10 +380,10 @@ export function demoPage({ replay = false } = {}) {
     replay ? 'Agent race · recorded run · fleet' : 'Agent race · fleet demo',
     `<section class="race">
 ${lead}
-<h1>Four agents. Four pods. <em>All at once.</em></h1>
+<h1>${N} agents. ${N} pods. <em>All at once.</em></h1>
 <p class="sub">${sub}</p>
 ${note}
-<div class="ctl"><button id="go" class="b inv" type="button">${replay ? 'Watch the run' : 'Run 4 agents'}</button><span class="clock" aria-live="off"><span id="clock">0.0</span><small>s</small></span>
+<div class="ctl"><button id="go" class="b inv" type="button">${replay ? 'Watch the run' : `Run ${JOBS.length} agents`}</button><span class="clock" aria-live="off"><span id="clock">0.0</span><small>s</small></span>
 <span class="legend" aria-hidden="true">${LEGEND.map(([c, t]) => `<span><i class="${c}"></i>${esc(t)}</span>`).join('')}</span></div>
 <div class="board"><div id="board" aria-label="Agent jobs"></div><div class="axis"><div>Job</div><div class="ticks" id="ticks"></div><div></div></div></div>
 <div id="result" class="result" hidden aria-live="polite"></div>

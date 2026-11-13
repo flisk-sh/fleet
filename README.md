@@ -4,7 +4,7 @@ One API for every agent pod. A pod is a Linux machine your agent can run command
 
 Fleet starts each pod on the cheapest sandbox provider you have a key for, and moves to the next one when a provider fails. You bring your own provider accounts: connect each one once in the cabinet (fleet keeps the key encrypted), or send its key with each call.
 
-Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the cabinet: up to 10 named fleet keys, your pods, an overview, providers and docs. Daytona, Blaxel, Upstash Box and Vercel Sandbox have been run end to end on a real account. The other ten adapters are written from the providers' public API docs and tested against fake replies only.
+Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the cabinet: up to 10 named fleet keys, your pods, an overview, providers and docs. Daytona, Blaxel, Upstash Box, Vercel Sandbox, E2B and Freestyle have been run end to end on a real account. The other ten adapters are written from the providers' public API docs and tested against fake replies only.
 
 ## Providers
 
@@ -14,15 +14,15 @@ Status: beta, live at https://fleet.flisk.si. Sign in with GitHub to reach the c
 | Upstash Box | **Working**: run end to end on a real account on 2026-11-12 | `X-Upstash-Key` | $0.100 (active CPU) | https://upstash.com/docs/box/overall/pricing |
 | Blaxel | **Working**: run end to end on a real account on 2026-11-12 | `X-Blaxel-Key`: `<workspace>:<API key>` | $0.166 | https://blaxel.ai/pricing |
 | boat | **Blocked**: needs a card (7-day trial, then $20 a month), [help wanted](https://github.com/flisk-sh/fleet/issues/1) | `X-Boat-Key`: `<key>[:<organization>]` | $0.018 | https://docs.boat.dev/pricing |
-| Isorun | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/2) | `X-Isorun-Key` | $0.110 | https://docs.isorun.ai/getting-started/pricing |
-| E2B | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/3) | `X-E2B-Key` | $0.166 | https://e2b.dev/pricing |
+| Isorun | **Blocked**: provider down (sign-in failed and its EU runner answered 521, seen 2026-11-13), [help wanted](https://github.com/flisk-sh/fleet/issues/2) | `X-Isorun-Key` | $0.110 | https://docs.isorun.ai/getting-started/pricing |
+| E2B | **Working**: run end to end on a real account on 2026-11-13 (free team: 2 vCPU base template, 1 h sessions) | `X-E2B-Key` | $0.166 | https://e2b.dev/pricing |
 | Hopx | **Blocked**: provider down (API error 526 since 2026-11-12), [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Hopx-Key` | $0.166 | https://hopx.ai/pricing |
 | Runloop | **Blocked**: invitation only (waitlist: support@runloop.ai), and winding down: transition support ends 2026-11-13, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Runloop-Key` | $0.317 | https://www.runloop.ai/pricing |
 | Vercel Sandbox | **Working**: run end to end on a real account on 2026-11-12 (Hobby: 45-minute sandboxes) | `X-Vercel-Key`: `<token>:<project id>[:<team id>]` | $0.341 at most (CPU billed only while busy) | https://vercel.com/docs/sandbox/pricing |
 | Fly Sprites | **Blocked**: needs a card on accounts whose Fly trial ended, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Sprites-Key` | $0.164 at most (billed on use) | https://fly.io/pricing |
-| Morph | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Morph-Key` | $0.100 | https://cloud.morph.so/web/subscribe |
+| Morph | **Blocked**: needs billing (a new account got 402 payment required, seen 2026-11-13), [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Morph-Key` | $0.100 | https://cloud.morph.so/web/subscribe |
 | Tensorlake | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Tensorlake-Key` | $0.200 (active CPU; free plan caps a sandbox at 1 vCPU / 1 GB) | https://docs.tensorlake.ai/platform/billing.md |
-| Freestyle | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Freestyle-Key` | $0.132 | https://www.freestyle.sh/docs/vms/pricing-and-limits |
+| Freestyle | **Working**: run end to end on a real account on 2026-11-13 (free plan) | `X-Freestyle-Key` | $0.132 | https://www.freestyle.sh/docs/vms/pricing-and-limits |
 | LangSmith Sandboxes | Untested, [help wanted](https://github.com/flisk-sh/fleet/issues/4) | `X-Langsmith-Key` | $0.189 | https://docs.langchain.com/langsmith/pricing-plans |
 
 Most providers need one API key. Three need more, joined with colons in one header value (the cabinet's Providers page has one input per part): Blaxel `workspace:key`, Vercel `token:projectId[:teamId]`, boat `key[:organization]`.
