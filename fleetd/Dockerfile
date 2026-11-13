@@ -1,4 +1,4 @@
-# Hugging Face Space (SDK: Docker). Set the secret FLEETD_TOKEN in the Space settings. The Space listens on 7860.
+# Any Docker host. Set the secret FLEETD_TOKEN in the host's settings. It listens on 7860 on all interfaces.
 FROM node:20-slim
 RUN apt-get update && apt-get install -y --no-install-recommends python3 git curl ca-certificates && rm -rf /var/lib/apt/lists/*
 USER node

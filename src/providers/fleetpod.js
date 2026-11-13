@@ -1,4 +1,4 @@
-// fleetpod: pods on a host you run yourself with fleetd (fleetd/fleetd.mjs): a free Hugging Face Space, a spare machine, a VPS.
+// fleetpod: pods on a host you run yourself with fleetd (fleetd/fleetd.mjs): any machine you control that can run Node or Docker (a spare computer, a VPS; see https://host.flisk.si).
 // The credential is "<token>@<address of fleetd>", for example  s3cretvalue1234@https://me-fleetd.hf.space
 // Free to use, so it always sorts first by price. It is not a sandbox: see fleetd/README.md.
 import { call } from './http.js';
@@ -22,12 +22,12 @@ export default {
   label: 'Fleet pod',
   keyHeader: 'X-Fleetpod-Key',
   help: 'https://github.com/flisk-sh/fleet/issues/4',
-  untestedNote: 'Runs on a host you set up yourself with fleetd. It passes tests against a real local fleetd and waits for its first run on a free Hugging Face Space.',
+  untestedNote: 'Runs on a host you set up yourself with fleetd. It passes tests against a real local fleetd and waits for its first run on a real host. Free hosts are listed on host.flisk.si.',
   priceSource: 'https://github.com/flisk-sh/fleet/tree/main/fleetd',
-  note: 'Runs on your own fleetd host (a free Hugging Face Space works). Not a sandbox: trusted code only.',
+  note: 'Runs on your own fleetd host (see host.flisk.si for free places). Not a sandbox: trusted code only.',
   price: (size) => (size.cpu <= 2 && size.ram <= 16 ? 0 : null),
   facts: {
-    blurb: 'Pods on a host you run yourself with fleetd, for example a free Hugging Face Space. No cost, trusted code only.',
+    blurb: 'Pods on a host you run yourself with fleetd, for example a spare machine or a free host from host.flisk.si. No cost, trusted code only.',
     regions: [],
     billing: 'free',
     credit: 'Free: you bring the host',
@@ -40,8 +40,8 @@ export default {
     startsPerDay: null,
     badges: ['Free', 'Your own host', 'Trusted code only'],
     source: 'https://github.com/flisk-sh/fleet/tree/main/fleetd',
-    signup: 'https://huggingface.co/new-space',
-    keyPage: 'https://github.com/flisk-sh/fleet/tree/main/fleetd',
+    signup: 'https://host.flisk.si',
+    keyPage: 'https://host.flisk.si',
     fields: [{ id: 'key', label: 'token@https://your-fleetd-address', secret: true }],
   },
 
