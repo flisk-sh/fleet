@@ -650,7 +650,7 @@ ${SKIP_LINK}
 ${FLISK_BAR}
 <header class="hd">
 <a class="brand" href="/" title="fleet">${FLEET_MARK}<span>fleet</span></a>
-<nav class="sw" aria-label="Fleet products"><a href="/"><i></i>fleet</a><a class="on" href="/podlytics" aria-current="page"><i></i>podlytics</a></nav>
+<nav class="sw" aria-label="Fleet products"><a href="/"><i></i>fleet</a><a class="on" href="/podlytics" aria-current="page"><i></i>podlytics</a><a href="https://host.flisk.si"><i></i>host</a></nav>
 <nav class="tabs" aria-label="Charts">${CHARTS.map(([id, l]) => (id === '|' ? '<span class="sep"></span>' : `<a href="?chart=${id}" data-c="${id}"${id === 'size' ? ' class="on"' : ''}>${esc(l)}</a>`)).join('')}</nav>
 <button type="button" class="tabnext" id="tabnext" aria-label="Show more charts" title="More charts" hidden>›</button>
 <div class="tools"><label><input type="checkbox" id="working" aria-label="Working only"><span>Working only</span></label><button type="button" class="ib" id="csv" title="Download the data as CSV">CSV ↓</button></div>

@@ -29,6 +29,15 @@ a{color:inherit}
 @media (max-width:1250px){.top::before,.top::after{display:none}}
 .top .brand{display:flex;align-items:center;gap:11px;padding:0 20px;text-decoration:none;border-right:1px solid var(--ink);font:800 23px/1 var(--serif);letter-spacing:-.015em;text-transform:none}
 .top .tile{display:grid;place-items:center;width:34px;height:34px;flex-shrink:0}.top .tile .mark{width:34px;height:34px;background:none}
+.top .swp{display:flex;align-items:center;padding:0 14px;border-right:1px solid var(--ink)}
+.swp span{display:inline-flex;border:1px solid var(--ink);padding:3px;gap:3px;background:var(--card)}
+.swp a{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;text-decoration:none;color:var(--dim);transition:background .15s,color .15s}
+.swp a i{width:7px;height:7px;border:1px solid currentColor;flex-shrink:0}
+.swp a:hover{color:var(--ink);background:var(--paper)}
+.swp a.on{background:var(--ink);color:var(--paper)}
+.swp a.on i{background:var(--glow);border-color:var(--glow);box-shadow:0 0 0 0 rgba(34,197,94,.7);animation:swpulse 1.8s infinite}
+@keyframes swpulse{70%{box-shadow:0 0 0 6px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+@media (prefers-reduced-motion:reduce){.swp a.on i{animation:none}}
 .top nav{display:flex;gap:26px;align-items:center;padding:0 20px;margin-left:auto}
 .top nav a{position:relative;text-decoration:none;padding:19px 0}
 .top nav a::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:3px;background:var(--green);transform:scaleX(0);transform-origin:left;transition:transform .18s}
@@ -114,7 +123,7 @@ p.note{color:var(--dim);margin:14px 0 0;max-width:72ch}
 ${SKIP_CSS}
 @media (prefers-reduced-motion:reduce){.route li,.route .foot{animation:none;opacity:1}}
 @media (max-width:900px){.hero,.sec.two{grid-template-columns:minmax(0,1fr)}.hero{min-height:0}.art{border-left:0;border-top:1px solid var(--ink);min-height:300px;height:300px}.steps{grid-template-columns:1fr 1fr}.steps>div:nth-child(3){border-left:0}.steps>div:nth-child(n+3){border-top:1px solid var(--ink)}.feat{grid-template-columns:1fr}.feat>div+div{border-left:0;border-top:1px solid var(--ink)}.foot-grid{grid-template-columns:1fr 1fr}.foot-grid>div:first-child{grid-column:1/-1;padding-left:24px}.foot-grid>div:nth-child(2){border-left:0}.foot-grid>div{border-top:1px solid var(--ink);min-height:0}}
-@media (max-width:600px){.top .brand{padding:0 12px;font-size:19px}.top .brand b{display:none}.top .cta{padding:0 14px}.hero .l,.sec,.msg{padding-left:16px;padding-right:16px}.top nav{gap:14px;padding:0 12px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}.top nav a{white-space:nowrap}.top nav a.spons{display:none}.top .cta{padding:0 14px;flex-shrink:0}.top nav a.hide{display:none}.steps{grid-template-columns:1fr}.steps>div{border-left:0!important;border-top:1px solid var(--ink)}.steps>div:first-child{border-top:0}.route li{grid-template-columns:18px minmax(0,1fr) 64px}.route li .st{grid-column:2/4;text-align:left}.word{padding:14px 12px 6px}.legal{padding:10px 16px}.foot-grid{grid-template-columns:1fr}.foot-grid>div{border-left:0!important}}
+@media (max-width:600px){.top .brand{padding:0 12px;font-size:19px}.top{height:auto;flex-wrap:wrap}.top .brand{height:54px}.top nav{display:none}.top .cta{margin-left:auto;height:54px}.top .swp{order:3;width:100%;border-right:0;border-top:1px solid var(--ink);padding:8px 12px}.swp span{display:flex;width:100%}.swp a{flex:1;justify-content:center;padding:7px 4px}.top .cta{padding:0 14px}.hero .l,.sec,.msg{padding-left:16px;padding-right:16px}.top nav{gap:14px;padding:0 12px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}.top nav a{white-space:nowrap}.top nav a.spons{display:none}.top .cta{padding:0 14px;flex-shrink:0}.top nav a.hide{display:none}.steps{grid-template-columns:1fr}.steps>div{border-left:0!important;border-top:1px solid var(--ink)}.steps>div:first-child{border-top:0}.route li{grid-template-columns:18px minmax(0,1fr) 64px}.route li .st{grid-column:2/4;text-align:left}.word{padding:14px 12px 6px}.legal{padding:10px 16px}.foot-grid{grid-template-columns:1fr}.foot-grid>div{border-left:0!important}}
 `;
 
 // The shared Flisk product bar (flisk.si/assets/bar.js), the same one every Flisk site loads. It lists the products
@@ -128,12 +137,18 @@ const COPY_JS = `<script>document.querySelectorAll('[data-copy]').forEach(b=>b.a
 
 // The standard second-level header shared by the Flisk product sites (fleet, host): brand tile + name on the left,
 // mono nav on the right, green call-to-action. nav items: [href, label, extra class]. Keep in step with flisk-sh/host src/page.js.
-export const topbar = ({ name, mark, nav, cta, current = '' }) =>
+export const topbar = ({ name, mark, nav, cta, sw = [], current = '' }) =>
   `<div class="top m"><a class="brand" href="/" aria-label="${esc(name)} home"><span class="tile">${mark}</span><b>${esc(name)}</b></a>` +
+  (sw.length ? `<div class="swp"><span aria-label="Flisk pod products">${sw.map(([href, label, on]) => `<a${on ? ' class="on" aria-current="true"' : ''} href="${esc(href)}"><i></i>${esc(label)}</a>`).join('')}</span></div>` : '') +
   `<nav aria-label="${esc(name)}">${nav.map(([href, label, cls = '']) => `<a${cls ? ` class="${cls}"` : ''} href="${esc(href)}"${href === current ? ' aria-current="page"' : ''}>${esc(label)}</a>`).join('')}</nav>` +
   `<a class="cta" href="${esc(cta[0])}">${esc(cta[1])} <i aria-hidden="true">→</i></a></div>`;
+// The product switch: fleet, its podlytics page and host (free places to run a fleet pod). Same on all three pages.
+export const FLEET_SWITCH = [
+  ['/', 'fleet', true],
+  ['/podlytics', 'podlytics'],
+  ['https://host.flisk.si', 'host'],
+];
 export const FLEET_NAV = [
-  ['/podlytics', 'Podlytics'],
   ['/demo', 'Demo'],
   ['/pricing', 'Pricing'],
   ['/docs', 'Docs'],
@@ -159,7 +174,7 @@ ${FONTS}
 ${SKIP_LINK}
 ${FLISK_BAR}
 <div class="frame">
-${topbar({ name: 'Fleet', mark: FLEET_MARK, current: meta?.path, nav: FLEET_NAV, cta: ['/console', 'Console'] })}
+${topbar({ name: 'Fleet', mark: FLEET_MARK, current: meta?.path, nav: FLEET_NAV, sw: FLEET_SWITCH, cta: ['/console', 'Console'] })}
 <main id="main">${body}</main>
 <footer>
 <div class="foot-grid">

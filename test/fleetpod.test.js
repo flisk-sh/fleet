@@ -78,7 +78,7 @@ describe('standard second-level header', () => {
       const html = await (await handle(new Request(`https://fleet.test${path}`), {})).text();
       expect(html).toContain('<a class="brand" href="/"');
       expect(html).toContain('<a class="cta" href="/console">Console');
-      expect(html).not.toContain('class="swp"');
+      expect(html).toMatch(/<div class="swp">.*<a class="on" aria-current="true" href="\/"><i><\/i>fleet<\/a><a href="\/podlytics"><i><\/i>podlytics<\/a><a href="https:\/\/host.flisk.si"><i><\/i>host<\/a>/);
     }
     const pricing = await (await handle(new Request('https://fleet.test/pricing'), {})).text();
     expect(pricing).toMatch(/<a href="\/pricing" aria-current="page">Pricing<\/a>/);
