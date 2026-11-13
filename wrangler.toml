@@ -21,3 +21,6 @@ PUBLIC_ORIGIN = "https://fleet.flisk.si"
 #   bunx wrangler@4 secret put SESSION_SECRET      any long random string; signs the cabinet's session cookie
 #   bunx wrangler@4 secret put PROVIDER_KEYS_SECRET  at least 32 random characters; encrypts connected provider keys.
 #                                                  Changing it makes every connected key unreadable (users reconnect).
+#   bunx wrangler@4 secret put CHAT_SERVICE_SECRET  optional, 32+ random characters. Lets a trusted site (chat.flisk.si) call the API
+#                                                  for a signed-in user (X-On-Behalf-Of) and connect provider keys for them. Anyone who has it
+#                                                  can act as any login, so keep it a secret and unset where no trusted site exists.
