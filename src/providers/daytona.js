@@ -65,6 +65,20 @@ export default {
     return { id: box.id };
   },
 
+  // GET /sandbox/:id/ports/:port/preview-url answers { url } (https://<port>-<id>.<proxy domain>), and POST /sandbox/:id/public/true
+  // lets a visitor in without Daytona's preview token (daytona.io/docs/en/preview). A visit does not wake a stopped sandbox, and
+  // this one is deleted when it stops (autoDeleteInterval 0) after autoStopInterval idle minutes, so the link lasts about that
+  // long after the last visit. A browser sees Daytona's preview warning page once per URL.
+  async publicUrl(key, id, port, { fetchImpl = fetch } = {}) {
+    const box = `${API}/sandbox/${encodeURIComponent(id)}`;
+    await call(fetchImpl, `${box}/public/true`, { method: 'POST', headers: auth(key) });
+    const p = await call(fetchImpl, `${box}/ports/${port}/preview-url`, { headers: auth(key) });
+    if (!p?.url) throw new Error('Daytona returned no preview URL');
+    const info = await call(fetchImpl, box, { headers: auth(key) }).catch(() => null);
+    const mins = Number(info?.autoStopInterval) > 0 ? Number(info.autoStopInterval) : 60;
+    return { url: p.url, wakesOnVisit: false, expiresAt: new Date(Date.now() + mins * 60_000).toISOString() };
+  },
+
   async run(key, id, command, { fetchImpl = fetch } = {}) {
     const r = await call(fetchImpl, `${TOOLBOX}/${encodeURIComponent(id)}/process/execute`, {
       method: 'POST',

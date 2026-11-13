@@ -46,6 +46,28 @@ describe('wrapCommand', () => {
   });
 });
 
+describe('a path under ~ is the home folder, as in a shell', () => {
+  const home = join(dir, 'home');
+  const homeShell = { ...shell, async run(key, id, command) {
+    const p = Bun.spawnSync(['sh', '-c', command], { cwd: dir, env: { PATH: process.env.PATH, HOME: home } });
+    return { stdout: p.stdout.toString(), stderr: p.stderr.toString(), exitCode: p.exitCode };
+  } };
+  const ps = { shell: homeShell };
+  test('write ~/app/... lands in $HOME/app/..., not in a folder named ~, and reads back', async () => {
+    const w = await writeFile(ps, keys, ID, { path: "~/app/it's here/index.js", content: 'ok' });
+    expect(w.status).toBe(200);
+    expect(readFileSync(join(home, 'app', "it's here", 'index.js'), 'utf8')).toBe('ok');
+    expect((await runPod(ps, keys, ID, { command: 'ls -a' })).result.stdout).not.toContain('~');
+    const r = await readFile(ps, keys, ID, { path: "~/app/it's here/index.js" });
+    expect(r.result.content).toBe('ok');
+  });
+  test('a ~ that is not the home folder stays a plain name', async () => {
+    const w = await writeFile(ps, keys, ID, { path: 'notes~/a.txt', content: 'x' });
+    expect(w.status).toBe(200);
+    expect(readFileSync(join(dir, 'notes~', 'a.txt'), 'utf8')).toBe('x');
+  });
+});
+
 describe('run options in a real shell', () => {
   test('env and cwd', async () => {
     const r = await runPod(providers, keys, ID, { command: 'echo "$GREETING $WHO" && pwd', env: { GREETING: "it's", WHO: 'me; rm -rf /' }, cwd: '/tmp' });

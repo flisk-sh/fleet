@@ -129,6 +129,21 @@ export default {
     return readNdjson(text);
   },
 
+  // PATCH /v2/sandboxes/:name { ports } exposes ports (the list replaces the old one) and answers routes [{ port, url }]
+  // (openapi.vercel.sh). Anyone with the URL reaches the port. The sandbox is not persistent and a visit does not wake it, so
+  // the link ends with the session: startedAt + timeout from GET /v2/sandboxes/sessions/:id (45 minutes at most on Hobby).
+  async publicUrl(key, id, port, { fetchImpl = fetch } = {}) {
+    const k = parseVercelKey(key);
+    const { name, session } = unpack(id);
+    const made = await call(fetchImpl, `${API}/v2/sandboxes/${encodeURIComponent(name)}${q(k, { projectId: k.projectId })}`, { method: 'PATCH', headers: auth(k), body: { ports: [port] } });
+    const s = await call(fetchImpl, `${API}/v2/sandboxes/sessions/${encodeURIComponent(session)}${q(k)}`, { headers: auth(k) }).catch(() => null);
+    const route = [...(made?.routes || []), ...(s?.routes || [])].find((r) => Number(r?.port) === port && r?.url);
+    if (!route) throw new Error(`Vercel returned no public URL for port ${port}`);
+    const start = Number(s?.session?.startedAt || s?.session?.createdAt);
+    const ms = Number(s?.session?.timeout);
+    return { url: route.url, wakesOnVisit: false, expiresAt: start && ms ? new Date(start + ms).toISOString() : null };
+  },
+
   async stop(key, id, { fetchImpl = fetch } = {}) {
     const k = parseVercelKey(key);
     await call(fetchImpl, `${API}/v2/sandboxes/${encodeURIComponent(unpack(id).name)}${q(k, { projectId: k.projectId, deleteOrphanSnapshots: 'true' })}`, { method: 'DELETE', headers: auth(k) });

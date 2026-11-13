@@ -23,6 +23,14 @@ const headers = (key) => {
 export const blaxelGb = (size) => Math.max(size.ram, size.cpu * 2);
 
 const pack = (name, url) => [name, url || ''].join('~');
+// When runtime.ttl deletes the sandbox. Fleet's names start with the creation time (fleet-<base36 ms>-<hex>).
+export function blaxelEnd(name, box) {
+  const at = box?.spec?.runtime?.expires;
+  if (at && !Number.isNaN(Date.parse(at))) return new Date(at).toISOString();
+  const ttl = /^(\d+)m$/.exec(String(box?.spec?.runtime?.ttl ?? ''));
+  const made = Date.parse(box?.metadata?.createdAt || '') || parseInt(/^fleet-([0-9a-z]+)-/.exec(name)?.[1] || '', 36);
+  return ttl && made ? new Date(made + Number(ttl[1]) * 60_000).toISOString() : null;
+}
 const unpack = (s) => {
   const [name, url] = String(s).split('~');
   return { name, url };
@@ -84,6 +92,29 @@ export default {
       body: { command, waitForCompletion: true, timeout: 60 },
     });
     return { stdout: r?.stdout ?? '', stderr: r?.stderr ?? '', exitCode: r?.exitCode ?? null };
+  },
+
+  // POST /sandboxes/:name/previews { metadata: { name }, spec: { port, public: true } } answers spec.url; previews are private
+  // unless public is true (@blaxel/core sandbox/preview.js). An idle sandbox goes to standby with its memory and a request to
+  // the preview URL wakes it (support.blaxel.ai), so the running app needs no startup command. But runtime.ttl deletes the
+  // sandbox at a fixed time after it was made, whatever it is doing, so the link ends then: spec.runtime.expires, else the
+  // creation time (in fleet's name for it, or metadata.createdAt) plus the ttl.
+  async publicUrl(key, id, port, { fetchImpl = fetch } = {}) {
+    const { name } = unpack(id);
+    const base = `${API}/sandboxes/${encodeURIComponent(name)}`;
+    const pname = `preview-${port}`;
+    let p;
+    try {
+      p = await call(fetchImpl, `${base}/previews`, { method: 'POST', headers: headers(key), body: { metadata: { name: pname }, spec: { port, public: true } } });
+    } catch (e) {
+      if (e.status !== 409) throw e;
+      p = await call(fetchImpl, `${base}/previews/${pname}`, { headers: headers(key) });
+    }
+    const url = p?.spec?.url;
+    if (!url) throw new Error('Blaxel returned no preview URL');
+    if (p?.spec?.public === false) throw new Error(`the preview of port ${port} is private`);
+    const box = await call(fetchImpl, base, { headers: headers(key) }).catch(() => null);
+    return { url, wakesOnVisit: true, expiresAt: blaxelEnd(name, box) };
   },
 
   async stop(key, id, { fetchImpl = fetch } = {}) {
