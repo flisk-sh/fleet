@@ -14,7 +14,7 @@ const vm = (id) => `${API}/v5/vms/${encodeURIComponent(id)}`;
 export default {
   label: 'Freestyle',
   keyHeader: 'X-Freestyle-Key',
-  help: 'https://github.com/flisk-sh/fleet/issues/4',
+  working: '2026-11-13', // real account run: start, run with env/cwd/timeout, files, timeout (exit 124), stop, stop again
   priceSource: 'https://www.freestyle.sh/docs/vms/pricing-and-limits',
   note: 'Full Linux VMs that start in milliseconds and can run for weeks. Free plan: 10 VMs at once, 200 vCPU-hours a month.',
   price: (size) => (size.cpu > 32 ? null : Math.round((size.cpu * CPU_HOUR + size.ram * GIB_HOUR) * 1000) / 1000),
