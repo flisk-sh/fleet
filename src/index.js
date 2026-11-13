@@ -34,6 +34,18 @@ async function keysFor(request, env, login, providers) {
   return { ...stored, ...providerKeys(request, providers) };
 }
 
+// A trusted site's call: Authorization: Bearer <CHAT_SERVICE_SECRET> and X-On-Behalf-Of: <GitHub login>.
+export function serviceAccess(env, request) {
+  const secret = env.CHAT_SERVICE_SECRET;
+  const login = (request.headers.get('x-on-behalf-of') || '').trim();
+  if (!secret || secret.length < 32 || !/^[A-Za-z0-9-]{1,39}$/.test(login)) return null;
+  const given = bearer(request) || '';
+  if (given.length !== secret.length) return null;
+  let diff = 0;
+  for (let i = 0; i < secret.length; i++) diff |= given.charCodeAt(i) ^ secret.charCodeAt(i);
+  return diff === 0 ? { login, scope: 'full', service: true } : null;
+}
+
 // Provider keys that come with the request.
 export function providerKeys(request, providers = PROVIDERS) {
   const keys = {};
@@ -271,7 +283,10 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
   const isApi = path === '/mcp' || path.startsWith('/v1/');
   if (!isApi) return html(messagePage('Page not found', 'Nothing lives at this address.'), 404);
 
-  const access = await accessForKey(env, bearer(request));
+  // A trusted site (chat.flisk.si) signs users in itself and calls the API for them: the shared secret plus
+  // X-On-Behalf-Of: <GitHub login>. Such a call is full access for that login and may also connect provider keys.
+  const service = serviceAccess(env, request);
+  const access = service || (await accessForKey(env, bearer(request)));
   const login = access?.login;
   if (!login) return json(401, { error: `missing, revoked or unknown fleet key. Create one at ${origin}/console?section=keys and send it as "Authorization: Bearer fleet_..."` });
   if (await overMinuteLimit(login, { cache: env.LIMIT_CACHE })) return json(429, { error: 'too many requests for this account: at most 120 a minute. Wait a minute' });
@@ -286,6 +301,27 @@ export async function handle(request, env = {}, { providers = PROVIDERS, fetchIm
     if (!message) return json(400, { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'body is not JSON' } });
     const answer = await handleMcp(message, providers, keys, ctx);
     return answer ? json(200, answer) : new Response(null, { status: 202 });
+  }
+
+  if (path === '/v1/connections' || path.startsWith('/v1/connections/')) {
+    if (!service) return json(403, { error: 'provider keys can only be connected from the cabinet or a trusted site' });
+    if (!vaultReady(env)) return json(503, { error: 'connecting providers is not set up on this copy of fleet' });
+    if (request.method === 'GET' && path === '/v1/connections') return json(200, { connections: await listConnections(env, login) });
+    const cm = /^\/v1\/connections\/([a-z0-9]+)$/.exec(path);
+    const prov = cm && providers[cm[1]];
+    if (!prov || prov.demo) return json(404, { error: 'no such provider' });
+    if (request.method === 'DELETE') {
+      await disconnectProvider(env, login, cm[1]);
+      return json(200, { ok: true });
+    }
+    if (request.method === 'PUT') {
+      const body = await readJson(request);
+      const parts = Object.fromEntries(fieldsOf(prov).map((f) => [f.id, body?.[f.id] ?? (f.id === 'key' ? body?.key : '')]));
+      const joined = joinFields(prov, parts);
+      const done = joined.error ? joined : await connectProvider(env, login, cm[1], joined.value);
+      return done.error ? json(400, { error: done.error }) : json(200, { ok: true, provider: cm[1] });
+    }
+    return json(405, { error: 'GET, PUT or DELETE' });
   }
 
   if (access.scope === 'read' && !readOnlyCall) return json(403, { error: 'this fleet key is read-only: it can list pods and read files, nothing else. Use a full key for this call' });
