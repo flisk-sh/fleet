@@ -53,7 +53,7 @@ export function readFrames(bytes) {
 export default {
   label: 'E2B',
   keyHeader: 'X-E2B-Key',
-  help: 'https://github.com/flisk-sh/fleet/issues/3', // untested: never run against a real account
+  working: '2026-11-13', // real account run: start, run with env/cwd/timeout, files, timeout (exit 124), stop, stop again
   priceSource: 'https://e2b.dev/pricing',
   note: 'Memory is set by the E2B template, not by fleet. Up to 8 vCPU on the free tier.',
   price: (size) => (size.cpu > 8 ? null : Math.round((size.cpu * CPU_HOUR + size.ram * GIB_HOUR) * 1000) / 1000),
