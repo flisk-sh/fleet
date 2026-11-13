@@ -189,6 +189,9 @@ const toB64 = (bytes) => {
 };
 const fromB64 = (s) => Uint8Array.from(atob(String(s).replace(/\s+/g, '')), (c) => c.charCodeAt(0));
 const checkPath = (path) => (typeof path === 'string' && path.trim() && !path.includes('\0') ? null : 'path is required');
+// "~/app/x" is the home folder, as it is in a shell. Quoted whole, the tilde stayed a folder named "~" in the working
+// folder, so a write to ~/app/... never reached the app the model built there.
+export const shPath = (path) => (path === '~' ? '"$HOME"' : path.startsWith('~/') ? `"$HOME"/${shq(path.slice(2))}` : shq(path));
 
 async function writeFileInner(providers, keys, id, body, ctx = {}) {
   const bad = checkPath(body?.path);
@@ -204,7 +207,7 @@ async function writeFileInner(providers, keys, id, body, ctx = {}) {
   } else if (body.encoding === undefined || body.encoding === 'utf8') bytes = new TextEncoder().encode(body.content);
   else return { status: 400, error: 'encoding must be "utf8" or "base64"' };
   if (bytes.length > MAX_FILE_BYTES) return { status: 413, error: `file is ${bytes.length} bytes; fleet moves at most ${MAX_FILE_BYTES} bytes a call` };
-  const p = shq(body.path);
+  const p = shPath(body.path);
   const command = `mkdir -p "$(dirname ${p})" && printf %s ${shq(toB64(bytes))} | base64 -d > ${p}`;
   const r = await runPodInner(providers, keys, id, { command }, ctx);
   if (r.status !== 200) return r;
@@ -215,7 +218,7 @@ async function writeFileInner(providers, keys, id, body, ctx = {}) {
 async function readFileInner(providers, keys, id, body, ctx = {}) {
   const bad = checkPath(body?.path);
   if (bad) return { status: 400, error: bad };
-  const p = shq(body.path);
+  const p = shPath(body.path);
   const command = `[ -f ${p} ] || { echo "no such file" >&2; exit 2; }; s=$(wc -c < ${p}); [ "$s" -le ${MAX_FILE_BYTES} ] || { echo "file is $s bytes, fleet reads at most ${MAX_FILE_BYTES}" >&2; exit 3; }; base64 < ${p}`;
   const r = await runPodInner(providers, keys, id, { command }, ctx);
   if (r.status !== 200) return r;

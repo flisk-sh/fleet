@@ -48,7 +48,8 @@ export default {
     let box = await call(fetchImpl, `${API}/instance`, {
       method: 'POST',
       headers: auth(key),
-      body: { snapshot_id: snap.id, ttl_seconds: size.ttl ?? 3600, ttl_action: 'stop' },
+      // A public pod pauses with its memory at the end of the ttl instead of stopping, so a visit can wake it (see publicUrl).
+      body: { snapshot_id: snap.id, ttl_seconds: size.ttl ?? 3600, ttl_action: size.public ? 'pause' : 'stop' },
     });
     if (!box?.id) throw new Error('Morph returned no instance id');
     const id = box.id;
@@ -59,6 +60,22 @@ export default {
     }
     if (box.status !== 'ready') throw new Error(`instance still ${box.status} after 60 s`);
     return { id };
+  },
+
+  // POST /instance/:id/http { name, port, auth_mode: 'none' } answers the instance with networking.http_services[].url, and
+  // POST /instance/:id/wake-on { wake_on_http: true } makes a request to it resume a paused instance (morph openapi.json,
+  // morphcloud api.ts). Only a public pod pauses (ttl_action 'pause'); a stopped instance cannot be woken, so then the link
+  // ends at ttl_expire_at. A resume keeps memory, so the app keeps running with no startup command.
+  async publicUrl(key, id, port, { fetchImpl = fetch } = {}) {
+    const base = `${API}/instance/${encodeURIComponent(id)}`;
+    const name = `p${port}`;
+    const box = await call(fetchImpl, `${base}/http`, { method: 'POST', headers: auth(key), body: { name, port, auth_mode: 'none' } });
+    const url = box?.networking?.http_services?.find((s) => s.name === name)?.url;
+    if (!url) throw new Error('Morph returned no public URL');
+    let wakes = box?.ttl?.ttl_action === 'pause';
+    if (wakes) wakes = await call(fetchImpl, `${base}/wake-on`, { method: 'POST', headers: auth(key), body: { wake_on_http: true, wake_on_ssh: false } }).then(() => true, () => false);
+    const end = Number(box?.ttl?.ttl_expire_at);
+    return { url, wakesOnVisit: wakes, expiresAt: !wakes && end ? new Date(end * 1000).toISOString() : null };
   },
 
   async run(key, id, command, { fetchImpl = fetch } = {}) {

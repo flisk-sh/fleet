@@ -41,11 +41,20 @@ export default {
   },
 
   async create(key, size, { fetchImpl = fetch, wait = sleep } = {}) {
-    let box = await call(fetchImpl, `${API}/sandboxes`, {
-      method: 'POST',
-      headers: auth(key),
-      body: { resources: { cpus: size.cpu, memory_mb: Math.round(tensorlakeRam(size) * 1024) }, timeout_secs: size.ttl ?? 3600 },
-    });
+    const body = { resources: { cpus: size.cpu, memory_mb: Math.round(tensorlakeRam(size) * 1024) }, timeout_secs: size.ttl ?? 3600 };
+    const make = (b) => call(fetchImpl, `${API}/sandboxes`, { method: 'POST', headers: auth(key), body: b });
+    // A named sandbox suspends with its memory when idle and a request to an exposed port wakes it; an unnamed one is
+    // ending for good (docs.tensorlake.ai/sandboxes/lifecycle). So a public pod gets a name, and without one if refused.
+    const name = `fleet-${Date.now().toString(36)}${[...crypto.getRandomValues(new Uint8Array(3))].map((b) => b.toString(16).padStart(2, '0')).join('')}`;
+    let box;
+    if (size.public) {
+      try {
+        box = await make({ ...body, name });
+      } catch (e) {
+        if (!(e.status >= 400 && e.status < 500) || e.status === 401 || e.status === 403) throw e;
+        box = await make(body);
+      }
+    } else box = await make(body);
     const id = box?.sandbox_id;
     if (!id) throw new Error('Tensorlake returned no sandbox_id');
     for (let i = 0; box.status === 'pending' && i < 30; i++) {
@@ -54,6 +63,23 @@ export default {
     }
     if (box.status !== 'running') throw new Error(`sandbox ${box.status || 'unknown'}${box.pending_reason ? ` (${box.pending_reason})` : ''}`);
     return { id };
+  },
+
+  // PATCH /sandboxes/:id { exposed_ports, allow_unauthenticated_access: true } opens a port to anyone; its URL is
+  // https://<port>-<id>.<ingress host> (tensorlake SDK sandboxUrlFromIngressEndpoint). A named sandbox wakes on a request to
+  // it (auto_resume, the default) with its memory, so the app keeps running; an unnamed one ends after timeout_secs idle.
+  async publicUrl(key, id, port, { fetchImpl = fetch } = {}) {
+    const sb = `${API}/sandboxes/${encodeURIComponent(id)}`;
+    const info = await call(fetchImpl, sb, { headers: auth(key) });
+    const ports = [...new Set([...(Array.isArray(info?.exposed_ports) ? info.exposed_ports : []), port])].sort((a, b) => a - b);
+    await call(fetchImpl, sb, { method: 'PATCH', headers: auth(key), body: { exposed_ports: ports, allow_unauthenticated_access: true } });
+    let host = 'sandbox.tensorlake.ai';
+    try {
+      if (info?.ingress_endpoint) host = new URL(info.ingress_endpoint).host;
+    } catch {}
+    const wakes = Boolean(info?.name) && info?.auto_resume !== false;
+    const idle = Number(info?.timeout_secs) > 0 ? Number(info.timeout_secs) : 3600;
+    return { url: `https://${port}-${id}.${host}`, wakesOnVisit: wakes, expiresAt: wakes ? null : new Date(Date.now() + idle * 1000).toISOString() };
   },
 
   async run(key, id, command, { fetchImpl = fetch, wait = sleep } = {}) {

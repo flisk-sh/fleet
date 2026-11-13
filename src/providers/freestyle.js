@@ -63,6 +63,19 @@ export default {
     return { id };
   },
 
+  // POST /v5/tls { action: 'allow', domain, protocol: 'http', source: { public: true }, destination: { vmId, port } } publishes
+  // https://<domain> to the VM's port; any unused <name>.style.dev is free and needs no DNS (freestyle tls.d.ts). The rule is
+  // deleted with the VM. The VM is deleted ttlSeconds after it was made whatever it does, so the link ends then
+  // (createdAt + ttlSeconds from GET /v5/vms/:id).
+  async publicUrl(key, id, port, { fetchImpl = fetch } = {}) {
+    const domain = `fleet-${[...crypto.getRandomValues(new Uint8Array(6))].map((b) => b.toString(16).padStart(2, '0')).join('')}.style.dev`;
+    await call(fetchImpl, `${API}/v5/tls`, { method: 'POST', headers: auth(key), body: { action: 'allow', domain, protocol: 'http', source: { public: true }, destination: { vmId: id, port } } });
+    const v = await call(fetchImpl, vm(id), { headers: auth(key) }).catch(() => null);
+    const made = Date.parse(v?.createdAt || '');
+    const ttl = Number(v?.ttlSeconds);
+    return { url: `https://${domain}`, wakesOnVisit: false, expiresAt: made && ttl > 0 ? new Date(made + ttl * 1000).toISOString() : null };
+  },
+
   async run(key, id, command, { fetchImpl = fetch } = {}) {
     const r = await call(fetchImpl, `${vm(id)}/exec-await`, { method: 'POST', headers: auth(key), body: { command, timeoutMs: 300000 } });
     return { stdout: r?.stdout ?? '', stderr: r?.stderr ?? '', exitCode: r?.statusCode ?? 124 };

@@ -8,12 +8,17 @@ const CPU_HOUR = 0.000014 * 3600;
 const GIB_HOUR = 0.0000045 * 3600;
 const ENVD_PORT = '49983';
 
-// The pod id must carry what run() needs later, because fleet stores nothing: sandbox id, envd token, domain.
-const pack = (sandboxID, token, domain) => [sandboxID, token || '', domain || ''].join('~');
+// The pod id must carry what run() needs later, because fleet stores nothing: sandbox id, envd token, domain, and "w" when
+// the sandbox pauses instead of dying and a visit to its URL wakes it (a public pod).
+const pack = (sandboxID, token, domain, wakes = false) => [sandboxID, token || '', domain || ''].join('~') + (wakes ? '~w' : '');
 const unpack = (id) => {
-  const [sandboxID, token, domain] = String(id).split('~');
-  return { sandboxID, token: token || '', domain: domain || 'e2b.app' };
+  const [sandboxID, token, domain, wakes] = String(id).split('~');
+  return { sandboxID, token: token || '', domain: domain || 'e2b.app', wakes: wakes === 'w' };
 };
+// A public pod: its URLs answer without E2B's traffic token (projects made since 2026-10-30 are private by default), and at
+// the timeout it pauses with its memory instead of dying, so a visit resumes it with the app still running
+// (docs.e2b.dev/sandbox/auto-resume.md; the same fields as the e2b 2.64.0 SDK's createSandbox).
+const PUBLIC = { autoPause: true, autoResume: { enabled: true }, network: { allowPublicTraffic: true } };
 
 export function frame(obj) {
   const body = new TextEncoder().encode(JSON.stringify(obj));
@@ -77,9 +82,21 @@ export default {
   async create(key, size, { fetchImpl = fetch } = {}) {
     const body = { templateID: 'base', timeout: size.ttl ?? 3600 };
     // No cpuCount: a free-tier team gets 400 "Resizable templates are not enabled for your team" (seen 2026-11-13). The base template is 2 vCPU.
-    const made = await call(fetchImpl, `${API}/v2/sandboxes`, { method: 'POST', headers: { 'x-api-key': key }, body });
+    const make = (b) => call(fetchImpl, `${API}/v2/sandboxes`, { method: 'POST', headers: { 'x-api-key': key }, body: b });
+    let made;
+    let wakes = false;
+    if (size.public) {
+      try {
+        made = await make({ ...body, ...PUBLIC });
+        wakes = true;
+      } catch (e) {
+        // A team that cannot pause and resume still gets a public sandbox; its link then lasts only until the timeout.
+        if (!(e.status >= 400 && e.status < 500) || e.status === 401 || e.status === 403) throw e;
+        made = await make({ ...body, network: { allowPublicTraffic: true } });
+      }
+    } else made = await make(body);
     if (!made?.sandboxID) throw new Error('E2B returned no sandbox id');
-    return { id: pack(made.sandboxID, made.envdAccessToken, made.domain) };
+    return { id: pack(made.sandboxID, made.envdAccessToken, made.domain, wakes) };
   },
 
   async run(key, id, command, { fetchImpl = fetch } = {}) {
@@ -98,6 +115,17 @@ export default {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
     return readFrames(new Uint8Array(await res.arrayBuffer()));
+  },
+
+  // Any port of a sandbox is at https://<port>-<sandbox id>.<domain> (the SDK's getHost); no call opens it. A sandbox that
+  // pauses and wakes keeps the link with no end; any other dies at its timeout (endAt from GET /sandboxes/:id).
+  // No startup command is needed: a resume restores memory, so the running app is still running.
+  async publicUrl(key, id, port, { fetchImpl = fetch } = {}) {
+    const { sandboxID, domain, wakes } = unpack(id);
+    const url = `https://${port}-${sandboxID}.${domain}`;
+    if (wakes) return { url, wakesOnVisit: true, expiresAt: null };
+    const info = await call(fetchImpl, `${API}/sandboxes/${encodeURIComponent(sandboxID)}`, { headers: { 'x-api-key': key } }).catch(() => null);
+    return { url, wakesOnVisit: false, expiresAt: info?.endAt ? new Date(info.endAt).toISOString() : null };
   },
 
   async stop(key, id, { fetchImpl = fetch } = {}) {
