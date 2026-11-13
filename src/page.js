@@ -23,16 +23,19 @@ a{color:inherit}
 .m{font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;font-size:12px}
 .mark{display:inline-grid;flex-shrink:0;place-items:center;width:18px;height:18px;background:var(--glow);color:var(--night);font:500 9px/1 var(--mono)}
 .frame{max-width:1240px;margin:0 auto;border-left:1px solid var(--ink);border-right:1px solid var(--ink);background:transparent;position:relative}
-.top{display:flex;justify-content:space-between;align-items:stretch;border-bottom:1px solid var(--ink);height:46px;position:relative}
+.top{display:flex;align-items:stretch;border-bottom:1px solid var(--ink);height:56px;position:relative}
 .top::before,.top::after{content:'';position:absolute;bottom:-4px;width:7px;height:7px;border-radius:50%;background:var(--ink)}
 .top::before{left:-4px}.top::after{right:-4px}
 @media (max-width:1250px){.top::before,.top::after{display:none}}
-.top nav{display:flex;gap:26px;align-items:center;padding:0 20px}
-.top nav a{text-decoration:none}.top nav a:hover{text-decoration:underline}
-.swp{display:inline-flex;border:1px solid var(--ink);padding:2px;gap:2px}.swp a{padding:5px 9px;text-decoration:none!important}.swp a.on{background:var(--ink);color:var(--paper)}.swp a:not(.on):hover{background:var(--green);color:#fff}
-.top .cta{display:flex;align-items:center;padding:0 22px;background:var(--ink);color:var(--paper);text-decoration:none}
-.top .cta:hover{background:var(--green)}
-.top nav a.spons{border:1px solid var(--green);color:var(--green);padding:6px 12px;font-weight:600}.top nav a.spons:hover{background:var(--green);color:#fff;text-decoration:none}
+.top .brand{display:flex;align-items:center;gap:11px;padding:0 20px;text-decoration:none;border-right:1px solid var(--ink);font:800 23px/1 var(--serif);letter-spacing:-.015em;text-transform:none}
+.top .tile{display:grid;place-items:center;width:34px;height:34px;flex-shrink:0}.top .tile .mark{width:34px;height:34px;background:none}
+.top nav{display:flex;gap:26px;align-items:center;padding:0 20px;margin-left:auto}
+.top nav a{position:relative;text-decoration:none;padding:19px 0}
+.top nav a::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:3px;background:var(--green);transform:scaleX(0);transform-origin:left;transition:transform .18s}
+.top nav a:hover::after,.top nav a[aria-current]::after{transform:scaleX(1)}
+.top .cta{display:flex;align-items:center;gap:9px;padding:0 24px;background:var(--green);background-image:repeating-linear-gradient(135deg,transparent 0 7px,rgba(0,0,0,.07) 7px 10px);color:#04130a;font-weight:600;text-decoration:none;border-left:1px solid var(--ink)}
+.top .cta i{font-style:normal;display:inline-block;transition:transform .18s}.top .cta:hover i{transform:translateX(4px)}.top .cta:hover{background-color:var(--glow)}
+.top nav a.spons{border:1px solid var(--green);color:var(--green);padding:6px 12px;font-weight:600}.top nav a.spons::after{display:none}.top nav a.spons:hover{background:var(--green);color:#fff}
 .sponsor{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}.sponsor p{margin:0;max-width:760px}.sponsor .b{white-space:nowrap}
 .logo{display:inline-flex;align-items:center;gap:9px;font:800 26px/1 var(--serif);letter-spacing:-.03em;text-decoration:none}
 .logo .mark{width:26px;height:26px;font-size:12px}
@@ -107,12 +110,11 @@ p.note{color:var(--dim);margin:14px 0 0;max-width:72ch}
 .word{font:800 clamp(120px,34vw,470px)/.84 var(--serif);letter-spacing:-.06em;padding:18px 40px 10px;text-align:center;background:repeating-linear-gradient(180deg,var(--ink) 0 4px,transparent 4px 9px);-webkit-background-clip:text;background-clip:text;color:transparent;user-select:none}
 .legal{background:var(--night);color:#c9c9d1;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:10px 48px;font:11px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.06em}
 .legal a{display:inline-block;padding:7px 0;text-decoration:none;margin-right:18px}.legal a:hover{color:#fff}
-.top nav>a:not(.spons){padding:9px 0}
 .msg{padding:80px 48px;border-bottom:1px solid var(--ink)}
 ${SKIP_CSS}
 @media (prefers-reduced-motion:reduce){.route li,.route .foot{animation:none;opacity:1}}
 @media (max-width:900px){.hero,.sec.two{grid-template-columns:minmax(0,1fr)}.hero{min-height:0}.art{border-left:0;border-top:1px solid var(--ink);min-height:300px;height:300px}.steps{grid-template-columns:1fr 1fr}.steps>div:nth-child(3){border-left:0}.steps>div:nth-child(n+3){border-top:1px solid var(--ink)}.feat{grid-template-columns:1fr}.feat>div+div{border-left:0;border-top:1px solid var(--ink)}.foot-grid{grid-template-columns:1fr 1fr}.foot-grid>div:first-child{grid-column:1/-1;padding-left:24px}.foot-grid>div:nth-child(2){border-left:0}.foot-grid>div{border-top:1px solid var(--ink);min-height:0}}
-@media (max-width:600px){.hero .l,.sec,.msg{padding-left:16px;padding-right:16px}.top nav{gap:14px;padding:0 12px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}.top nav a{white-space:nowrap}.top nav a.spons{display:none}.top .cta{padding:0 14px;flex-shrink:0}.top nav a.hide{display:none}.steps{grid-template-columns:1fr}.steps>div{border-left:0!important;border-top:1px solid var(--ink)}.steps>div:first-child{border-top:0}.route li{grid-template-columns:18px minmax(0,1fr) 64px}.route li .st{grid-column:2/4;text-align:left}.word{padding:14px 12px 6px}.legal{padding:10px 16px}.foot-grid{grid-template-columns:1fr}.foot-grid>div{border-left:0!important}}
+@media (max-width:600px){.top .brand{padding:0 12px;font-size:19px}.top .brand b{display:none}.top .cta{padding:0 14px}.hero .l,.sec,.msg{padding-left:16px;padding-right:16px}.top nav{gap:14px;padding:0 12px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}.top nav a{white-space:nowrap}.top nav a.spons{display:none}.top .cta{padding:0 14px;flex-shrink:0}.top nav a.hide{display:none}.steps{grid-template-columns:1fr}.steps>div{border-left:0!important;border-top:1px solid var(--ink)}.steps>div:first-child{border-top:0}.route li{grid-template-columns:18px minmax(0,1fr) 64px}.route li .st{grid-column:2/4;text-align:left}.word{padding:14px 12px 6px}.legal{padding:10px 16px}.foot-grid{grid-template-columns:1fr}.foot-grid>div{border-left:0!important}}
 `;
 
 // The shared Flisk product bar (flisk.si/assets/bar.js), the same one every Flisk site loads. It lists the products
@@ -122,6 +124,23 @@ export const FLEET_MARK = `<svg class="mark" width="26" height="26" viewBox="0 0
 export const FLISK_BAR = '<script src="https://flisk.si/assets/bar.js" defer></script>';
 
 const COPY_JS = `<script>document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',()=>navigator.clipboard.writeText(b.dataset.copy).then(()=>{b.textContent='Copied';setTimeout(()=>{b.textContent='Copy'},1500)})))</script>`;
+
+
+// The standard second-level header shared by the Flisk product sites (fleet, host): brand tile + name on the left,
+// mono nav on the right, green call-to-action. nav items: [href, label, extra class]. Keep in step with flisk-sh/host src/page.js.
+export const topbar = ({ name, mark, nav, cta, current = '' }) =>
+  `<div class="top m"><a class="brand" href="/" aria-label="${esc(name)} home"><span class="tile">${mark}</span><b>${esc(name)}</b></a>` +
+  `<nav aria-label="${esc(name)}">${nav.map(([href, label, cls = '']) => `<a${cls ? ` class="${cls}"` : ''} href="${esc(href)}"${href === current ? ' aria-current="page"' : ''}>${esc(label)}</a>`).join('')}</nav>` +
+  `<a class="cta" href="${esc(cta[0])}">${esc(cta[1])} <i aria-hidden="true">→</i></a></div>`;
+export const FLEET_NAV = [
+  ['/podlytics', 'Podlytics'],
+  ['/demo', 'Demo'],
+  ['/pricing', 'Pricing'],
+  ['/docs', 'Docs'],
+  ['/docs#mcp', 'MCP'],
+  ['https://github.com/flisk-sh/fleet', 'Source', 'hide'],
+  ['https://github.com/sponsors/flisk-sh', 'Sponsor', 'spons'],
+];
 
 export const shell = (title, body, extraCss = '', meta = null) => `<!doctype html>
 <html lang="en">
@@ -140,7 +159,7 @@ ${FONTS}
 ${SKIP_LINK}
 ${FLISK_BAR}
 <div class="frame">
-<div class="top m"><nav><span class="swp" aria-label="Fleet products"><a class="on" href="/" aria-current="page">fleet</a><a href="/podlytics">podlytics</a></span><a href="/demo">Demo</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/docs#mcp">MCP</a><a class="hide" href="https://github.com/flisk-sh/fleet">Source</a><a class="spons" href="https://github.com/sponsors/flisk-sh">Sponsor fleet</a></nav><a class="cta" href="/console">Console</a></div>
+${topbar({ name: 'Fleet', mark: FLEET_MARK, current: meta?.path, nav: FLEET_NAV, cta: ['/console', 'Console'] })}
 <main id="main">${body}</main>
 <footer>
 <div class="foot-grid">
