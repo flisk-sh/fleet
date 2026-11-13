@@ -144,7 +144,13 @@ async function tryPod(request, env, login, providers, fetchImpl, waitUntil = nul
   });
 }
 
-export async function handle(request, env = {}, { providers = PROVIDERS, fetchImpl = fetch, waitUntil = null } = {}) {
+export async function handle(request, env = {}, opts = {}) {
+  // HEAD is GET without the body (link checkers, uptime probes).
+  if (request.method === 'HEAD') {
+    const r = await handle(new Request(request.url, { method: 'GET', headers: request.headers }), env, opts);
+    return new Response(null, { status: r.status, headers: r.headers });
+  }
+  const { providers = PROVIDERS, fetchImpl = fetch, waitUntil = null } = opts;
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
   const origin = env.PUBLIC_ORIGIN || url.origin;
