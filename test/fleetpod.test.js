@@ -54,3 +54,19 @@ describe('fleetd on a real local port', () => {
     await fleetpod.stop(key, b.id);
   });
 });
+
+describe('cabinet wording for the free provider', () => {
+  test('Try a pod button never says "pod pod", and a free price reads Free', async () => {
+    const { handle } = await import('../src/index.js');
+    const { PROVIDERS } = await import('../src/providers/index.js');
+    const { makeSession } = await import('../src/session.js');
+    const env = { PUBLIC_ORIGIN: 'https://fleet.test', SESSION_SECRET: 's3cret', PROVIDER_KEYS_SECRET: 'x'.repeat(40) };
+    const { fakeD1 } = await import('./d1.js');
+    const { readFileSync } = await import('node:fs');
+    env.DB = fakeD1(readFileSync(new URL('../schema.sql', import.meta.url), 'utf8'));
+    const cookie = (await makeSession(env, 'octo')).split(';')[0];
+    const get = async (q) => (await handle(new Request(`https://fleet.test/console?${q}`, { headers: { cookie } }), env, { providers: PROVIDERS })).text();
+    expect(await get('section=try')).toContain("n.endsWith(' pod')");
+    expect(await get('section=providers')).toMatch(/Fleet pod<\/b><span class="pp">Free<\/span>/);
+  });
+});

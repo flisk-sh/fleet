@@ -1,7 +1,7 @@
 // fleetd: the pod host behind fleet's "fleetpod" provider. One small HTTP server, no dependencies (Node 20+ or Bun).
 // A pod is a private working folder; a command runs as a child process in it. This is NOT a sandbox: pods share the host
 // kernel, so use it for your own and trusted agents only (see fleetd/README.md).
-//   FLEETD_TOKEN=secret PORT=7860 node fleetd/fleetd.mjs
+//   FLEETD_TOKEN=secret PORT=7860 node fleetd/fleetd.mjs        (listens on 127.0.0.1; set HOST=0.0.0.0 to be reachable)
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
@@ -104,5 +104,5 @@ export function createFleetd({ token, maxPods = 10, maxTtl = 3600, root = tmpdir
 
 if (import.meta.main ?? process.argv[1]?.endsWith('fleetd.mjs')) {
   const server = createFleetd({ token: process.env.FLEETD_TOKEN, maxPods: Number(process.env.FLEETD_MAX_PODS) || 10 });
-  server.listen(Number(process.env.PORT) || 7860, () => console.log(`fleetd listening on ${server.address().port}`));
+  server.listen(Number(process.env.PORT) || 7860, process.env.HOST || '127.0.0.1', () => console.log(`fleetd listening on ${server.address().port}`));
 }

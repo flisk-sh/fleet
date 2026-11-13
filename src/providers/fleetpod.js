@@ -19,9 +19,10 @@ export function parseKey(key) {
 const hdr = (token) => ({ authorization: `Bearer ${token}` });
 
 export default {
-  label: 'Fleet pod (your host)',
+  label: 'Fleet pod',
   keyHeader: 'X-Fleetpod-Key',
   help: 'https://github.com/flisk-sh/fleet/issues/4',
+  untestedNote: 'Runs on a host you set up yourself with fleetd. It passes tests against a real local fleetd and waits for its first run on a free Hugging Face Space.',
   priceSource: 'https://github.com/flisk-sh/fleet/tree/main/fleetd',
   note: 'Runs on your own fleetd host (a free Hugging Face Space works). Not a sandbox: trusted code only.',
   price: (size) => (size.cpu <= 2 && size.ram <= 16 ? 0 : null),

@@ -4,6 +4,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 git cur
 USER node
 WORKDIR /home/node/app
 COPY --chown=node fleetd.mjs .
-ENV PORT=7860
+ENV PORT=7860 HOST=0.0.0.0
 EXPOSE 7860
 CMD ["node", "fleetd.mjs"]
