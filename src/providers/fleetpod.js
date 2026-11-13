@@ -40,7 +40,7 @@ export default {
     startsPerDay: null,
     badges: ['Free', 'Your own host', 'Trusted code only'],
     source: 'https://github.com/flisk-sh/fleet/tree/main/fleetd',
-    signup: 'https://host.flisk.si',
+    signup: 'https://host.flisk.si/console',
     keyPage: 'https://host.flisk.si/console?section=hosts',
     fields: [{ id: 'key', label: 'token@https://your-fleetd-address', secret: true }],
   },
