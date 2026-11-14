@@ -1,0 +1,5 @@
+# The browser pod's files are loaded by other sites (chat.flisk.si), so any page may fetch them.
+/browserpod/*
+  Access-Control-Allow-Origin: *
+  Cross-Origin-Resource-Policy: cross-origin
+  Cache-Control: public, max-age=3600

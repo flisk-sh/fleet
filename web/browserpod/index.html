@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Browser pod</title>
+<style>
+  body { font: 15px/1.5 ui-monospace, Menlo, monospace; margin: 24px auto; max-width: 760px; padding: 0 16px; }
+  input { font: inherit; width: 100%; box-sizing: border-box; padding: 8px; border: 1.5px solid #000; }
+  pre { border: 1.5px solid #000; padding: 12px; min-height: 240px; white-space: pre-wrap; word-break: break-word; }
+</style>
+<h1>Browser pod</h1>
+<p id="state">Starting a Linux computer in this tab…</p>
+<input id="cmd" placeholder="Type a command and press Enter" disabled>
+<pre id="out"></pre>
+<script type="module">
+  import { startBrowserPod } from './pod.js';
+  const $ = (id) => document.getElementById(id);
+  const t0 = performance.now();
+  try {
+    const pod = await startBrowserPod({ base: new URL('./vendor/', location.href).href });
+    window.pod = pod;
+    $('state').textContent = `Ready in ${((performance.now() - t0) / 1000).toFixed(1)} s. Nothing leaves this tab.`;
+    $('cmd').disabled = false;
+    $('cmd').focus();
+    $('cmd').addEventListener('keydown', async (e) => {
+      if (e.key !== 'Enter' || !e.target.value) return;
+      const command = e.target.value;
+      e.target.value = '';
+      const t = performance.now();
+      const r = await pod.run(command);
+      $('out').textContent += `$ ${command}\n${r.stdout}${r.stderr}[exit ${r.exitCode}, ${Math.round(performance.now() - t)} ms]\n`;
+    });
+  } catch (e) {
+    $('state').textContent = `Could not start: ${e.message}`;
+  }
+</script>
