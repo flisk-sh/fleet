@@ -46,3 +46,11 @@ describe('podlytics tab strip', () => {
     expect(html).toContain('.hd{gap:4px 12px;padding:8px 16px 0;flex-wrap:wrap;height:auto}.tabs{order:3;flex:0 0 100%');
   });
 });
+
+describe('journey dogfood 2026-11-14', () => {
+  test('the home page says the demo pod starts with a GitHub sign-in before the button sends you there', async () => {
+    const html = await get('/');
+    expect(html).toContain('href="/console?section=try"');
+    expect(html).toContain('The demo pod needs a GitHub sign-in and no provider account.');
+  });
+});

@@ -297,7 +297,7 @@ export function homePage({ origin, prices, size }) {
 <div>
 <div class="cmd"><code>set up ${esc(origin.replace(/^https?:\/\//, ''))}/SKILL.md</code><button type="button" data-copy="set up ${esc(origin)}/SKILL.md">Copy</button></div>
 <div class="cta-row"><a class="b inv" href="/demo">Watch agents race</a><a class="b" href="/console?section=try">Try a demo pod</a><a class="b" href="/docs">Read the docs</a></div>
-<p class="note" style="margin-top:12px">Give that line to your agent and it sets itself up. The demo pod needs no provider account.</p>
+<p class="note" style="margin-top:12px">Give that line to your agent and it sets itself up. The demo pod needs a GitHub sign-in and no provider account.</p>
 </div>
 </div>
 ${laneArt(prices)}
