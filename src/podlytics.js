@@ -638,6 +638,7 @@ export function podlyticsPage(data) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<script defer data-domain="fleet.flisk.si" src="https://flisk.sh/a.js"></script>
 <title>podlytics: sandbox providers compared</title>
 <meta name="description" content="${esc(PAGES['/podlytics'].description)}">
 ${headTags({ path: '/podlytics' })}

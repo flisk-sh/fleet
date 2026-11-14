@@ -127,6 +127,7 @@ function shell({ login, section, title, body }) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<script defer data-domain="fleet.flisk.si" src="https://flisk.sh/a.js"></script>
 <meta name="robots" content="noindex">
 ${ICON_TAGS}
 <title>${esc(title)} · fleet</title>
