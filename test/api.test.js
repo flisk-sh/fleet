@@ -308,6 +308,18 @@ test('with waitUntil, the usage log is written after the answer and still lands'
   expect(env.DB.raw.query("SELECT kind, status FROM calls").all()).toEqual([{ kind: 'start', status: 201 }]);
 });
 
+describe('connect button for the browser extension', () => {
+  test('the Providers page carries the extension hand-off, same-origin only, and the paste form stays', async () => {
+    const base = await setup();
+    base.env.PROVIDER_KEYS_SECRET = 'x'.repeat(40);
+    const html = await (await base.page('GET', '/console?section=providers')).text();
+    expect(html).toContain('data-ext="mid"');
+    expect(html).toContain('flisk-connect:request');
+    expect(html).toContain('e.origin!==location.origin');
+    expect(html).toContain('name="f_key"');
+  });
+});
+
 describe('connect a provider once', () => {
   const SECRET = 'x'.repeat(40);
   async function connectedSetup() {
