@@ -274,7 +274,7 @@ function connectBox(p, conn, canConnect) {
   const inputs = fieldsOf(p.meta)
     .map((f) => `<input type="${f.secret ? 'password' : 'text'}" name="f_${esc(f.id)}" placeholder="${esc(f.placeholder || (f.label === 'API key' ? `Paste your ${p.label} API key` : f.label))}" aria-label="${esc(p.label)} ${esc(f.label)}"${f.optional ? '' : ' required'}>`)
     .join('');
-  return `<form class="conn" method="post" action="/console/providers/${esc(p.provider)}/connect" autocomplete="off">${inputs}<button class="b inv" type="submit">Connect</button></form>`;
+  return `<form class="conn" method="post" action="/console/providers/${esc(p.provider)}/connect" autocomplete="off">${inputs}<button class="b inv" type="submit">Connect</button><button class="b ext" type="button" data-ext="${esc(p.provider)}" hidden>Connect with extension</button></form>`;
 }
 
 // Provider catalog, after Monid's tools page: search, filters with counts, one card per provider with badges.
@@ -314,8 +314,14 @@ ${connectBox(p, connections[p.provider], canConnect)}
 <nav class="filters" aria-label="Filter providers">${FILTERS.map(([id, label, f], i) => `<button type="button" data-f="${id}"${i ? '' : ' class="on"'}><span>${esc(label)}</span><span class="c">${list.filter(f).length}</span></button>`).join('')}</nav>
 <div class="pgrid" id="pgrid">${cards}<p class="note" id="none" hidden>No provider matches. Clear the search.</p></div>
 </div>
-<p class="note">List prices for 2 vCPU and 4 GB, per hour, from each provider's own page. Providers don't offer "sign in with" for other apps, so connect once: make a key on the provider's site and paste it here. Fleet keeps it encrypted and your agent then only needs its fleet key. You can still send a key in a header instead; header keys are never stored. Compare a whole month on the <a href="/pricing">pricing page</a>.</p>
+<p class="note">List prices for 2 vCPU and 4 GB, per hour, from each provider's own page. Providers don't offer "sign in with" for other apps, so connect once: press Connect with extension if you have the Flisk Connect extension, or make a key on the provider's site and paste it here. Fleet keeps it encrypted and your agent then only needs its fleet key. You can still send a key in a header instead; header keys are never stored. Compare a whole month on the <a href="/pricing">pricing page</a>.</p>
 <script>
+(()=>{const ok=new Set();const ask=(b)=>window.postMessage({type:'flisk-connect:request',provider:b.dataset.ext},location.origin);
+addEventListener('message',(e)=>{if(e.source!==window||e.origin!==location.origin||!e.data)return;const d=e.data;
+if(d.type==='flisk-connect:ready'&&Array.isArray(d.providers)){d.providers.forEach(x=>ok.add(x));document.querySelectorAll('[data-ext]').forEach(b=>{b.hidden=!ok.has(b.dataset.ext)})}
+if(d.type==='flisk-connect:key'&&d.fields&&typeof d.fields==='object'){const b=document.querySelector('[data-ext="'+CSS.escape(String(d.provider))+'"]');if(!b)return;const form=b.form;let any=false;for(const [k,v] of Object.entries(d.fields)){const i=form.elements['f_'+k];if(i&&typeof v==='string'){i.value=v;any=true}}if(any)form.requestSubmit()}});
+document.addEventListener('click',(e)=>{const b=e.target.closest&&e.target.closest('[data-ext]');if(b)ask(b)});
+window.postMessage({type:'flisk-connect:hello'},location.origin);})();
 (()=>{let f='all';const q=document.getElementById('q');const cards=[...document.querySelectorAll('.pcard')];
 const draw=()=>{const t=q.value.trim().toLowerCase();let n=0;cards.forEach(c=>{const ok=c.dataset.tags.split(' ').includes(f)&&(!t||c.dataset.text.includes(t));c.hidden=!ok;n+=ok});document.getElementById('none').hidden=n>0};
 document.querySelectorAll('[data-f]').forEach(b=>b.addEventListener('click',()=>{f=b.dataset.f;document.querySelectorAll('[data-f]').forEach(x=>x.classList.toggle('on',x===b));draw()}));q.addEventListener('input',draw)})();
