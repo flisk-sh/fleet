@@ -1,6 +1,6 @@
 #!/bin/sh
 # Downloads the browser pod's engine and Linux image into this folder and checks every file against a pinned sha256.
-# They are not in git: the Linux image is GPL software (see ../README.md, "What is inside"). Run before a deploy.
+# They are not in git: the Linux image is GPL software (see ../README.md, "What is inside"). `wrangler deploy` runs it for you (wrangler.toml [build]).
 set -eu
 cd "$(dirname "$0")"
 V86=0.5.473
