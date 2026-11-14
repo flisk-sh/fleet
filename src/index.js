@@ -20,7 +20,7 @@ const SECURITY = {
   'x-frame-options': 'DENY',
   'referrer-policy': 'same-origin',
   'strict-transport-security': 'max-age=31536000',
-  'content-security-policy': "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'unsafe-inline' https://flisk.si; img-src 'self' data:; form-action 'self' https://github.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
+  'content-security-policy': "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'unsafe-inline' https://flisk.si https://flisk.sh; img-src 'self' data:; form-action 'self' https://github.com; connect-src 'self' https://analytics.flisk.si; frame-ancestors 'none'; base-uri 'none'",
 };
 const json = (status, body) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });

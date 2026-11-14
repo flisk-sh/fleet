@@ -162,6 +162,7 @@ export const shell = (title, body, extraCss = '', meta = null) => `<!doctype htm
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<script defer data-domain="fleet.flisk.si" src="https://flisk.sh/a.js"></script>
 <title>${esc(title)}</title>
 <meta name="description" content="${esc((meta?.path && PAGES[meta.path]?.description) || PAGES['/'].description)}">
 ${meta ? headTags(meta) : `${ICON_TAGS}\n<meta name="robots" content="noindex">`}
