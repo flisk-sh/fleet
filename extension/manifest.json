@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Fleet Connect",
+  "version": "0.1.0",
+  "description": "Connect a sandbox provider to fleet.flisk.si with one press. Creates the key on the provider's page and hands it to fleet.",
+  "permissions": [
+    "tabs"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://fleet.flisk.si/*"
+      ],
+      "js": [
+        "fleet.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://console.e2b.dev/*"
+      ],
+      "js": [
+        "lib.js",
+        "provider-e2b.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://console.upstash.com/*"
+      ],
+      "js": [
+        "lib.js",
+        "provider-upstash.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
