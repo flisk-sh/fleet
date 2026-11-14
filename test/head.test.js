@@ -19,5 +19,6 @@ test('every shell loads Flisk Analytics in <head>, and the CSP allows its script
     const csp = res.headers.get('content-security-policy');
     expect(csp).toMatch(/script-src [^;]*https:\/\/flisk\.sh/);
     expect(csp).toMatch(/connect-src [^;]*https:\/\/analytics\.flisk\.si/);
+    expect(csp).toMatch(/connect-src [^;]*https:\/\/flisk\.sh/);
   }
 });
