@@ -68,7 +68,7 @@ sh web/browserpod/vendor/get.sh
 ```
 
 A page that loads the pod from another origin needs, in its Content-Security-Policy: this origin in `script-src` and
-`connect-src`, and `'wasm-unsafe-eval'` in `script-src`.
+`connect-src`, `'wasm-unsafe-eval'` in `script-src`, and `worker-src blob:` (the emulator starts one worker from a blob).
 
 ## Test
 
