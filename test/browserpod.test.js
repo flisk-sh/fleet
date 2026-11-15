@@ -67,6 +67,24 @@ describe('browser pod', () => {
     expect((await pod.run('echo alive')).stdout).toBe('alive\n');
   });
 
+  test('a timeout cannot run the next statement, repeatedly', async () => {
+    for (let i = 0; i < 20; i++) {
+      const result = await pod.run('sleep 20; echo never', { timeout: 1 });
+      expect(result.exitCode).toBe(124);
+      expect(result.stdout).toBe('');
+    }
+  }, 60000);
+
+  test('a timeout also stops a background child', async () => {
+    const result = await pod.run('sh -c '+JSON.stringify('echo $$ > child.pid; sleep 20; echo late > child-output')+' & wait', { timeout: 1 });
+    expect(result.exitCode).toBe(124);
+    const pid = Number((await pod.read('child.pid')).content.trim());
+    expect(Number.isInteger(pid) && pid > 1).toBe(true);
+    const state = await pod.run('if [ -r /proc/'+pid+'/stat ]; then awk '+JSON.stringify('{print $3}')+' /proc/'+pid+'/stat; else echo gone; fi');
+    expect(['gone', 'Z']).toContain(state.stdout.trim());
+    expect((await pod.run('test ! -e child-output')).exitCode).toBe(0);
+  });
+
   test('write then read, with quotes in the path, in a new folder', async () => {
     await pod.write("site/it's here/index.html", "<h1>café 'x'</h1>\n");
     expect(await pod.read("site/it's here/index.html")).toEqual({ content: "<h1>café 'x'</h1>\n", encoding: 'utf8' });

@@ -13,9 +13,9 @@ export const MAX_FILE = 256 * 1024; // same cap as fleet's file calls
 // The runner inside the pod. $1 = call number, $2 = seconds before the command is killed.
 // The image's busybox has no `timeout`, so a second shell does the killing.
 export const RUNNER = `cd "$HOME" 2>/dev/null
-sh "/mnt/.pod/c$1" >"/mnt/.pod/o$1" 2>"/mnt/.pod/e$1" </dev/null &
+setsid sh "/mnt/.pod/c$1" >"/mnt/.pod/o$1" 2>"/mnt/.pod/e$1" </dev/null &
 p=$!
-( sleep "$2"; pkill -9 -P $p; kill -9 $p ) >/dev/null 2>&1 &
+( sleep "$2"; kill -9 -"$p" ) >/dev/null 2>&1 &
 w=$!
 wait $p
 x=$?
