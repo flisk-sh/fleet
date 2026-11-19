@@ -12,7 +12,7 @@ import { cabinetPage } from './console.js';
 import { getDefaultProvider, setDefaultProvider, connectedKeys, connectProvider, disconnectProvider, listConnections, checkLimits, createKey, getLimits, LIMIT_DEFAULTS, callItem, listCalls, listKeys, listPodCalls, listPods, logCall, accessForKey, podListItem, podRef, podStatus, podsStartedToday, recordPod, revokeKey, setLimits } from './store.js';
 import { overMinuteLimit, PODS_PER_DAY } from './limit.js';
 import { vaultReady } from './vault.js';
-import { assetResponse, llmsTxt, robotsTxt, sitemapXml } from './seo.js';
+import { assetResponse, llmsTxt, robotsTxt, SECURITY_TXT, sitemapXml } from './seo.js';
 import { DEMO_PROVIDERS, demoPage, demoRun } from './demo.js';
 import { fieldsOf, joinFields } from './providers/fields.js';
 import { clearSession, makeSession, readSession, sameOrigin } from './session.js';
@@ -204,6 +204,7 @@ async function handleCore(request, env = {}, opts = {}) {
   if (request.method === 'GET' && path === '/robots.txt') {
     return new Response(robotsTxt(), { headers: { 'content-type': 'text/plain', 'cache-control': 'public, max-age=3600' } });
   }
+  if (request.method === 'GET' && path === '/.well-known/security.txt') return new Response(SECURITY_TXT, { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=86400' } });
   if (request.method === 'GET' && path === '/sitemap.xml') return new Response(sitemapXml(), { headers: { 'content-type': 'application/xml', 'cache-control': 'public, max-age=3600' } });
   if (request.method === 'GET' && path === '/llms.txt') return new Response(llmsTxt(), { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=3600', 'access-control-allow-origin': '*' } });
   if (request.method === 'GET' && /^\/(icon\.svg|favicon\.ico|apple-touch-icon\.png|icon-512\.png|og\.png)$/.test(path)) return assetResponse(path.slice(1));
