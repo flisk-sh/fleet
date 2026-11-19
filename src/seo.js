@@ -5,6 +5,13 @@ import { STR } from './strings.js';
 
 export const SITE = 'https://fleet.flisk.si';
 
+// RFC 9116 contact for security researchers, published at /.well-known/security.txt.
+export const SECURITY_TXT = `Contact: https://github.com/flisk-sh/fleet/security/advisories/new
+Expires: 2027-06-01T00:00:00Z
+Preferred-Languages: en
+Canonical: ${SITE}/.well-known/security.txt
+`;
+
 // "Skip to content": the first thing a keyboard or screen-reader user reaches. Hidden until it has focus. Every page's
 // main area carries id="main" for it to jump to.
 // tabindex="1" makes it the first Tab stop even though the shared Flisk bar (injected by flisk.si/assets/bar.js, about 15
