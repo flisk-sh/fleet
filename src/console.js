@@ -131,7 +131,9 @@ function shell({ login, section, title, body }) {
 <meta name="robots" content="noindex">
 ${ICON_TAGS}
 <title>${esc(title)} · fleet</title>
-<meta name="theme-color" content="#f7f5e4">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f7f5e4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161614" media="(prefers-color-scheme: dark)">
 ${FONTS}
 <style>${CSS}${CABINET_CSS}</style>
 </head>
