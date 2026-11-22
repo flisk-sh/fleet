@@ -57,7 +57,7 @@ describe('HTTP API', () => {
     const home = await handle(new Request(`${ORIGIN}/`), {}, { providers });
     expect(home.status).toBe(200);
     expect(home.headers.get('x-frame-options')).toBe('DENY');
-    expect(home.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+    expect(home.headers.get('content-security-policy')).toContain('frame-ancestors https://analytics.flisk.si');
     expect(await home.text()).toContain('One API for every agent pod');
     const prices = await handle(new Request(`${ORIGIN}/v1/prices`), {}, { providers });
     expect((await prices.json()).prices.map((p) => p.provider)).toEqual(['cheap', 'mid']);

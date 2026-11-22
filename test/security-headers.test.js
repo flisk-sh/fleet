@@ -15,7 +15,7 @@ const baseline = (res) => {
   expect(res.headers.get('strict-transport-security')).toBe('max-age=31536000; includeSubDomains');
   expect(res.headers.get('referrer-policy')).toMatch(/^(same-origin|strict-origin-when-cross-origin)$/);
   expect(res.headers.get('permissions-policy')).toBe('camera=(), microphone=(), geolocation=()');
-  expect(res.headers.get('content-security-policy')).toMatch(/frame-ancestors '(self|none)'/);
+  expect(res.headers.get('content-security-policy')).toMatch(/frame-ancestors ('self'|'none'|https:\/\/analytics\.flisk\.si)/);
 };
 
 describe('security headers', () => {
@@ -38,7 +38,7 @@ describe('security headers', () => {
   test('the static assets file sets them too', () => {
     const headers = readFileSync(new URL('../web/_headers', import.meta.url), 'utf8');
     const block = headers.split(/\n(?=\S)/).find((b) => b.startsWith('/*')) || '';
-    for (const name of ['X-Content-Type-Options: nosniff', 'X-Frame-Options: SAMEORIGIN', 'Strict-Transport-Security: max-age=31536000; includeSubDomains', 'Referrer-Policy: strict-origin-when-cross-origin', 'Permissions-Policy: camera=(), microphone=(), geolocation=()', "Content-Security-Policy: frame-ancestors 'self'"]) {
+    for (const name of ['X-Content-Type-Options: nosniff', 'X-Frame-Options: SAMEORIGIN', 'Strict-Transport-Security: max-age=31536000; includeSubDomains', 'Referrer-Policy: strict-origin-when-cross-origin', 'Permissions-Policy: camera=(), microphone=(), geolocation=()', "Content-Security-Policy: frame-ancestors 'self' https://analytics.flisk.si"]) {
       expect(block).toContain(name);
     }
   });
@@ -46,7 +46,7 @@ describe('security headers', () => {
     const res = withSecurityHeaders(new Response('x', { headers: { 'x-frame-options': 'DENY', 'strict-transport-security': 'max-age=31536000', 'content-security-policy': "default-src 'none'" } }));
     expect(res.headers.get('x-frame-options')).toBe('DENY');
     expect(res.headers.get('strict-transport-security')).toBe('max-age=31536000; includeSubDomains');
-    expect(res.headers.get('content-security-policy')).toBe("default-src 'none'; frame-ancestors 'self'");
+    expect(res.headers.get('content-security-policy')).toBe("default-src 'none'; frame-ancestors 'self' https://analytics.flisk.si");
   });
   test('a CSP that already has frame-ancestors is left alone', () => {
     const csp = "default-src 'none'; frame-ancestors 'none'";

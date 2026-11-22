@@ -13,13 +13,20 @@ export const FONTS =
 
 const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.06'/%3E%3C/svg%3E\")";
+// A black noise layer vanishes on a dark page, so dark mode gets the same texture in white at a lower opacity.
+const GRAIN_DARK =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' fill='%23ffffff' opacity='.05'/%3E%3C/svg%3E\")";
 
 export const CSS = `
 .ptag{display:inline-flex;align-items:center;gap:7px;vertical-align:middle;white-space:nowrap}.ptag .plogo{flex-shrink:0}
-:root{--paper:#f7f5e4;--card:#fffef6;--ink:#171715;--dim:#6b6a5f;--green:#16a34a;--glow:#22c55e;--night:#0a0a0e;--mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;--serif:Fraunces,'Times New Roman',serif;--sans:'Inter Tight',system-ui,-apple-system,'Segoe UI',sans-serif}
+:root{--paper:#f7f5e4;--card:#fffef6;--ink:#171715;--dim:#6b6a5f;--green:#16a34a;--glow:#22c55e;--night:#0a0a0e;--grain:${GRAIN};--mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;--serif:Fraunces,'Times New Roman',serif;--sans:'Inter Tight',system-ui,-apple-system,'Segoe UI',sans-serif}
+@media (prefers-color-scheme:dark){
+:root{color-scheme:dark;--paper:#161614;--card:#1f1f1c;--ink:#f1efe8;--dim:#a8a598;--green:#3e9a5e;--glow:#4bb06e;--night:#0a0a0e;--grain:${GRAIN_DARK}}
+.st.blocked{background:repeating-linear-gradient(135deg,transparent 0 5px,rgba(241,239,232,.12) 5px 8px)}
+}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;overflow-x:clip}
-body{margin:0;background:var(--paper) ${GRAIN};color:var(--ink);font:15px/1.55 var(--sans)}
+body{margin:0;background:var(--paper) var(--grain);color:var(--ink);font:15px/1.55 var(--sans)}
 a{color:inherit}
 .m{font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;font-size:12px}
 .mark{display:inline-grid;flex-shrink:0;place-items:center;width:18px;height:18px;background:var(--glow);color:var(--night);font:500 9px/1 var(--mono)}
@@ -131,7 +138,7 @@ ${SKIP_CSS}
 // marked bar: true in flisk-sh/flisk.si _data/catalog.yml and marks the current site.
 const FLEET_MARK_INNER = "<rect width=\"64\" height=\"64\" rx=\"14\" fill=\"#0b0b0d\"/><rect x=\"10\" y=\"16\" width=\"30\" height=\"6\" rx=\"3\" fill=\"#fbfaf7\" opacity=\".25\"/><rect x=\"10\" y=\"29\" width=\"44\" height=\"6\" rx=\"3\" fill=\"#fbfaf7\" opacity=\".25\"/><rect x=\"10\" y=\"42\" width=\"20\" height=\"6\" rx=\"3\" fill=\"#fbfaf7\" opacity=\".25\"/><rect x=\"42\" y=\"13\" width=\"12\" height=\"12\" rx=\"3\" fill=\"#16a34a\"/><rect x=\"34\" y=\"26\" width=\"12\" height=\"12\" rx=\"3\" fill=\"#16a34a\" opacity=\".6\"/><rect x=\"26\" y=\"39\" width=\"12\" height=\"12\" rx=\"3\" fill=\"#16a34a\" opacity=\".35\"/>";
 export const FLEET_MARK = `<svg class="mark" width="26" height="26" viewBox="0 0 64 64" aria-hidden="true" focusable="false">${FLEET_MARK_INNER}</svg>`;
-export const FLISK_BAR = '<script src="https://flisk.si/assets/bar.js" defer></script>';
+export const FLISK_BAR = '<script src="https://flisk.si/assets/bar.js" data-product="Fleet" data-icon="fleet" data-accent="#16a34a" data-text="One key and one balance for agent sandboxes." defer></script>';
 
 const COPY_JS = `<script>document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',()=>navigator.clipboard.writeText(b.dataset.copy).then(()=>{b.textContent='Copied';setTimeout(()=>{b.textContent='Copy'},1500)})))</script>`;
 
@@ -177,7 +184,9 @@ return `<!doctype html>
 <meta name="description" content="${esc(meta?.description || (meta?.path && PAGES[meta.path]?.description) || PAGES['/'].description)}">
 ${meta ? headTags(meta) : `${ICON_TAGS}\n<meta name="robots" content="noindex">`}
 ${meta?.jsonLd || ''}
-<meta name="theme-color" content="#f7f5e4">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f7f5e4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161614" media="(prefers-color-scheme: dark)">
 ${FONTS}
 <style>${CSS}${extraCss}</style>
 </head>
