@@ -24,7 +24,7 @@ export function withSecurityHeaders(response, { permissionsPolicy } = {}) {
     h.set('strict-transport-security', `${h.get('strict-transport-security')}; includeSubDomains`);
   }
   const csp = h.get('content-security-policy');
-  if (!csp) h.set('content-security-policy', "frame-ancestors 'self'");
-  else if (!/(^|;)\s*frame-ancestors\b/i.test(csp)) h.set('content-security-policy', `${csp.replace(/;\s*$/, '')}; frame-ancestors 'self'`);
+  if (!csp) h.set('content-security-policy', "frame-ancestors 'self' https://analytics.flisk.si");
+  else if (!/(^|;)\s*frame-ancestors\b/i.test(csp)) h.set('content-security-policy', `${csp.replace(/;\s*$/, '')}; frame-ancestors 'self' https://analytics.flisk.si`);
   return out;
 }
