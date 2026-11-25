@@ -3,7 +3,7 @@ import { PROVIDERS } from './providers/index.js';
 import { createPod, publicUrl, readFile, runPod, stopPod, priceTable, writeFile, DEFAULT_SIZE } from './route.js';
 import { handleMcp } from './mcp.js';
 import { bearer, githubAuthorizeUrl, githubLogin } from './auth.js';
-import { esc, homePage, messagePage, shell } from './page.js';
+import { esc, homePage, messagePage, notFoundPage, shell } from './page.js';
 import { LANGS, langCookie, pickLang } from './i18n.js';
 import { docsPage, skillMd, DOCS_CSS } from './docs.js';
 import { pricingPage, PRICING_CSS } from './pricing.js';
@@ -350,12 +350,12 @@ async function handleCore(request, env = {}, opts = {}) {
         return cabinet(env, origin, login, 'keys', providers, { keys: done.list, error: done.error });
       }
     }
-    return html(messagePage('Page not found', 'Nothing lives at this address.'), 404);
+    return html(notFoundPage(), 404);
   }
 
   // ---- API and MCP
   const isApi = path === '/mcp' || path.startsWith('/v1/');
-  if (!isApi) return html(messagePage('Page not found', 'Nothing lives at this address.'), 404);
+  if (!isApi) return html(notFoundPage(), 404);
 
   // A trusted site (chat.flisk.si) signs users in itself and calls the API for them: the shared secret plus
   // X-On-Behalf-Of: <GitHub login>. Such a call is full access for that login and may also connect provider keys.

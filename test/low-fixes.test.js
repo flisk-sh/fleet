@@ -39,10 +39,15 @@ describe('touch targets', () => {
   });
 });
 
-describe('error page title', () => {
-  test('a 404 says which site it is from', async () => {
+describe('not-found page', () => {
+  test('a 404 identifies fleet, links home and stays under 4 KB without the site shell', async () => {
     const r = await handle(new Request(`${ORIGIN}/nothing-here`), {}, { providers: PROVIDERS });
     expect(r.status).toBe(404);
-    expect(await r.text()).toContain('<title>Page not found · fleet</title>');
+    const html = await r.text();
+    expect(html).toContain('<title>Page not found · fleet</title>');
+    expect(html).toContain('<meta name="robots" content="noindex">');
+    expect(html).toMatch(/<a\b[^>]*href="\/"[^>]*>Back home<\/a>/);
+    expect(new TextEncoder().encode(html).byteLength).toBeLessThan(4096);
+    expect(html).not.toMatch(/<(?:footer|script)\b|fonts\.googleapis\.com|data:image\//);
   });
 });

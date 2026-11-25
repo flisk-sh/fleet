@@ -414,3 +414,32 @@ ${rows}
 export function messagePage(title, text) {
   return shell(`${title} · fleet`,`<section class="msg"><p class="m label">fleet</p><h1 style="font-size:clamp(40px,6vw,72px)">${esc(title)}</h1><p class="lede">${esc(text)}</p><div class="cta-row" style="margin-top:24px"><a class="b" href="/">Back home</a></div></section>`);
 }
+
+export function notFoundPage() {
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Page not found · fleet</title>
+${ICON_TAGS}
+<style>
+:root{color-scheme:light dark;--paper:#f7f5e4;--ink:#171715}
+@media (prefers-color-scheme:dark){:root{--paper:#161614;--ink:#f1efe8}}
+body{margin:0;background:var(--paper);color:var(--ink);font:1rem/1.5 'Segoe UI',sans-serif}
+main{max-width:52rem;margin:0 auto;padding:clamp(6rem,14vw,10rem) 1.5rem 2rem}
+h1{margin:0 0 1.25rem;font:bold clamp(2.5rem,7vw,4.5rem)/1.05 Georgia,serif}
+.home{display:inline-block;padding:.5rem 0;color:inherit;text-underline-offset:.2em}
+${SKIP_CSS}
+</style>
+</head>
+<body>
+${SKIP_LINK}
+<main id="main" tabindex="-1">
+<h1>Page not found</h1>
+<a class="home" href="/">Back home</a>
+</main>
+</body>
+</html>`;
+}
