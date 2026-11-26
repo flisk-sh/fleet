@@ -213,7 +213,14 @@ async function handleCore(request, env = {}, opts = {}) {
   // The agent race as a recorded real run: public, no sign-in, no provider key. The live race is /console/demo.
   if (request.method === 'GET' && path === '/demo') return html(demoPage({ replay: true }), 200, { 'cache-control': 'public, max-age=300' });
   if (request.method === 'GET' && path === '/podlytics') {
-    return html(podlyticsPage(podlyticsData(providers, await measured(env))), 200, { 'cache-control': 'public, max-age=300' });
+    // Shared per-colo cache: the in-isolate memo alone let every new isolate re-read up to 5000 rows.
+    const cache = globalThis.caches?.default;
+    const key = new Request(new URL('/podlytics', request.url).href);
+    const cached = cache && (await cache.match(key).catch(() => null));
+    if (cached) return cached;
+    const res = html(podlyticsPage(podlyticsData(providers, await measured(env))), 200, { 'cache-control': 'public, max-age=3600' });
+    if (cache) await cache.put(key, res.clone()).catch(() => {});
+    return res;
   }
   if (request.method === 'GET' && (path === '/SKILL.md' || path === '/skill.md')) {
     return new Response(skillMd(origin), { headers: { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'public, max-age=300', 'access-control-allow-origin': '*' } });
