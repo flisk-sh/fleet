@@ -23,14 +23,29 @@ const DAYS = 30;
 
 const pct = (sorted, p) => (sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p + 0.5))] : null);
 
+// The usage log is read at most once an hour per isolate: the scan is the biggest D1 read on the Worker (free plan: 5M rows a day).
+const MEASURED_TTL = 3600_000;
+const memo = new WeakMap();
+
 // Speed and success per provider and call kind, from the usage log.
 export async function measured(env, now = new Date()) {
   if (!env?.DB) return {};
+  const hit = memo.get(env.DB);
+  if (hit && now - hit.at < MEASURED_TTL && now >= hit.at) return hit.value;
+  const value = await scan(env, now);
+  if (!value) return {}; // D1 failed (limit hit, say): show no stats now, ask again next time
+  memo.set(env.DB, { at: now, value });
+  return value;
+}
+
+async function scan(env, now) {
   const since = new Date(now.getTime() - DAYS * 864e5).toISOString();
-  const { results = [] } = await env.DB.prepare('SELECT provider, kind, status, ms FROM calls WHERE at >= ? AND provider IS NOT NULL ORDER BY n DESC LIMIT 20000')
+  const res = await env.DB.prepare('SELECT provider, kind, status, ms FROM calls WHERE at >= ? AND provider IS NOT NULL ORDER BY at DESC LIMIT 5000')
     .bind(since)
     .all()
-    .catch(() => ({ results: [] }));
+    .catch(() => null);
+  if (!res) return null;
+  const results = res.results || [];
   const out = {};
   for (const r of results) {
     const p = (out[r.provider] ||= {});

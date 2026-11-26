@@ -44,6 +44,9 @@ CREATE TABLE IF NOT EXISTS calls (
 );
 CREATE INDEX IF NOT EXISTS calls_login_at ON calls (login, at);
 CREATE INDEX IF NOT EXISTS calls_login_ref ON calls (login, ref, n);
+-- /podlytics sums the last 30 days over every account. Without this index that query scans the whole table on every visit.
+-- On a live database run once: CREATE INDEX IF NOT EXISTS calls_at ON calls (at, provider, kind, status, ms);
+CREATE INDEX IF NOT EXISTS calls_at ON calls (at, provider, kind, status, ms);
 
 -- Each account's own limits, set in the cabinet. Missing row = the defaults.
 CREATE TABLE IF NOT EXISTS limits (
