@@ -191,7 +191,7 @@ export async function listPodCalls(env, login, id, limit = 100) {
 export const callItem = (c) => ({ at: c.at, tool: c.kind, detail: c.detail ?? null, exitCode: c.exit_code ?? null, status: c.status, ms: c.ms, error: c.error ?? null });
 
 export async function listCalls(env, login, { errorsOnly = false, limit = 200 } = {}) {
-  const sql = `SELECT * FROM calls WHERE login = ?${errorsOnly ? ' AND status >= 400' : ''} ORDER BY n DESC LIMIT ?`;
+  const sql = `SELECT * FROM calls WHERE login = ?${errorsOnly ? ' AND status >= 400' : ''} ORDER BY at DESC, n DESC LIMIT ?`; // walks the calls_login_at index; ORDER BY n alone sorted every row of the account on each visit
   const { results } = await env.DB.prepare(sql).bind(login, limit).all();
   return results;
 }
