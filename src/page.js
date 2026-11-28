@@ -142,7 +142,7 @@ ${SKIP_CSS}
 // marked bar: true in flisk-sh/flisk.si _data/catalog.yml and marks the current site.
 const FLEET_MARK_INNER = "<rect width=\"64\" height=\"64\" rx=\"14\" fill=\"#0b0b0d\"/><rect x=\"10\" y=\"16\" width=\"30\" height=\"6\" rx=\"3\" fill=\"#fbfaf7\" opacity=\".25\"/><rect x=\"10\" y=\"29\" width=\"44\" height=\"6\" rx=\"3\" fill=\"#fbfaf7\" opacity=\".25\"/><rect x=\"10\" y=\"42\" width=\"20\" height=\"6\" rx=\"3\" fill=\"#fbfaf7\" opacity=\".25\"/><rect x=\"42\" y=\"13\" width=\"12\" height=\"12\" rx=\"3\" fill=\"#16a34a\"/><rect x=\"34\" y=\"26\" width=\"12\" height=\"12\" rx=\"3\" fill=\"#16a34a\" opacity=\".6\"/><rect x=\"26\" y=\"39\" width=\"12\" height=\"12\" rx=\"3\" fill=\"#16a34a\" opacity=\".35\"/>";
 export const FLEET_MARK = `<svg class="mark" width="26" height="26" viewBox="0 0 64 64" aria-hidden="true" focusable="false">${FLEET_MARK_INNER}</svg>`;
-export const FLISK_BAR = '<script src="https://flisk.si/assets/bar.js" data-product="Fleet" data-icon="fleet" data-accent="#16a34a" data-free-key data-text="One key and one balance for agent sandboxes." defer></script>';
+export const FLISK_BAR = '<script src="https://flisk.si/assets/bar.js" data-product="Fleet" data-icon="fleet" data-accent="#16a34a" data-free-key data-key-url="/console?section=keys" data-text="One key and one balance for agent sandboxes." defer></script>';
 
 const COPY_JS = `<script>document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',()=>navigator.clipboard.writeText(b.dataset.copy).then(()=>{b.textContent='Copied';setTimeout(()=>{b.textContent='Copy'},1500)})))</script>`;
 
