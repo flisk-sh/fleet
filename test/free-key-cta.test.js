@@ -35,5 +35,7 @@ describe('shared bar key button', () => {
   test('fleet opts in to the free-key pill with data-free-key', () => {
     const html = homePage({ origin: 'https://fleet.flisk.si', prices: [], size: 'small' });
     expect(/<script src="https:\/\/flisk\.si\/assets\/bar\.js"[^>]* data-free-key[ >]/.test(html)).toBe(true);
+    // Fleet hands out its own keys: the pill must stay on fleet, not go to inference.flisk.si.
+    expect(html).toContain('data-key-url="/console?section=keys"');
   });
 });
